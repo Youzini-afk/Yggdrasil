@@ -21,6 +21,10 @@ await client.negotiateHost({
 ```
 
 Negotiation fails if the transport cannot carry the selection; it is never silently ignored.
+HTTP and stdio transports queue top-level Contract Registry diagnostics across concurrent and
+non-diagnostic responses. After a call through an explicit legacy wrapper, use
+`client.drainContractDiagnostics()` to read and clear migration warnings without changing the
+method result.
 
 The generated types come from `docs/spec/v1/schemas/`. Regenerate with:
 

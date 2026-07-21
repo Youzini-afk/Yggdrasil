@@ -10,7 +10,7 @@
 - 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
 - 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、显式 Docker Deploy broker、target/exec/port/proxy 部署原语、ygg-service HTTP/WebSocket 反代、Settings、真实模型端到端、流式 UX、受限 Surface bridge、桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
 - 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
-- Contract V1 是公开平台规范，80 methods + 59 events + 21 top-level = 160 个 schema 全部通过校验，473 conformance cases 通过。
+- Contract V1 是公开平台规范，80 methods + 59 events + 22 top-level = 161 个 schema 全部通过校验，474 conformance cases 通过。
 - 分层迁移已完成前八步：v1 事实漂移修复、Experimental Contract Registry / 显式协商、36 条 owner-namespace canonical/legacy 双栈、SHA-256 object/artifact 基础、EffectReceipt / Change primitives、Protocol Commons 脚手架、独立 package-envelope/component identity、trust 与 composition pin，以及真实 World Bundle 可移植性证明；[`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.md) 剩余一步是把客户端迁到 canonical API，并完成一次真实弃用转换。
 
 下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。

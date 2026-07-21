@@ -29,7 +29,7 @@ Alias 不创建新 handler、principal、permission 或 audit 分支。
 - introduced / deprecated / replacement metadata；
 - 当前实现状态与 streaming 标记。
 
-Registry `0.2.0` 当前发布 36 条 identity alias：
+Registry `0.4.0` 当前发布 36 条 identity alias：
 
 | Canonical | Legacy alias | Owner |
 |---|---|---|
@@ -101,3 +101,34 @@ additive optional 字段：
   全局唯一，并校验 alias 的 canonical target 与 replacement。
 
 Schema、SDK 与 OpenAPI 必须通过生成器更新，不手工修改生成物。
+
+## Deprecated alias 与诊断
+
+Registry `0.4.0` 开始第一个可验证的弃用窗口：
+
+| Legacy alias | Replacement | Replacement maturity | Deprecated in | Supported through |
+|---|---|---|---|---|
+| `kernel.v1.host.info` | `host.info` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+| `kernel.v1.target.list` | `host.target.list` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+
+旧 ID 与 canonical ID 仍进入同一个 handler，method result 完全一致。HTTP RPC、host stdio
+和 subprocess reverse stdio 在调用受跟踪的 Deprecated alias 时，会附加可选的顶层
+`diagnostics` 数组。兼容路由 `GET /kernel/v1/host.info` 通过
+`x-yggdrasil-contract-*` response header 和指向 `/rpc` 的 `Link` 发布同一策略。
+Replacement header 的值是 canonical method ID，而不是 URL；应通过 `POST /rpc` 调用。
+诊断只用于迁移提示，不改变 method payload 或 error mapping；即使 contract selection
+结构错误，只要仍能提取请求的 legacy method ID，也会保留对应诊断。
+
+只读预览：
+
+```sh
+ygg contract migrate PATH --json
+```
+
+默认只迁移已发布 deprecation window 的 alias；增加 `--all-aliases` 才会主动迁移全部
+registered alias，且应先审阅 preview 再加 `--write`。替换要求完整 contract-ID 边界；扫描器
+只接受保守的源码/Markdown 扩展名白名单，并逐项报告不支持、非 UTF-8 或超限文件，以及所有
+被排除的 symlink、构建产物和依赖/vendor 目录。写入使用同目录 staging 与原子替换；若后续
+文件写入失败，会回滚此前已写文件；任何 excluded path 都不会被跟随。Web 是第一个以
+`--all-aliases` 完成迁移的真实客户端，
+其 protocol client、surface bridge、bundle resolver、测试与说明文档现已使用 canonical ID。

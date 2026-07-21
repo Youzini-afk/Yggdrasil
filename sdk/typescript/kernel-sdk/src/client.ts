@@ -1,4 +1,4 @@
-import type { ContractSelection, HostInfo } from "./types";
+import type { ContractDiagnostic, ContractSelection, HostInfo, ProtocolResponse } from "./types";
 
 export interface KernelTransport {
   invoke(method: string, params: unknown): Promise<unknown>;
@@ -8,6 +8,7 @@ export interface KernelTransport {
     contract: ContractSelection,
   ): Promise<unknown>;
   invokeStream(method: string, params: unknown): AsyncIterable<unknown>;
+  drainContractDiagnostics?(): ContractDiagnostic[];
   close?(): Promise<void>;
 }
 
@@ -36,10 +37,15 @@ export class KernelClient {
   clearContractSelection(): void {
     this.selectedContract = undefined;
   }
+
+  drainContractDiagnostics(): ContractDiagnostic[] {
+    return this.transport.drainContractDiagnostics?.() ?? [];
+  }
 }
 
 export function fromHttpRpc(url: string): KernelClient {
   let nextId = 1;
+  let diagnostics: ContractDiagnostic[] = [];
   const transport: KernelTransport = {
     async invoke(method: string, params: unknown): Promise<unknown> {
       const response = await fetch(url, {
@@ -50,7 +56,8 @@ export function fromHttpRpc(url: string): KernelClient {
       if (!response.ok) {
         throw new Error(`Yggdrasil RPC ${method} failed with HTTP ${response.status}`);
       }
-      const envelope = (await response.json()) as { result?: unknown; error?: unknown };
+      const envelope = (await response.json()) as ProtocolResponse;
+      diagnostics.push(...(envelope.diagnostics ?? []));
       if (envelope.error !== undefined) {
         throw new Error(`Yggdrasil RPC ${method} failed: ${JSON.stringify(envelope.error)}`);
       }
@@ -69,7 +76,8 @@ export function fromHttpRpc(url: string): KernelClient {
       if (!response.ok) {
         throw new Error(`Yggdrasil RPC ${method} failed with HTTP ${response.status}`);
       }
-      const envelope = (await response.json()) as { result?: unknown; error?: unknown };
+      const envelope = (await response.json()) as ProtocolResponse;
+      diagnostics.push(...(envelope.diagnostics ?? []));
       if (envelope.error !== undefined) {
         throw new Error(`Yggdrasil RPC ${method} failed: ${JSON.stringify(envelope.error)}`);
       }
@@ -78,6 +86,11 @@ export function fromHttpRpc(url: string): KernelClient {
     async *invokeStream(method: string, params: unknown): AsyncIterable<unknown> {
       yield await this.invoke(method, params);
     },
+    drainContractDiagnostics(): ContractDiagnostic[] {
+      const drained = diagnostics;
+      diagnostics = [];
+      return drained;
+    },
   };
   return new KernelClient(transport);
 }
@@ -85,6 +98,7 @@ export function fromHttpRpc(url: string): KernelClient {
 export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
   let nextId = 1;
   let buffer = "";
+  let diagnostics: ContractDiagnostic[] = [];
   const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 
   stream.on("data", (chunk: Buffer | string) => {
@@ -95,12 +109,13 @@ export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
       const line = buffer.slice(0, newline).trim();
       buffer = buffer.slice(newline + 1);
       if (line.length === 0) continue;
-      const message = JSON.parse(line) as { id?: string | number; result?: unknown; error?: unknown };
+      const message = JSON.parse(line) as ProtocolResponse;
       if (message.id === undefined) continue;
       const responseId = String(message.id);
       const waiter = pending.get(responseId);
       if (!waiter) continue;
       pending.delete(responseId);
+      diagnostics.push(...(message.diagnostics ?? []));
       if (message.error !== undefined) {
         waiter.reject(new Error(JSON.stringify(message.error)));
       } else {
@@ -132,6 +147,11 @@ export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
     },
     async *invokeStream(method: string, params: unknown): AsyncIterable<unknown> {
       yield await this.invoke(method, params);
+    },
+    drainContractDiagnostics(): ContractDiagnostic[] {
+      const drained = diagnostics;
+      diagnostics = [];
+      return drained;
     },
     async close(): Promise<void> {
       stream.end();

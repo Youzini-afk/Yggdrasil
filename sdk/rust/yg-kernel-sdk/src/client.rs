@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 
-use crate::types::{ContractSelection, HostInfo};
+use crate::types::{ContractDiagnostic, ContractSelection, HostInfo};
 
 #[async_trait]
 pub trait KernelTransport: Send + Sync {
@@ -23,6 +23,10 @@ pub trait KernelTransport: Send + Sync {
         method: &str,
         params: serde_json::Value,
     ) -> Box<dyn Stream<Item = Result<serde_json::Value>> + Unpin + Send>;
+
+    fn drain_contract_diagnostics(&self) -> Vec<ContractDiagnostic> {
+        Vec::new()
+    }
 }
 
 pub struct KernelClient {
@@ -65,5 +69,9 @@ impl KernelClient {
 
     pub fn clear_contract_selection(&mut self) {
         self.contract = None;
+    }
+
+    pub fn drain_contract_diagnostics(&self) -> Vec<ContractDiagnostic> {
+        self.transport.drain_contract_diagnostics()
     }
 }

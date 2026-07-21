@@ -219,12 +219,17 @@ pub(super) fn surfaces_cases() -> Vec<ConformanceCase> {
         // --- surfaces ---
         c!(
             "surface.contribution_list",
-            ["surface"],
+            ["surface", "shell:ygg.shell.default/v1"],
             crate::conformance::surfaces::contribution_list
         ),
         c!(
             "surface.shell_descriptor_metadata_validation",
-            ["surface", "manifest", "package"],
+            [
+                "surface",
+                "manifest",
+                "package",
+                "shell:ygg.shell.default/v1"
+            ],
             crate::conformance::surfaces::shell_descriptor_metadata_validation
         ),
     ]
@@ -320,32 +325,54 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
         ),
         c!(
             "protocol.commons_advertised",
-            ["protocol", "commons", "registry"],
+            ["protocol", "commons", "registry", "protocol:registry"],
             crate::conformance::protocol::protocol_commons_advertised
         ),
         c!(
             "protocol.major_mismatch_rejected",
-            ["protocol", "commons", "version", "compatibility"],
+            [
+                "protocol",
+                "commons",
+                "version",
+                "compatibility",
+                "protocol:ygg.change"
+            ],
             crate::conformance::protocol::protocol_major_mismatch_rejected
         ),
         c!(
             "protocol.legacy_adapter_is_explicit",
-            ["protocol", "commons", "legacy", "adapter"],
+            [
+                "protocol",
+                "commons",
+                "legacy",
+                "adapter",
+                "protocol:ygg.change"
+            ],
             crate::conformance::protocol::protocol_legacy_adapter_is_explicit
         ),
         c!(
             "protocol.reports_are_separate",
-            ["protocol", "commons", "conformance"],
+            ["protocol", "commons", "conformance", "protocol:ygg.change"],
             crate::conformance::protocol::protocol_and_implementation_reports_are_separate
         ),
         c!(
             "protocol.alias_equivalent",
-            ["protocol", "legacy", "alias"],
+            ["protocol", "legacy", "alias", "protocol:ygg.contract"],
             crate::conformance::protocol::alias_equivalent
         ),
         c!(
+            "protocol.deprecated_alias_diagnostic",
+            ["protocol", "legacy", "deprecation", "protocol:ygg.contract"],
+            crate::conformance::protocol::deprecated_alias_diagnostic
+        ),
+        c!(
             "protocol.layered_namespace_smoke",
-            ["protocol", "canonical", "cli-smoke"],
+            [
+                "protocol",
+                "canonical",
+                "cli-smoke",
+                "protocol:ygg.contract"
+            ],
             crate::conformance::protocol::layered_namespace_smoke
         ),
         c!(
@@ -440,27 +467,57 @@ pub(super) fn world_bundle_cases() -> Vec<ConformanceCase> {
     vec![
         c!(
             "world_bundle.reference_closure",
-            ["protocol", "portability", "world_bundle"],
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "protocol:ygg.world.bundle"
+            ],
             crate::conformance::world_bundle::reference_closure
         ),
         c!(
             "world_bundle.cross_host_import",
-            ["protocol", "portability", "world_bundle", "sqlite"],
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "sqlite",
+                "protocol:ygg.world.bundle"
+            ],
             crate::conformance::world_bundle::cross_host_import
         ),
         c!(
             "world_bundle.offline_replay",
-            ["protocol", "portability", "world_bundle", "receipt"],
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "receipt",
+                "protocol:ygg.world.bundle"
+            ],
             crate::conformance::world_bundle::offline_replay
         ),
         c!(
             "world_bundle.reexecution_branch",
-            ["protocol", "portability", "world_bundle", "branch"],
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "branch",
+                "protocol:ygg.world.bundle"
+            ],
             crate::conformance::world_bundle::reexecution_branch
         ),
         c!(
             "world_bundle.shell_independence",
-            ["protocol", "portability", "world_bundle", "cli-smoke"],
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "cli-smoke",
+                "protocol:ygg.world.bundle",
+                "shell:ygg.shell.default/v1"
+            ],
             crate::conformance::world_bundle::shell_independence
         ),
     ]

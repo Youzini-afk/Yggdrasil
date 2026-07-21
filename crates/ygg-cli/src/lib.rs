@@ -6,12 +6,12 @@ pub mod schema_export;
 pub mod templates;
 
 use cli::{
-    CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, HostCommand,
-    ManifestCommand, PackageCommand, PerfCommand, WorldBundleCommand,
+    CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, ContractCommand,
+    HostCommand, ManifestCommand, PackageCommand, PerfCommand, WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
-    capability, composition, conformance_package, demo, host, install as install_command,
+    capability, composition, conformance_package, contract, demo, host, install as install_command,
     list_installed, lockfile, manifest, package, perf, project, uninstall, update, world_bundle,
 };
 
@@ -135,6 +135,14 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                 data_dir,
                 json,
             } => world_bundle::import(path, data_dir, json).await,
+        },
+        Command::Contract { command } => match command {
+            ContractCommand::Migrate {
+                path,
+                write,
+                json,
+                all_aliases,
+            } => contract::migrate(path, write, json, all_aliases).await,
         },
     }
 }

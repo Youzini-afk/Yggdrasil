@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 use yg_kernel_sdk::{
-    AppendEventRequest, AssetGetParams, ContractOwnerLayer, ContractSelection,
+    AppendEventRequest, AssetGetParams, ContractDiagnostic, ContractOwnerLayer, ContractSelection,
     ContractVersionRequirement, EmptyParams, KernelClient, KernelTransport, ProtocolDescriptor,
     ProtocolSelection, KERNEL_V1_ASSET_PUT,
 };
@@ -77,6 +77,7 @@ fn generated_modules_are_exported_from_the_crate_root() {
     let _ = std::mem::size_of::<ContractSelection>();
     let _ = std::mem::size_of::<ProtocolSelection>();
     let _ = std::mem::size_of::<ProtocolDescriptor>();
+    let _ = std::mem::size_of::<ContractDiagnostic>();
     let _ = generated_method_is_available;
     let _ = canonical_and_legacy_methods_are_available;
 }

@@ -320,6 +320,14 @@ A legacy method enters Deprecated only when:
 - the support window is documented;
 - at least one real project has migrated.
 
+Phase 9A implementation result (2026-07-21): Contract Registry `0.4.0` promotes `host.info` and
+`host.target.list` to Candidate, marks `kernel.v1.host.info` and `kernel.v1.target.list` Deprecated,
+and publishes a support window through registry `0.5.0`. Canonical/legacy result equivalence remains
+covered, every public transport emits additive diagnostics, generated SDKs expose canonical methods
+plus explicit legacy wrappers, and `ygg contract migrate` provides preview/write modes. The Web
+client is the first real project migrated: 74 occurrences across its protocol client, Surface bridge,
+bundle resolver, tests, and guide now use registered canonical IDs.
+
 After entering Legacy Adapter, an old method accepts only security fixes and data-reading compatibility, not new field semantics.
 
 ## Conformance reorganization

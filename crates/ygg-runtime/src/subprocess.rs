@@ -23,7 +23,10 @@ use ygg_core::{
     PackageManifest, PermissionSet, SubprocessTransport,
 };
 
-use crate::{EventStore, KernelMethod, ProtocolContext, ProtocolError, Runtime};
+use crate::{
+    contract_diagnostics, resolve_contract_method, EventStore, KernelMethod, ProtocolContext,
+    ProtocolError, Runtime,
+};
 
 #[derive(Default)]
 pub struct SubprocessSupervisor {
@@ -360,10 +363,9 @@ impl SubprocessHandle {
                 .await
                 .insert(request_id.clone());
 
-            let kernel_method: Result<KernelMethod, _> = method.parse();
-            let Ok(kernel_method) = kernel_method else {
+            let Ok(resolved) = resolve_contract_method(method) else {
                 let error = ProtocolError::invalid_request(format!(
-                    "protocol method '{}' is not a known kernel method",
+                    "protocol method '{}' is not a known contract method",
                     method
                 ));
                 let _ = self
@@ -375,6 +377,7 @@ impl SubprocessHandle {
                     .remove(&request_id);
                 continue;
             };
+            let kernel_method = resolved.method;
 
             let stream_events = if kernel_method.streaming() {
                 Some(runtime.store().subscribe())
@@ -589,6 +592,20 @@ pub(crate) fn id_to_key(id: &Value) -> String {
     }
 }
 
+fn reverse_response_with_diagnostics(method: &str, mut response: Value) -> Value {
+    let diagnostics = contract_diagnostics(method);
+    if !diagnostics.is_empty() {
+        response
+            .as_object_mut()
+            .expect("reverse response is always a JSON object")
+            .insert(
+                "diagnostics".to_string(),
+                serde_json::to_value(diagnostics).expect("contract diagnostics serialize"),
+            );
+    }
+    response
+}
+
 /// Dispatch one reverse contract JSON-RPC frame from a subprocess child.
 /// The caller principal is always locked to `package_id`; any package_id in
 /// params is treated as untrusted request data by downstream dispatch.
@@ -613,18 +630,21 @@ where
         Some(value) => match serde_json::from_value::<crate::ContractSelection>(value.clone()) {
             Ok(contract) => Some(contract),
             Err(error) => {
-                return json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "error": ProtocolError::invalid_request(format!("invalid contract selection: {error}")),
-                });
+                return reverse_response_with_diagnostics(
+                    method,
+                    json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "error": ProtocolError::invalid_request(format!("invalid contract selection: {error}")),
+                    }),
+                );
             }
         },
         None => None,
     };
     let mut context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
     context.session_id = session_id;
-    match runtime
+    let response = match runtime
         .call_subprocess_protocol_negotiated(
             &context,
             method,
@@ -635,7 +655,8 @@ where
     {
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
         Err(error) => json!({"jsonrpc": "2.0", "id": id, "error": error}),
-    }
+    };
+    reverse_response_with_diagnostics(method, response)
 }
 
 fn resolve_subprocess_program(program: &str) -> String {
@@ -674,6 +695,12 @@ mod tests {
         )
         .await;
         assert_eq!(canonical["result"], legacy["result"]);
+        assert!(canonical.get("diagnostics").is_none());
+        assert_eq!(
+            legacy["diagnostics"][0]["code"],
+            "ygg.contract.alias.deprecated"
+        );
+        assert_eq!(legacy["diagnostics"][0]["replacement"], "host.info");
     }
 
     #[tokio::test]
@@ -702,5 +729,26 @@ mod tests {
             "kernel/v1/error/unsupported_contract"
         );
         assert!(response.get("result").is_none());
+
+        let malformed = dispatch_reverse_kernel_frame(
+            &runtime,
+            "example/reverse",
+            None,
+            json!({
+                "id": "malformed",
+                "method": "kernel.v1.host.info",
+                "params": {},
+                "contract": "bad"
+            }),
+        )
+        .await;
+        assert_eq!(
+            malformed["error"]["code"],
+            "kernel/v1/error/invalid_request"
+        );
+        assert_eq!(
+            malformed["diagnostics"][0]["code"],
+            "ygg.contract.alias.deprecated"
+        );
     }
 }

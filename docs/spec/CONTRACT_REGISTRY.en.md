@@ -30,7 +30,7 @@ Each `ContractMethod` advertises:
 - introduced, deprecated, and replacement metadata;
 - current implementation status and streaming metadata.
 
-Registry `0.2.0` currently publishes 36 identity aliases:
+Registry `0.4.0` currently publishes 36 identity aliases:
 
 | Canonical | Legacy alias | Owner |
 |---|---|---|
@@ -105,3 +105,35 @@ The generator reads `x-yggdrasil-contract` metadata from every method schema:
   OpenAPI operation IDs, and validates each alias target and replacement.
 
 Schemas, SDKs, and OpenAPI are regenerated together; generated artifacts are not edited manually.
+
+## Deprecated aliases and diagnostics
+
+Registry `0.4.0` begins the first measured deprecation window:
+
+| Legacy alias | Replacement | Replacement maturity | Deprecated in | Supported through |
+|---|---|---|---|---|
+| `kernel.v1.host.info` | `host.info` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+| `kernel.v1.target.list` | `host.target.list` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+
+The old and canonical IDs still reach the same handler and return the same method result. HTTP RPC,
+host stdio, and subprocess reverse stdio add an optional top-level `diagnostics` array when a
+tracked deprecated alias is requested. The ad-hoc `GET /kernel/v1/host.info` route exposes the same
+policy through `x-yggdrasil-contract-*` response headers and a `Link` to `/rpc`. The replacement
+header value is a canonical method ID, not a URL; invoke it with `POST /rpc`. Diagnostics are
+advisory and do not alter the method payload or error mapping, including when contract selection is
+structurally invalid but the requested legacy method ID can still be recovered.
+
+Run a read-only migration preview with:
+
+```sh
+ygg contract migrate PATH --json
+```
+
+By default the tool migrates only aliases with a published deprecation window. Add `--all-aliases`
+to opt into proactive migration of every registered alias, and add `--write` only after reviewing the
+preview. Replacements require whole contract-ID boundaries; the scanner accepts a conservative
+source/Markdown extension allowlist and reports every unsupported, non-UTF-8, or oversized file it
+skips, plus every excluded symlink or build/dependency/vendor directory. Writes use same-directory
+staging plus atomic replacement, and previously applied files are rolled back if a later write fails.
+Excluded paths are never followed. Web is the first real client migrated with `--all-aliases`: its protocol client, surface
+bridge, bundle resolver, tests, and guide now use canonical IDs.

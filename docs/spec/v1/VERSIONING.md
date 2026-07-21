@@ -2,7 +2,7 @@
 
 ## 方法命名空间
 
-所有 v1 内核方法都使用 `kernel.v1.*`。`kernel.v1.*` 与未来的 `kernel.v2.*` 是并行、互不兼容的命名空间；不会在 v1 方法名下引入破坏性语义变更，也不会为旧的 `kernel.*` 名称保留兼容层。
+历史 v1 schema 文件继续保留 `kernel.v1.*` 名称。Contract Registry 可以发布分层 canonical wire ID（例如 `host.target.list`），并把相应 `kernel.v1.*` ID 作为显式 compatibility alias 保留。两个 ID 在唯一解析边界进入同一 handler，并保持完全相同的 v1 payload 语义。未来破坏性 wire contract 使用单独协商的 major version，不覆盖 v1。
 
 ## Schema 规则
 
@@ -20,4 +20,4 @@
 
 ## 协商
 
-包通过 `kernel.v1.host.info` 读取 `protocol_version`、方法列表、状态和传输列表。如果包需要 v1 方法，应检查该方法是否存在且状态不是 `planned`；如果未来需要 v2，应调用 `kernel.v2.host.info` 或读取 host 明确发布的 v2 方法列表。
+新客户端调用 canonical `host.info`，除历史 method/status 字段外，还应读取 `contract_registry_version`、`contract_methods`、`aliases`、profiles 与 protocol descriptors。旧客户端仍可调用 `kernel.v1.host.info`；Registry `0.4.0` 将该 alias 标记为 Deprecated，并支持到 `ygg.contract.registry@0.5.0`，同时返回迁移诊断。需要某个方法的客户端应显式选择受支持的 contract/profile、优先使用 host 发布的 canonical ID，并在版本不支持时拒绝继续，而不是猜测或静默降级。

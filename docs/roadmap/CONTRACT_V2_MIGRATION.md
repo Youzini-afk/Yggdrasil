@@ -320,6 +320,14 @@ WorldBundle
 - 支持窗口已写明；
 - 至少一个真实项目已完成迁移。
 
+Phase 9A 实施结果（2026-07-21）：Contract Registry `0.4.0` 将 `host.info` 与
+`host.target.list` 提升为 Candidate，将 `kernel.v1.host.info` 与
+`kernel.v1.target.list` 标记为 Deprecated，并把支持窗口明确到 registry `0.5.0`。
+Canonical/legacy result 等价性继续由 conformance 覆盖，所有公开 transport 都附加 additive
+诊断；生成 SDK 同时发布 canonical 方法与显式 legacy wrapper，`ygg contract migrate`
+提供 preview/write 模式。Web 成为第一个完成迁移的真实项目：protocol client、Surface bridge、
+bundle resolver、测试和 guide 中共 74 处调用已切换到 registry 中的 canonical ID。
+
 进入 Legacy Adapter 后，旧方法只接受安全修复和数据读取兼容，不再增加新字段语义。
 
 ## Conformance 重组

@@ -137,6 +137,24 @@ pub enum WorldBundleCommand {
     },
 }
 
+#[derive(Debug, Subcommand)]
+pub enum ContractCommand {
+    /// Find registered legacy method IDs and optionally rewrite them to canonical IDs.
+    Migrate {
+        /// Source file or directory to inspect.
+        path: PathBuf,
+        /// Apply replacements. Without this flag the command is a read-only preview.
+        #[arg(long)]
+        write: bool,
+        /// Emit a machine-readable migration report.
+        #[arg(long)]
+        json: bool,
+        /// Proactively migrate every registered alias, including aliases not yet Deprecated.
+        #[arg(long)]
+        all_aliases: bool,
+    },
+}
+
 #[derive(Debug, Args)]
 pub struct ConformanceProtocolArgs {
     /// Stable Protocol Commons id, for example ygg.change.
@@ -237,6 +255,11 @@ pub(crate) enum Command {
     WorldBundle {
         #[command(subcommand)]
         command: WorldBundleCommand,
+    },
+    /// Inspect or migrate legacy Contract Registry method IDs.
+    Contract {
+        #[command(subcommand)]
+        command: ContractCommand,
     },
 }
 
@@ -639,6 +662,28 @@ mod tests {
         };
         assert_eq!(path, PathBuf::from("portable-world.json"));
         assert!(json);
+    }
+
+    #[test]
+    fn parses_contract_migration_preview() {
+        let cli = Cli::try_parse_from(["ygg", "contract", "migrate", "clients/web", "--json"])
+            .expect("parse contract migration command");
+        let Command::Contract {
+            command:
+                ContractCommand::Migrate {
+                    path,
+                    write,
+                    json,
+                    all_aliases,
+                },
+        } = cli.command
+        else {
+            panic!("expected contract migration command");
+        };
+        assert_eq!(path, PathBuf::from("clients/web"));
+        assert!(!write);
+        assert!(json);
+        assert!(!all_aliases);
     }
 
     #[test]

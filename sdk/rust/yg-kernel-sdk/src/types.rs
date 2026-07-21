@@ -2674,6 +2674,79 @@ pub struct ContractAlias {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub support_until: ::std::option::Option<::std::string::String>,
 }
+///`ContractDiagnostic`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ContractDiagnostic",
+///  "type": "object",
+///  "required": [
+///    "canonical_id",
+///    "code",
+///    "maturity",
+///    "message",
+///    "requested_id",
+///    "severity"
+///  ],
+///  "properties": {
+///    "canonical_id": {
+///      "type": "string"
+///    },
+///    "code": {
+///      "type": "string"
+///    },
+///    "deprecated_in": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "maturity": {
+///      "$ref": "#/definitions/ContractMaturity"
+///    },
+///    "message": {
+///      "type": "string"
+///    },
+///    "replacement": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "requested_id": {
+///      "type": "string"
+///    },
+///    "severity": {
+///      "type": "string"
+///    },
+///    "support_until": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ContractDiagnostic {
+    pub canonical_id: ::std::string::String,
+    pub code: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub deprecated_in: ::std::option::Option<::std::string::String>,
+    pub maturity: ContractMaturity,
+    pub message: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub replacement: ::std::option::Option<::std::string::String>,
+    pub requested_id: ::std::string::String,
+    pub severity: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub support_until: ::std::option::Option<::std::string::String>,
+}
 ///`ContractLayerInfo`
 ///
 /// <details><summary>JSON schema</summary>
@@ -15728,6 +15801,40 @@ pub struct ProtocolDocumentReference {
     pub media_type: ::std::string::String,
     pub uri: ::std::string::String,
 }
+///`ProtocolError`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolError",
+///  "type": "object",
+///  "required": [
+///    "code",
+///    "message"
+///  ],
+///  "properties": {
+///    "code": {
+///      "type": "string"
+///    },
+///    "details": {
+///      "default": null
+///    },
+///    "message": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolError {
+    pub code: ::std::string::String,
+    #[serde(default = "defaults::protocol_error_details")]
+    pub details: ::serde_json::Value,
+    pub message: ::std::string::String,
+}
 ///`ProtocolImplementationClaim`
 ///
 /// <details><summary>JSON schema</summary>
@@ -16261,6 +16368,54 @@ pub struct ProtocolProfilePin {
     pub profile: ::std::string::String,
     pub protocol_id: ::std::string::String,
     pub version: ::std::string::String,
+}
+///`ProtocolResponse`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolResponse",
+///  "type": "object",
+///  "required": [
+///    "id"
+///  ],
+///  "properties": {
+///    "diagnostics": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ContractDiagnostic"
+///      }
+///    },
+///    "error": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProtocolError"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "result": true
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolResponse {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub diagnostics: ::std::vec::Vec<ContractDiagnostic>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<ProtocolError>,
+    pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub result: ::std::option::Option<::serde_json::Value>,
 }
 ///`ProtocolSchemaKind`
 ///
@@ -20704,6 +20859,9 @@ pub mod defaults {
     }
     pub(super) fn proposal_record_status() -> super::ProposalStatus {
         super::ProposalStatus::Created
+    }
+    pub(super) fn protocol_error_details() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
     pub(super) fn proxy_route_register_request_protocol() -> super::ProxyProtocol {
         super::ProxyProtocol::Http

@@ -17,7 +17,7 @@
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md) — v1 事件类型 registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.md) — v1 错误码
 - [`v1/VERSIONING.md`](v1/VERSIONING.md) — v1 additive-only 版本策略
-- [`v1/schemas/`](v1/schemas/) — 160 个 JSON Schema（80 methods + 59 events + 21 top-level），SDK 的单一可信源
+- [`v1/schemas/`](v1/schemas/) — 161 个 JSON Schema（80 methods + 59 events + 22 top-level），SDK 的单一可信源
 
 跑全套 conformance：
 

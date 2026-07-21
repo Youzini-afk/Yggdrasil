@@ -207,74 +207,92 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   }
 
   if (body?.method === "kernel.v1.target.list") {
+    return Response.json({
+      id: body.id,
+      result: [],
+      diagnostics: [{
+        code: "ygg.contract.alias.deprecated",
+        severity: "warning",
+        requested_id: "kernel.v1.target.list",
+        canonical_id: "host.target.list",
+        maturity: "deprecated",
+        message: "migrate to host.target.list",
+        deprecated_in: "ygg.contract.registry@0.4.0",
+        replacement: "host.target.list",
+        support_until: "ygg.contract.registry@0.5.0",
+      }],
+    });
+  }
+
+  if (body?.method === "host.target.list") {
     return Response.json({ id: body.id, result: [] });
   }
 
-  if (body?.method === "kernel.v1.target.status") {
+  if (body?.method === "host.target.status") {
     return Response.json({ id: body.id, result: { id: body.params.target_id, name: "Local", reachability: "local_host", status: "available" } });
   }
 
-  if (body?.method === "kernel.v1.exec.list") {
+  if (body?.method === "host.exec.list") {
     return Response.json({ id: body.id, result: { executions: [] } });
   }
 
-  if (body?.method === "kernel.v1.exec.status") {
+  if (body?.method === "host.exec.status") {
     return Response.json({ id: body.id, result: { status: { exec_id: body.params.exec_id, target_id: "local", kind: "running", ready: true } } });
   }
 
-  if (body?.method === "kernel.v1.exec.logs") {
+  if (body?.method === "host.exec.logs") {
     return Response.json({ id: body.id, result: { exec_id: body.params.exec_id, lines: [] } });
   }
 
-  if (body?.method === "kernel.v1.port.list") {
+  if (body?.method === "host.port.list") {
     return Response.json({ id: body.id, result: [] });
   }
 
-  if (body?.method === "kernel.v1.port.status") {
+  if (body?.method === "host.port.status") {
     return Response.json({ id: body.id, result: { id: body.params.lease_id, target_id: "local", port_name: "web", host: "127.0.0.1", port: 3000, protocol: "tcp", status: "active" } });
   }
 
-  if (body?.method === "kernel.v1.port.lease") {
+  if (body?.method === "host.port.lease") {
     return Response.json({ id: body.id, result: { lease: { id: "lease-1", target_id: body.params.target_id, port_name: body.params.port_name, host: "127.0.0.1", port: 39123, protocol: body.params.protocol ?? "tcp", status: "active" } } });
   }
 
-  if (body?.method === "kernel.v1.port.release") {
+  if (body?.method === "host.port.release") {
     return Response.json({ id: body.id, result: { id: body.params.lease_id, target_id: "local", port_name: "web", host: "127.0.0.1", port: 39123, protocol: "tcp", status: "released" } });
   }
 
-  if (body?.method === "kernel.v1.proxy.list") {
+  if (body?.method === "host.proxy.list") {
     return Response.json({ id: body.id, result: [] });
   }
 
-  if (body?.method === "kernel.v1.proxy.status") {
+  if (body?.method === "host.proxy.status") {
     return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", ready: true, upstream: { port_lease_id: "lease-1", port_name: "web" } } });
   }
 
-  if (body?.method === "kernel.v1.proxy.register") {
+  if (body?.method === "host.proxy.register") {
     return Response.json({ id: body.id, result: { route: { id: body.params.route_id ?? "route-1", protocol: body.params.protocol ?? "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", ready: false, upstream: body.params.upstream } } });
   }
 
-  if (body?.method === "kernel.v1.proxy.unregister") {
+  if (body?.method === "host.proxy.unregister") {
     return Response.json({ id: body.id, result: { id: body.params.route_id, protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "removed", upstream: { port_lease_id: "lease-1", port_name: "web" } } });
   }
 
-  if (body?.method === "kernel.v1.project.start") {
+  if (body?.method === "host.project.start") {
     return Response.json({ id: body.id, result: { project_id: body.params.project_id, previous_state: "installed", new_state: "running", session_id: "session-1", already_running: false } });
   }
 
-  if (body?.method === "kernel.v1.project.list") {
+  if (body?.method === "host.project.list") {
     return Response.json({ id: body.id, result: { projects: [] } });
   }
 
-  if (body?.method === "kernel.v1.projection.list" || body?.method === "kernel.v1.proposal.list" || body?.method === "kernel.v1.surface.contribution.list") {
+  if (body?.method === "projection.list" || body?.method === "change.proposal.list" || body?.method === "shell.contribution.list") {
     return Response.json({ id: body.id, result: [] });
   }
 
-  if (body?.method === "kernel.v1.surface.contribution.describe") {
+  if (body?.method === "shell.contribution.describe") {
     return Response.json({ id: body.id, result: { package_id: "official/test", entry_kind: "in_process", package_state: "loaded", surface: { id: body.params.surface_id, slot: "experience_entry", kind: "module", source: "bundle.mjs" } } });
   }
 
-  if (body?.method === "kernel.v1.surface.resolve_bundle") {
+  if (body?.method === "host.surface.bundle.resolve") {
     return Response.json({ id: body.id, result: { surface_id: body.params.surface_id, bundle_url: "/surface-bundles/test/bundle.mjs", export_name: "default", stylesheets: [], source: "dev_path" } });
   }
 
@@ -341,21 +359,27 @@ await protocolClient.releasePort("lease-1");
 await protocolClient.registerProxy({ route_id: "route-1", protocol: "http", upstream: { port_lease_id: "lease-1", port_name: "web" } });
 await protocolClient.unregisterProxy("route-1");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
-  "kernel.v1.target.list",
-  "kernel.v1.target.status",
-  "kernel.v1.exec.list",
-  "kernel.v1.exec.status",
-  "kernel.v1.exec.logs",
-  "kernel.v1.port.list",
-  "kernel.v1.port.status",
-  "kernel.v1.proxy.list",
-  "kernel.v1.proxy.status",
-  "kernel.v1.port.lease",
-  "kernel.v1.port.release",
-  "kernel.v1.proxy.register",
-  "kernel.v1.proxy.unregister",
+  "host.target.list",
+  "host.target.status",
+  "host.exec.list",
+  "host.exec.status",
+  "host.exec.logs",
+  "host.port.list",
+  "host.port.status",
+  "host.proxy.list",
+  "host.proxy.status",
+  "host.port.lease",
+  "host.port.release",
+  "host.proxy.register",
+  "host.proxy.unregister",
 ]);
 assertDeepEqual((capturedRequests[4] as { params?: Record<string, unknown> }).params, { exec_id: "exec-1", limit: 80 });
+
+capturedRequests.length = 0;
+await protocolClient.call("kernel.v1.target.list");
+await protocolClient.listTargets();
+assertEqual(protocolClient.drainContractDiagnostics()[0]?.replacement, "host.target.list");
+assertDeepEqual(protocolClient.drainContractDiagnostics(), []);
 
 capturedRequests.length = 0;
 await protocolClient.startDockerContainer({
@@ -403,7 +427,7 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
 
 capturedRequests.length = 0;
 await protocolClient.startProject("project-1");
-assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), ["kernel.v1.project.start"]);
+assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), ["host.project.start"]);
 
 capturedRequests.length = 0;
 await protocolClient.listProjects();
@@ -413,12 +437,12 @@ await protocolClient.surfaceContributions();
 await protocolClient.describeSurface("official/test.entry");
 await resolveSurfaceBundle(protocolClient, "official/test.entry");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
-  "kernel.v1.project.list",
-  "kernel.v1.projection.list",
-  "kernel.v1.proposal.list",
-  "kernel.v1.surface.contribution.list",
-  "kernel.v1.surface.contribution.describe",
-  "kernel.v1.surface.resolve_bundle",
+  "host.project.list",
+  "projection.list",
+  "change.proposal.list",
+  "shell.contribution.list",
+  "shell.contribution.describe",
+  "host.surface.bundle.resolve",
 ]);
 
 capturedRequests.length = 0;
@@ -431,7 +455,7 @@ await negotiatedClient.negotiateHost(contract);
 await negotiatedClient.listTargets();
 assertDeepEqual(capturedRequests, [
   { id: "request-id", method: "host.info", params: {}, contract },
-  { id: "request-id", method: "kernel.v1.target.list", params: {}, contract },
+  { id: "request-id", method: "host.target.list", params: {}, contract },
 ]);
 
 globalThis.fetch = originalFetch;

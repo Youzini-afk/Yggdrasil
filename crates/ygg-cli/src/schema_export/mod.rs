@@ -45,6 +45,10 @@ pub fn export_all() -> anyhow::Result<()> {
         &schema_value::<ProtocolContext>(),
     )?;
     write_json(
+        out.join("protocol-response.schema.json"),
+        &schema_value::<ProtocolResponse>(),
+    )?;
+    write_json(
         out.join("protocol-descriptor.schema.json"),
         &schema_value::<ProtocolDescriptor>(),
     )?;

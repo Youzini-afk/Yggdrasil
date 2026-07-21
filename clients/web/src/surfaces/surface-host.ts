@@ -12,7 +12,7 @@
 //     and host forwards only a narrow allowlisted bridge policy
 
 const ALLOWED_BRIDGE_METHODS = new Set([
-  'kernel.v1.host.info',
+  'host.info',
   'kernel.v1.host.ping',
   'kernel.v1.capability.invoke',
   'kernel.v1.capability.stream',

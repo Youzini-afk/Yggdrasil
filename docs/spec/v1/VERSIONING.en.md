@@ -2,7 +2,7 @@
 
 ## Method namespace
 
-All v1 kernel methods use `kernel.v1.*`. `kernel.v1.*` and future `kernel.v2.*` are separate, incompatible namespaces. v1 method semantics are never changed in breaking ways, and the old `kernel.*` names have no compatibility shim.
+The historical v1 schema files retain their `kernel.v1.*` names. The Contract Registry may expose a layered canonical wire ID (for example `host.target.list`) while retaining the corresponding `kernel.v1.*` ID as an explicit compatibility alias. Both IDs resolve at one boundary to the same handler and v1 payload semantics. Future breaking wire contracts use a separately negotiated major version; they do not overwrite v1.
 
 ## Schema rule
 
@@ -20,4 +20,4 @@ Use `kernel.v2.*` for breaking changes: required-field changes, existing field t
 
 ## Negotiation
 
-Packages call `kernel.v1.host.info` to read `protocol_version`, methods, statuses, and transports. A package needing a v1 method should verify that the method exists and is not `planned`. Future v2 packages should call `kernel.v2.host.info` or inspect the host's explicitly advertised v2 method list.
+New clients call canonical `host.info` and inspect `contract_registry_version`, `contract_methods`, `aliases`, profiles, and protocol descriptors in addition to the historical method/status fields. Older clients may still call `kernel.v1.host.info`; registry `0.4.0` marks that alias Deprecated through `ygg.contract.registry@0.5.0` and returns an advisory migration diagnostic. A client needing a method should select a supported contract/profile, prefer the advertised canonical ID, and reject an unsupported version rather than guessing or silently downgrading.

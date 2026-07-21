@@ -32,9 +32,9 @@ use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, ProjectId, SessionId};
 use ygg_runtime::{
-    host_info as runtime_host_info, CapabilityInvocationRequest, CapabilityInvocationResult,
-    EventListRequest, PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest,
-    ProtocolResponse, RegisteredCapability,
+    contract_diagnostics, host_info as runtime_host_info, CapabilityInvocationRequest,
+    CapabilityInvocationResult, EventListRequest, PackageRecord, ProtocolContext, ProtocolError,
+    ProtocolRequest, ProtocolResponse, RegisteredCapability,
 };
 use ygg_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
@@ -418,7 +418,16 @@ fn valid_dns_label(label: &str) -> bool {
 fn is_reserved_vhost_slug(slug: &str) -> bool {
     matches!(
         slug,
-        "www" | "api" | "admin" | "host" | "kernel" | "rpc" | "health" | "surface-bundles" | "p" | "static"
+        "www"
+            | "api"
+            | "admin"
+            | "host"
+            | "kernel"
+            | "rpc"
+            | "health"
+            | "surface-bundles"
+            | "p"
+            | "static"
     )
 }
 
@@ -650,8 +659,37 @@ where
     ))
 }
 
-async fn host_info() -> Json<serde_json::Value> {
-    Json(serde_json::to_value(runtime_host_info()).expect("host info serializes"))
+async fn host_info() -> impl IntoResponse {
+    let mut headers = HeaderMap::new();
+    if let Some(diagnostic) = contract_diagnostics("kernel.v1.host.info")
+        .into_iter()
+        .next()
+    {
+        headers.insert(
+            "x-yggdrasil-contract-diagnostic",
+            HeaderValue::from_str(&diagnostic.code).expect("diagnostic code is a valid header"),
+        );
+        headers.insert(
+            "x-yggdrasil-contract-replacement",
+            HeaderValue::from_str(&diagnostic.canonical_id)
+                .expect("canonical method id is a valid header"),
+        );
+        headers.insert(
+            header::LINK,
+            HeaderValue::from_static("</rpc>; rel=\"alternate\"; type=\"application/json\""),
+        );
+        if let Some(support_until) = diagnostic.support_until {
+            headers.insert(
+                "x-yggdrasil-contract-support-until",
+                HeaderValue::from_str(&support_until)
+                    .expect("registry support window is a valid header"),
+            );
+        }
+    }
+    (
+        headers,
+        Json(serde_json::to_value(runtime_host_info()).expect("host info serializes")),
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -3347,7 +3385,15 @@ async fn proxy_path<S>(
 where
     S: EventStore,
 {
-    proxy_request(state, route_id, path, uri, request, ProxyAccessMode::PathPrefix).await
+    proxy_request(
+        state,
+        route_id,
+        path,
+        uri,
+        request,
+        ProxyAccessMode::PathPrefix,
+    )
+    .await
 }
 
 async fn proxy_request<S>(
@@ -3828,7 +3874,10 @@ fn rewrite_vhost_location(
         return None;
     }
     let mut rewritten = format!("https://{authority}{}", parsed.path());
-    if let Some(query) = parsed.query().and_then(|query| sanitized_proxy_query(Some(query))) {
+    if let Some(query) = parsed
+        .query()
+        .and_then(|query| sanitized_proxy_query(Some(query)))
+    {
         rewritten.push('?');
         rewritten.push_str(&query);
     }
@@ -4082,13 +4131,31 @@ fn content_type_for(path: &std::path::Path) -> &'static str {
     }
 }
 
-async fn rpc<S>(
-    State(state): State<AppState<S>>,
-    Json(request): Json<ProtocolRequest>,
-) -> Json<ProtocolResponse>
+async fn rpc<S>(State(state): State<AppState<S>>, Json(raw): Json<Value>) -> Json<ProtocolResponse>
 where
     S: EventStore,
 {
+    let response_id = raw
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("invalid")
+        .to_string();
+    let diagnostics = raw
+        .get("method")
+        .and_then(Value::as_str)
+        .map(contract_diagnostics)
+        .unwrap_or_default();
+    let request = match serde_json::from_value::<ProtocolRequest>(raw) {
+        Ok(request) => request,
+        Err(error) => {
+            return Json(ProtocolResponse {
+                id: response_id,
+                result: None,
+                error: Some(ProtocolError::invalid_request(error.to_string())),
+                diagnostics,
+            });
+        }
+    };
     let ProtocolRequest {
         id,
         method,
@@ -4107,11 +4174,13 @@ where
             id,
             result: Some(result),
             error: None,
+            diagnostics,
         }),
         Err(error) => Json(ProtocolResponse {
             id,
             result: None,
             error: Some(error),
+            diagnostics,
         }),
     }
 }
@@ -4679,6 +4748,83 @@ mod tests {
                     alias["id"] == "kernel.v1.host.info" && alias["canonical_id"] == "host.info"
                 })
             }));
+        assert_eq!(
+            value["diagnostics"][0]["code"],
+            "ygg.contract.alias.deprecated"
+        );
+        assert_eq!(value["diagnostics"][0]["replacement"], "host.info");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn legacy_host_info_route_advertises_the_migration_headers() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .uri("/kernel/v1/host.info")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get("x-yggdrasil-contract-diagnostic")
+                .and_then(|value| value.to_str().ok()),
+            Some("ygg.contract.alias.deprecated")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get("x-yggdrasil-contract-replacement")
+                .and_then(|value| value.to_str().ok()),
+            Some("host.info")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get("x-yggdrasil-contract-support-until")
+                .and_then(|value| value.to_str().ok()),
+            Some("ygg.contract.registry@0.5.0")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(header::LINK)
+                .and_then(|value| value.to_str().ok()),
+            Some("</rpc>; rel=\"alternate\"; type=\"application/json\"")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn malformed_contract_retains_legacy_diagnostic() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rpc")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({
+                            "id": "legacy-error",
+                            "method": "kernel.v1.host.info",
+                            "contract": "bad",
+                            "params": {}
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(value["id"], "legacy-error");
+        assert_eq!(value["error"]["code"], "kernel/v1/error/invalid_request");
+        assert_eq!(
+            value["diagnostics"][0]["code"],
+            "ygg.contract.alias.deprecated"
+        );
         Ok(())
     }
 

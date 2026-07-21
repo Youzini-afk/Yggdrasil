@@ -11,6 +11,18 @@ import readline from "node:readline";
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type CapHandleId = string;
 
+export interface ContractDiagnostic {
+  code: string;
+  severity: string;
+  requested_id: string;
+  canonical_id: string;
+  maturity: "deprecated" | "legacy_adapter" | string;
+  message: string;
+  deprecated_in?: string;
+  replacement?: string;
+  support_until?: string;
+}
+
 export interface JsonRpcRequest {
   [key: string]: unknown;
   jsonrpc?: "2.0";
@@ -23,6 +35,7 @@ export interface JsonRpcRequest {
   stream_id?: string;
   data?: JsonValue;
   summary?: JsonValue;
+  diagnostics?: ContractDiagnostic[];
 }
 
 export interface CapabilityInvokeParams {
@@ -103,6 +116,7 @@ export interface KernelClient {
   bindings: Record<string, CapHandleId>;
   sendKernelRequest<T = unknown>(method: string, params: unknown): Promise<T>;
   streamKernelRequest(method: string, params: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle;
+  drainContractDiagnostics(): ContractDiagnostic[];
   invokeBinding<T = unknown>(name: string, input: unknown): Promise<T>;
   invokeBindingStream(name: string, input: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle;
   openWebSocket(
@@ -143,6 +157,7 @@ const streamRequestIdsByStreamId = new Map<string, string>();
 const pendingKernelWebSocketOpens = new Map<string, PendingKernelWebSocketOpen>();
 const kernelWebSocketsByRequestId = new Map<string, ActiveKernelWebSocket>();
 const kernelWebSocketsByConnectionId = new Map<string, ActiveKernelWebSocket>();
+let contractDiagnostics: ContractDiagnostic[] = [];
 
 function respond(id: JsonRpcRequest["id"], payload: Record<string, JsonValue>) {
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, ...payload }) + "\n");
@@ -359,6 +374,12 @@ function getBindingHandle(name: string): CapHandleId {
 
 export const kernelClient: KernelClient = {
   bindings: {},
+  drainContractDiagnostics(): ContractDiagnostic[] {
+    const diagnostics = contractDiagnostics;
+    contractDiagnostics = [];
+    return diagnostics;
+  },
+
   sendKernelRequest<T = unknown>(method: string, params: unknown): Promise<T> {
     const id = sendKernelFrame(method, params);
     return new Promise<T>((resolve, reject) => {
@@ -411,6 +432,7 @@ export const kernelClient: KernelClient = {
 };
 
 function handleKernelInbound(frame: JsonRpcRequest): boolean {
+  if (Array.isArray(frame.diagnostics)) contractDiagnostics.push(...frame.diagnostics);
   if (typeof frame.id !== "string" || !frame.id.startsWith("kreq-")) {
     const connectionId = getConnectionIdFromFrame(frame);
     const session = connectionId ? kernelWebSocketsByConnectionId.get(connectionId) : undefined;

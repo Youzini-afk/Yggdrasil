@@ -731,6 +731,48 @@ mod tests {
         ));
         Ok(())
     }
+
+    #[tokio::test]
+    async fn host_stdio_attaches_deprecation_diagnostics_without_changing_the_result() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let context = ProtocolContext::host_dev("host_stdio_test");
+        let canonical = host_stdio_response(
+            &runtime,
+            &context,
+            r#"{"id":"canonical","method":"host.info","params":{}}"#,
+        )
+        .await;
+        let legacy = host_stdio_response(
+            &runtime,
+            &context,
+            r#"{"id":"legacy","method":"kernel.v1.host.info","params":{}}"#,
+        )
+        .await;
+
+        assert_eq!(canonical.result, legacy.result);
+        assert!(canonical.diagnostics.is_empty());
+        assert_eq!(legacy.diagnostics.len(), 1);
+        assert_eq!(legacy.diagnostics[0].code, "ygg.contract.alias.deprecated");
+
+        let malformed_contract = host_stdio_response(
+            &runtime,
+            &context,
+            r#"{"id":"legacy-error","method":"kernel.v1.host.info","contract":"bad","params":{}}"#,
+        )
+        .await;
+        assert_eq!(malformed_contract.id, "legacy-error");
+        assert_eq!(
+            malformed_contract.error.unwrap().code,
+            "kernel/v1/error/invalid_request"
+        );
+        assert_eq!(
+            malformed_contract.diagnostics[0].code,
+            "ygg.contract.alias.deprecated"
+        );
+    }
 }
 
 async fn serve_runtime<S>(
@@ -891,41 +933,7 @@ pub(crate) async fn host_stdio() -> Result<()> {
         if line.trim().is_empty() {
             continue;
         }
-        let response = match serde_json::from_str::<ygg_runtime::ProtocolRequest>(&line) {
-            Ok(request) => {
-                let ygg_runtime::ProtocolRequest {
-                    id,
-                    method,
-                    session_id,
-                    contract,
-                    params,
-                } = request;
-                let mut request_context = context.clone();
-                request_context.session_id = session_id;
-                match runtime
-                    .call_protocol_negotiated(&request_context, &method, params, contract.as_ref())
-                    .await
-                {
-                    Ok(result) => ygg_runtime::ProtocolResponse {
-                        id,
-                        result: Some(result),
-                        error: None,
-                    },
-                    Err(error) => ygg_runtime::ProtocolResponse {
-                        id,
-                        result: None,
-                        error: Some(error),
-                    },
-                }
-            }
-            Err(error) => ygg_runtime::ProtocolResponse {
-                id: "invalid".to_string(),
-                result: None,
-                error: Some(ygg_runtime::ProtocolError::invalid_request(
-                    error.to_string(),
-                )),
-            },
-        };
+        let response = host_stdio_response(&runtime, &context, &line).await;
         stdout
             .write_all(serde_json::to_string(&response)?.as_bytes())
             .await?;
@@ -933,4 +941,76 @@ pub(crate) async fn host_stdio() -> Result<()> {
         stdout.flush().await?;
     }
     Ok(())
+}
+
+async fn host_stdio_response<S>(
+    runtime: &Runtime<S>,
+    context: &ProtocolContext,
+    line: &str,
+) -> ygg_runtime::ProtocolResponse
+where
+    S: EventStore,
+{
+    let raw = match serde_json::from_str::<serde_json::Value>(line) {
+        Ok(raw) => raw,
+        Err(error) => {
+            return ygg_runtime::ProtocolResponse {
+                id: "invalid".to_string(),
+                result: None,
+                error: Some(ygg_runtime::ProtocolError::invalid_request(
+                    error.to_string(),
+                )),
+                diagnostics: Vec::new(),
+            };
+        }
+    };
+    let id = raw
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("invalid")
+        .to_string();
+    let diagnostics = raw
+        .get("method")
+        .and_then(serde_json::Value::as_str)
+        .map(ygg_runtime::contract_diagnostics)
+        .unwrap_or_default();
+    let request = match serde_json::from_value::<ygg_runtime::ProtocolRequest>(raw) {
+        Ok(request) => request,
+        Err(error) => {
+            return ygg_runtime::ProtocolResponse {
+                id,
+                result: None,
+                error: Some(ygg_runtime::ProtocolError::invalid_request(
+                    error.to_string(),
+                )),
+                diagnostics,
+            };
+        }
+    };
+    let ygg_runtime::ProtocolRequest {
+        id,
+        method,
+        session_id,
+        contract,
+        params,
+    } = request;
+    let mut request_context = context.clone();
+    request_context.session_id = session_id;
+    match runtime
+        .call_protocol_negotiated(&request_context, &method, params, contract.as_ref())
+        .await
+    {
+        Ok(result) => ygg_runtime::ProtocolResponse {
+            id,
+            result: Some(result),
+            error: None,
+            diagnostics,
+        },
+        Err(error) => ygg_runtime::ProtocolResponse {
+            id,
+            result: None,
+            error: Some(error),
+            diagnostics,
+        },
+    }
 }

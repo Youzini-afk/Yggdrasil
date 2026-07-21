@@ -15,7 +15,7 @@ export async function resolveSurfaceBundle(
   client: YggProtocolClient,
   surfaceId: string,
 ): Promise<ResolvedSurfaceBundle> {
-  const result = await client.invoke("kernel.v1.surface.resolve_bundle", { surface_id: surfaceId });
+  const result = await client.invoke("host.surface.bundle.resolve", { surface_id: surfaceId });
   const r = result as {
     surface_id: string;
     bundle_url: string;

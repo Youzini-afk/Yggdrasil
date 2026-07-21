@@ -17,6 +17,17 @@ async function main() {
           result: body.method === "host.info"
             ? { protocol_version: "0.1.0", methods: [], supported_transports: ["http_rpc"] }
             : [],
+          diagnostics: body.method === "kernel.v1.host.info"
+            ? [{
+              code: "ygg.contract.alias.deprecated",
+              severity: "warning",
+              requested_id: "kernel.v1.host.info",
+              canonical_id: "host.info",
+              maturity: "deprecated",
+              message: "migrate",
+              replacement: "host.info",
+            }]
+            : undefined,
         };
       },
     };
@@ -35,10 +46,16 @@ async function main() {
     const client = fromHttpRpc("http://host.test/rpc");
     await client.negotiateHost(selection);
     await client.invoke("host.target.list", {});
+    await client.invoke("kernel.v1.host.info", {});
+    await client.invoke("host.target.list", {});
+    assert.equal(client.drainContractDiagnostics()[0].replacement, "host.info");
+    assert.deepEqual(client.drainContractDiagnostics(), []);
 
     assert.deepEqual(requests, [
       { jsonrpc: "2.0", id: "1", method: "host.info", params: {}, contract: selection },
       { jsonrpc: "2.0", id: "2", method: "host.target.list", params: {}, contract: selection },
+      { jsonrpc: "2.0", id: "3", method: "kernel.v1.host.info", params: {}, contract: selection },
+      { jsonrpc: "2.0", id: "4", method: "host.target.list", params: {}, contract: selection },
     ]);
 
     const unsupportedTransport = new KernelClient({

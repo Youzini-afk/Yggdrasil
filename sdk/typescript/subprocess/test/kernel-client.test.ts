@@ -35,6 +35,38 @@ test("kernelClient.sendKernelRequest unary roundtrip", async () => {
   }
 });
 
+test("kernelClient exposes contract deprecation diagnostics", async () => {
+  const capture = captureStdout();
+  try {
+    kernelClient.drainContractDiagnostics();
+    const promise = kernelClient.sendKernelRequest("kernel.v1.host.info", {});
+    const frame = JSON.parse(capture.writes[0]);
+    __handleKernelInboundForTest({
+      jsonrpc: "2.0",
+      id: frame.id,
+      result: { protocol_version: "0.1.0" },
+      diagnostics: [{
+        code: "ygg.contract.alias.deprecated",
+        severity: "warning",
+        requested_id: "kernel.v1.host.info",
+        canonical_id: "host.info",
+        maturity: "deprecated",
+        message: "migrate",
+        replacement: "host.info",
+      }],
+    });
+    await promise;
+    const followup = kernelClient.sendKernelRequest("kernel.v1.host.ping", {});
+    const followupFrame = JSON.parse(capture.writes[1]);
+    __handleKernelInboundForTest({ jsonrpc: "2.0", id: followupFrame.id, result: { ok: true } });
+    await followup;
+    assert.equal(kernelClient.drainContractDiagnostics()[0]?.replacement, "host.info");
+    assert.deepEqual(kernelClient.drainContractDiagnostics(), []);
+  } finally {
+    capture.restore();
+  }
+});
+
 test("kernelClient.sendKernelRequest unary error response", async () => {
   const capture = captureStdout();
   try {

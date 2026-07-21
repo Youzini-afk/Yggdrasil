@@ -2,6 +2,19 @@ export interface ProtocolResponse<T = unknown> {
   id: string;
   result?: T;
   error?: { code: string; message: string; details?: unknown };
+  diagnostics?: ContractDiagnostic[];
+}
+
+export interface ContractDiagnostic {
+  code: string;
+  severity: string;
+  requested_id: string;
+  canonical_id: string;
+  maturity: "deprecated" | "legacy_adapter" | string;
+  message: string;
+  deprecated_in?: string;
+  replacement?: string;
+  support_until?: string;
 }
 
 export type ContractOwnerLayer =
@@ -37,7 +50,14 @@ export interface HostContractInfo {
   layers?: unknown[];
   versions?: unknown[];
   profiles?: unknown[];
-  aliases?: Array<{ id: string; canonical_id: string; replacement?: string }>;
+  aliases?: Array<{
+    id: string;
+    canonical_id: string;
+    maturity?: string;
+    deprecated_in?: string;
+    replacement?: string;
+    support_until?: string;
+  }>;
   contract_methods?: unknown[];
   protocol_commons_registry_version?: string;
   protocols?: unknown[];
@@ -653,6 +673,7 @@ export interface ProxyRouteRecord {
 export class YggProtocolClient {
   private readonly accessToken?: string;
   private contractSelection?: ContractSelection;
+  private contractDiagnostics: ContractDiagnostic[] = [];
 
   constructor(private readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string | null) {
     this.accessToken = accessToken === undefined ? resolveBrowserAccessToken() : accessToken || undefined;
@@ -672,6 +693,7 @@ export class YggProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
+    this.captureContractDiagnostics(envelope.diagnostics);
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
@@ -687,6 +709,7 @@ export class YggProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<T>;
+    this.captureContractDiagnostics(envelope.diagnostics);
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
@@ -702,6 +725,7 @@ export class YggProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<HostContractInfo>;
+    this.captureContractDiagnostics(envelope.diagnostics);
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
@@ -711,6 +735,16 @@ export class YggProtocolClient {
 
   clearContractSelection(): void {
     this.contractSelection = undefined;
+  }
+
+  drainContractDiagnostics(): ContractDiagnostic[] {
+    const diagnostics = this.contractDiagnostics;
+    this.contractDiagnostics = [];
+    return diagnostics;
+  }
+
+  private captureContractDiagnostics(diagnostics: ContractDiagnostic[] | undefined): void {
+    if (diagnostics) this.contractDiagnostics.push(...diagnostics);
   }
 
   packages() {
@@ -734,55 +768,55 @@ export class YggProtocolClient {
   }
 
   listTargets() {
-    return this.call<ExecutionTarget[]>("kernel.v1.target.list");
+    return this.call<ExecutionTarget[]>("host.target.list");
   }
 
   targetStatus(targetId: string) {
-    return this.call<ExecutionTarget>("kernel.v1.target.status", { target_id: targetId });
+    return this.call<ExecutionTarget>("host.target.status", { target_id: targetId });
   }
 
   listExecs() {
-    return this.call<LocalExecListResponse>("kernel.v1.exec.list");
+    return this.call<LocalExecListResponse>("host.exec.list");
   }
 
   execStatus(execId: string) {
-    return this.call<LocalExecStatusResponse>("kernel.v1.exec.status", { exec_id: execId });
+    return this.call<LocalExecStatusResponse>("host.exec.status", { exec_id: execId });
   }
 
   execLogs(execId: string, limit = 80) {
-    return this.call<LocalExecLogsResponse>("kernel.v1.exec.logs", { exec_id: execId, limit });
+    return this.call<LocalExecLogsResponse>("host.exec.logs", { exec_id: execId, limit });
   }
 
   listPortLeases() {
-    return this.call<PortLeaseRecord[]>("kernel.v1.port.list");
+    return this.call<PortLeaseRecord[]>("host.port.list");
   }
 
   portStatus(leaseId: string) {
-    return this.call<PortLeaseRecord>("kernel.v1.port.status", { lease_id: leaseId });
+    return this.call<PortLeaseRecord>("host.port.status", { lease_id: leaseId });
   }
 
   leasePort(input: PortLeaseRequest) {
-    return this.call<PortLeaseRecord>("kernel.v1.port.lease", input);
+    return this.call<PortLeaseRecord>("host.port.lease", input);
   }
 
   releasePort(leaseId: string) {
-    return this.call<PortLeaseRecord>("kernel.v1.port.release", { lease_id: leaseId });
+    return this.call<PortLeaseRecord>("host.port.release", { lease_id: leaseId });
   }
 
   listProxyRoutes() {
-    return this.call<ProxyRouteRecord[]>("kernel.v1.proxy.list");
+    return this.call<ProxyRouteRecord[]>("host.proxy.list");
   }
 
   proxyStatus(routeId: string) {
-    return this.call<ProxyRouteRecord>("kernel.v1.proxy.status", { route_id: routeId });
+    return this.call<ProxyRouteRecord>("host.proxy.status", { route_id: routeId });
   }
 
   registerProxy(input: ProxyRegisterRequest) {
-    return this.call<ProxyRouteRecord>("kernel.v1.proxy.register", input);
+    return this.call<ProxyRouteRecord>("host.proxy.register", input);
   }
 
   unregisterProxy(routeId: string) {
-    return this.call<ProxyRouteRecord>("kernel.v1.proxy.unregister", { route_id: routeId });
+    return this.call<ProxyRouteRecord>("host.proxy.unregister", { route_id: routeId });
   }
 
   assets() {
@@ -790,36 +824,36 @@ export class YggProtocolClient {
   }
 
   projections() {
-    return this.call<ProjectionRecord[]>("kernel.v1.projection.list");
+    return this.call<ProjectionRecord[]>("projection.list");
   }
 
   proposals() {
-    return this.call<ProposalRecord[]>("kernel.v1.proposal.list");
+    return this.call<ProposalRecord[]>("change.proposal.list");
   }
 
   approveProposal(proposalId: string) {
-    return this.call<ProposalRecord>("kernel.v1.proposal.approve", { proposal_id: proposalId, reason: "web-forge" });
+    return this.call<ProposalRecord>("change.proposal.approve", { proposal_id: proposalId, reason: "web-forge" });
   }
 
   applyProposal(proposalId: string) {
-    return this.call<ProposalRecord>("kernel.v1.proposal.apply", { proposal_id: proposalId });
+    return this.call<ProposalRecord>("change.proposal.apply", { proposal_id: proposalId });
   }
 
   surfaceContributions(slot?: string) {
-    return this.call<SurfaceContributionRecord[]>("kernel.v1.surface.contribution.list", slot ? { slot } : {});
+    return this.call<SurfaceContributionRecord[]>("shell.contribution.list", slot ? { slot } : {});
   }
 
   describeSurface(surfaceId: string) {
-    return this.call<SurfaceContributionRecord>("kernel.v1.surface.contribution.describe", { surface_id: surfaceId });
+    return this.call<SurfaceContributionRecord>("shell.contribution.describe", { surface_id: surfaceId });
   }
 
   async listProjects(): Promise<ProjectRecord[]> {
-    const result = await this.invoke("kernel.v1.project.list", {});
+    const result = await this.invoke("host.project.list", {});
     return (result as { projects: ProjectRecord[] }).projects;
   }
 
   async getProject(projectId: string): Promise<ProjectRecord & { state_details?: Record<string, unknown>; packages?: string[] }> {
-    const result = await this.invoke("kernel.v1.project.get", { project_id: projectId });
+    const result = await this.invoke("host.project.get", { project_id: projectId });
     const descriptor = result as {
       project?: Omit<ProjectRecord, "type" | "state" | "storage_summary"> & { type?: ProjectRecord["type"]; packages?: string[] };
       state?: ProjectRecord["state"];
@@ -842,7 +876,7 @@ export class YggProtocolClient {
     session_id: string;
     already_running: boolean;
   }> {
-    return await this.invoke("kernel.v1.project.start", { project_id: projectId }) as {
+    return await this.invoke("host.project.start", { project_id: projectId }) as {
       project_id: string;
       previous_state: string;
       new_state: string;
@@ -852,7 +886,7 @@ export class YggProtocolClient {
   }
 
   async stopProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string; session_id?: string }> {
-    return await this.invoke("kernel.v1.project.stop", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string; session_id?: string };
+    return await this.invoke("host.project.stop", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string; session_id?: string };
   }
 
   async getProjectStatus(projectId: string): Promise<{
@@ -862,7 +896,7 @@ export class YggProtocolClient {
     secrets_count: number;
     storage_summary?: ProjectStorageSummary;
   }> {
-    return await this.invoke("kernel.v1.project.status", { project_id: projectId }) as {
+    return await this.invoke("host.project.status", { project_id: projectId }) as {
       project_id: string;
       state: string;
       sessions_count: number;

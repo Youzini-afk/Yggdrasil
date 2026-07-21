@@ -13,8 +13,8 @@ use ygg_core::ProtocolDescriptor;
 
 use crate::{
     contract_aliases, contract_layers, contract_methods, contract_profiles, contract_versions,
-    protocol_descriptors, resolve_contract_method, ContractLayerInfo, ContractMaturity,
-    ContractMethod, ContractProfileInfo, ContractSelection, ContractVersionInfo,
+    protocol_descriptors, resolve_contract_method, ContractDiagnostic, ContractLayerInfo,
+    ContractMaturity, ContractMethod, ContractProfileInfo, ContractSelection, ContractVersionInfo,
     CONTRACT_REGISTRY_VERSION, DEFAULT_CONTRACT_PROFILE, PROTOCOL_COMMONS_REGISTRY_VERSION,
 };
 
@@ -613,6 +613,8 @@ pub struct ProtocolResponse {
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<ProtocolError>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<ContractDiagnostic>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]

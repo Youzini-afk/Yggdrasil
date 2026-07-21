@@ -9,7 +9,7 @@ use ygg_core::{NegotiatedProtocol, ProtocolSelection};
 
 use crate::{negotiate_protocols, KernelMethod, MethodStatus, ProtocolError};
 
-pub const CONTRACT_REGISTRY_VERSION: &str = "0.3.0";
+pub const CONTRACT_REGISTRY_VERSION: &str = "0.4.0";
 pub const CONTRACT_LAYER_VERSION: &str = "0.1.0";
 pub const DEFAULT_CONTRACT_PROFILE: &str = "ygg.contract.default/v1";
 pub const SHELL_DEFAULT_PROFILE: &str = "ygg.shell.default/v1";
@@ -17,6 +17,8 @@ pub const LEGACY_CONTRACT_PROFILE: &str = "kernel.v1";
 
 const INITIAL_CANONICAL_REGISTRY_VERSION: &str = "0.1.0";
 const OWNER_NAMESPACE_REGISTRY_VERSION: &str = "0.2.0";
+const PHASE_NINE_DEPRECATED_IN: &str = "ygg.contract.registry@0.4.0";
+const PHASE_NINE_SUPPORT_UNTIL: &str = "ygg.contract.registry@0.5.0";
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, PartialOrd, Ord,
@@ -55,6 +57,22 @@ pub struct ContractAlias {
     pub request_adapter: ContractAdapter,
     pub response_adapter: ContractAdapter,
     pub introduced_in: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated_in: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replacement: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub support_until: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ContractDiagnostic {
+    pub code: String,
+    pub severity: String,
+    pub requested_id: String,
+    pub canonical_id: String,
+    pub maturity: ContractMaturity,
+    pub message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deprecated_in: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -224,6 +242,59 @@ pub fn resolve_contract_method(id: &str) -> Result<ResolvedContractMethod, Unkno
         }
     }
     Err(UnknownContractMethod { id: id.to_string() })
+}
+
+pub fn contract_diagnostics(id: &str) -> Vec<ContractDiagnostic> {
+    let Ok(resolved) = resolve_contract_method(id) else {
+        return Vec::new();
+    };
+    let Some(alias) = resolved.alias else {
+        return Vec::new();
+    };
+    if alias.deprecated_in.is_none()
+        || !matches!(
+            alias.maturity,
+            ContractMaturity::Deprecated | ContractMaturity::LegacyAdapter
+        )
+    {
+        return Vec::new();
+    }
+
+    let replacement = alias
+        .replacement
+        .clone()
+        .unwrap_or_else(|| alias.canonical_id.clone());
+    let (code, message) = match alias.maturity {
+        ContractMaturity::Deprecated => (
+            "ygg.contract.alias.deprecated",
+            format!(
+                "contract alias '{}' is deprecated; migrate to '{}' before the support window closes at {}",
+                alias.id,
+                replacement,
+                alias.support_until.as_deref().unwrap_or("an unspecified registry version")
+            ),
+        ),
+        ContractMaturity::LegacyAdapter => (
+            "ygg.contract.alias.legacy_adapter",
+            format!(
+                "contract alias '{}' is a legacy adapter; use '{}'; no new field semantics will be added",
+                alias.id, replacement
+            ),
+        ),
+        _ => unreachable!("non-deprecated aliases returned before diagnostic construction"),
+    };
+
+    vec![ContractDiagnostic {
+        code: code.to_string(),
+        severity: "warning".to_string(),
+        requested_id: alias.id.clone(),
+        canonical_id: alias.canonical_id.clone(),
+        maturity: alias.maturity,
+        message,
+        deprecated_in: alias.deprecated_in.clone(),
+        replacement: Some(replacement),
+        support_until: alias.support_until.clone(),
+    }]
 }
 
 pub fn contract_layers() -> Vec<ContractLayerInfo> {
@@ -438,16 +509,21 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
     let aliases = if canonical_id == legacy_id {
         Vec::new()
     } else {
+        let phase_nine_migration = is_phase_nine_migration(method);
         vec![ContractAlias {
             id: legacy_id.to_string(),
             canonical_id: canonical_id.to_string(),
-            maturity: ContractMaturity::LegacyAdapter,
+            maturity: if phase_nine_migration {
+                ContractMaturity::Deprecated
+            } else {
+                ContractMaturity::LegacyAdapter
+            },
             request_adapter: ContractAdapter::Identity,
             response_adapter: ContractAdapter::Identity,
             introduced_in: "kernel.v1@0.1.0".to_string(),
-            deprecated_in: None,
+            deprecated_in: phase_nine_migration.then(|| PHASE_NINE_DEPRECATED_IN.to_string()),
             replacement: Some(canonical_id.to_string()),
-            support_until: None,
+            support_until: phase_nine_migration.then(|| PHASE_NINE_SUPPORT_UNTIL.to_string()),
         }]
     };
     let schema = format!("https://yggdrasil.dev/spec/v1/methods/{legacy_id}.schema.json");
@@ -455,7 +531,11 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
         canonical_id: canonical_id.to_string(),
         aliases,
         owner_layer: owner_layer(method),
-        maturity: ContractMaturity::Experimental,
+        maturity: if is_phase_nine_migration(method) {
+            ContractMaturity::Candidate
+        } else {
+            ContractMaturity::Experimental
+        },
         request_schema: format!("{schema}#/$defs/Params"),
         response_schema: format!("{schema}#/$defs/Result"),
         request_adapter: ContractAdapter::Identity,
@@ -467,6 +547,10 @@ fn contract_descriptor(method: KernelMethod) -> ContractMethod {
         streaming: method.streaming(),
         method,
     }
+}
+
+fn is_phase_nine_migration(method: KernelMethod) -> bool {
+    matches!(method, KernelMethod::HostInfo | KernelMethod::TargetList)
 }
 
 fn owner_layer(method: KernelMethod) -> ContractOwnerLayer {
@@ -721,6 +805,47 @@ mod tests {
         assert_eq!(
             contract_method(KernelMethod::SurfaceContributionList).introduced_in,
             "ygg.shell.default/v1@0.1.0"
+        );
+    }
+
+    #[test]
+    fn phase_nine_deprecation_has_a_complete_support_window() {
+        for method in [KernelMethod::HostInfo, KernelMethod::TargetList] {
+            let contract = contract_method(method);
+            assert_eq!(contract.maturity, ContractMaturity::Candidate);
+            let alias = contract.aliases.first().expect("tracked legacy alias");
+            assert_eq!(alias.maturity, ContractMaturity::Deprecated);
+            assert_eq!(
+                alias.deprecated_in.as_deref(),
+                Some(PHASE_NINE_DEPRECATED_IN)
+            );
+            assert_eq!(
+                alias.replacement.as_deref(),
+                Some(contract.canonical_id.as_str())
+            );
+            assert_eq!(
+                alias.support_until.as_deref(),
+                Some(PHASE_NINE_SUPPORT_UNTIL)
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostics_are_emitted_only_for_lifecycle_tracked_aliases() {
+        assert!(contract_diagnostics("host.info").is_empty());
+        assert!(contract_diagnostics("kernel.v1.project.list").is_empty());
+
+        let diagnostics = contract_diagnostics("kernel.v1.host.info");
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = &diagnostics[0];
+        assert_eq!(diagnostic.code, "ygg.contract.alias.deprecated");
+        assert_eq!(diagnostic.severity, "warning");
+        assert_eq!(diagnostic.requested_id, "kernel.v1.host.info");
+        assert_eq!(diagnostic.canonical_id, "host.info");
+        assert_eq!(diagnostic.maturity, ContractMaturity::Deprecated);
+        assert_eq!(
+            diagnostic.support_until.as_deref(),
+            Some(PHASE_NINE_SUPPORT_UNTIL)
         );
     }
 

@@ -123,7 +123,7 @@ src/
 │   └── client.ts               # YggProtocolClient — typed RPC + SSE wrappers
 └── surfaces/
     ├── surface-host.ts         # iframe SurfaceHost contract
-    └── bundle-resolver.ts      # kernel.v1.surface.resolve_bundle wrapper
+    └── bundle-resolver.ts      # host.surface.bundle.resolve wrapper
 ```
 
 ---
@@ -176,13 +176,13 @@ mode for legibility on bark backgrounds.
 
 | Page | Source |
 | ---- | ------ |
-| Home — projects | `kernel.v1.project.list` + per-project `storage_summary` |
-| Home — shell contributions | `kernel.v1.surface.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
+| Home — projects | `host.project.list` + per-project `storage_summary` |
+| Home — shell contributions | `shell.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
 | Settings — API Connections | `official/secret-store-lab/{list,put,delete}_secret` + `health` |
-| Settings — Installed Packages | `kernel.v1.package.list` + `kernel.v1.project.list` (project flag) |
+| Settings — Installed Packages | `kernel.v1.package.list` + `host.project.list` (project flag) |
 | Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
-| Project tab | `kernel.v1.project.get/start/stop` + `kernel.v1.surface.resolve_bundle` |
+| Project tab | `host.project.get/start/stop` + `host.surface.bundle.resolve` |
 | Project deployment | `kernel.v1.port.*` + `kernel.v1.proxy.*` + `official/docker-runtime-lab/{start_container,stop_container}` |
 | Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `kernel.v1.capability.invoke` |
 | Failure Modal | `kernel.v1.package.list/status/logs` redacted failure summaries |
@@ -206,7 +206,7 @@ must still cross proposal, permission, and audit boundaries.
 Project deployment is also explicit. If a project exposes
 `project.metadata.deployment.docker`, the project console shows Deploy / Stop
 controls. Deploy leases a loopback port, invokes `official/docker-runtime-lab`,
-then registers a reverse-proxy route. `kernel.v1.project.start` does not deploy
+then registers a reverse-proxy route. `host.project.start` does not deploy
 anything automatically.
 
 The host may expose deployed apps through `/p/<route_id>/...` or, when

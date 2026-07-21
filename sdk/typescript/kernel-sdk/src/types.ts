@@ -315,6 +315,18 @@ export interface ContractAlias {
   "support_until"?: null | string;
 }
 
+export interface ContractDiagnostic {
+  "canonical_id": string;
+  "code": string;
+  "deprecated_in"?: null | string;
+  "maturity": ContractMaturity;
+  "message": string;
+  "replacement"?: null | string;
+  "requested_id": string;
+  "severity": string;
+  "support_until"?: null | string;
+}
+
 export interface ContractLayerInfo {
   "description": string;
   "id": ContractOwnerLayer;
@@ -1903,6 +1915,12 @@ export interface ProtocolDocumentReference {
   "uri": string;
 }
 
+export interface ProtocolError {
+  "code": string;
+  "details"?: unknown;
+  "message": string;
+}
+
 export interface ProtocolImplementationClaim {
   "conformance_vectors": Array<string>;
   "implementation_id": string;
@@ -1961,6 +1979,13 @@ export interface ProtocolProfilePin {
   "profile": string;
   "protocol_id": string;
   "version": string;
+}
+
+export interface ProtocolResponse {
+  "diagnostics"?: Array<ContractDiagnostic>;
+  "error"?: ProtocolError | null;
+  "id": string;
+  "result"?: unknown;
 }
 
 export type ProtocolSchemaKind = "json_schema" | "wit_world" | "other";

@@ -17,7 +17,7 @@ Executable v1 contracts and the hostile conformance roadmap. These docs are back
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md) — v1 event kind registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md) — v1 error codes
 - [`v1/VERSIONING.md`](v1/VERSIONING.en.md) — v1 additive-only versioning strategy
-- [`v1/schemas/`](v1/schemas/) — 160 JSON Schemas (80 methods + 59 events + 21 top-level), the SDK source of truth
+- [`v1/schemas/`](v1/schemas/) — 161 JSON Schemas (80 methods + 59 events + 22 top-level), the SDK source of truth
 
 Run the full suite:
 

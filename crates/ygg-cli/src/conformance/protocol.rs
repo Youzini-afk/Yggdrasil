@@ -9,9 +9,10 @@ use ygg_core::{
     ProtocolConformanceReport,
 };
 use ygg_runtime::{
-    negotiate_contract, protocol_descriptor, ContractOwnerLayer, ContractSelection,
-    ContractVersionRequirement, DeploymentReconcileSource, EventStore, ExecStatus, ExecStatusKind,
-    InMemoryEventStore, LocalExecExecutor, LocalExecExecutorConfig, LocalExecLogsRequest,
+    contract_diagnostics, contract_method, negotiate_contract, protocol_descriptor,
+    ContractMaturity, ContractOwnerLayer, ContractSelection, ContractVersionRequirement,
+    DeploymentReconcileSource, EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore,
+    KernelMethod, LocalExecExecutor, LocalExecExecutorConfig, LocalExecLogsRequest,
     LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
     LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
     PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProtocolSelection,
@@ -295,6 +296,34 @@ pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
         store.list_all().await?.is_empty(),
         "identity aliases must not create a distinct audit/event path"
     );
+    Ok(())
+}
+
+pub(crate) async fn deprecated_alias_diagnostic() -> anyhow::Result<()> {
+    for (method, legacy_id, canonical_id) in [
+        (KernelMethod::HostInfo, "kernel.v1.host.info", "host.info"),
+        (
+            KernelMethod::TargetList,
+            "kernel.v1.target.list",
+            "host.target.list",
+        ),
+    ] {
+        let contract = contract_method(method);
+        anyhow::ensure!(contract.maturity == ContractMaturity::Candidate);
+        let alias = contract
+            .aliases
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("{legacy_id} alias missing"))?;
+        anyhow::ensure!(alias.maturity == ContractMaturity::Deprecated);
+        anyhow::ensure!(alias.replacement.as_deref() == Some(canonical_id));
+        anyhow::ensure!(alias.support_until.as_deref() == Some("ygg.contract.registry@0.5.0"));
+
+        let diagnostics = contract_diagnostics(legacy_id);
+        anyhow::ensure!(diagnostics.len() == 1);
+        anyhow::ensure!(diagnostics[0].code == "ygg.contract.alias.deprecated");
+        anyhow::ensure!(diagnostics[0].replacement.as_deref() == Some(canonical_id));
+        anyhow::ensure!(contract_diagnostics(canonical_id).is_empty());
+    }
     Ok(())
 }
 
