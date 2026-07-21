@@ -18,6 +18,25 @@ pub(crate) fn event_schema(kind: &str, payload: Value) -> Value {
     })
 }
 
+fn with_optional_receipt(mut payload: Value) -> Value {
+    let properties = payload
+        .as_object_mut()
+        .expect("event payload schema is an object")
+        .entry("properties")
+        .or_insert_with(|| json!({}));
+    properties
+        .as_object_mut()
+        .expect("event payload properties is an object")
+        .insert(
+            "receipt".to_string(),
+            json!({
+                "anyOf": [schema_value::<ArtifactDescriptor>(), {"type": "null"}],
+                "default": null,
+            }),
+        );
+    payload
+}
+
 pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
     vec![
         (EVENT_SESSION_OPENED, json!({"type":"object"})),
@@ -87,7 +106,10 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             EVENT_CAPABILITY_COMPLETED,
             schema_value::<CapabilityInvocationResult>(),
         ),
-        (EVENT_CAPABILITY_FAILED, json!({"type":"object"})),
+        (
+            EVENT_CAPABILITY_FAILED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
         (
             EVENT_PERMISSION_DENIED,
             json!({"type":"object","properties":{"package_id":{"type":"string"},"operation":{"type":"string"}}}),
@@ -105,32 +127,62 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             EVENT_OUTBOUND_REQUEST,
             schema_value::<OutboundAuditRecord>(),
         ),
-        (EVENT_OUTBOUND_DENIED, schema_value::<OutboundAuditRecord>()),
-        (EVENT_OUTBOUND_EXECUTE_COMPLETED, json!({"type":"object"})),
+        (
+            EVENT_OUTBOUND_DENIED,
+            with_optional_receipt(schema_value::<OutboundAuditRecord>()),
+        ),
+        (
+            EVENT_OUTBOUND_EXECUTE_COMPLETED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
         (
             EVENT_OUTBOUND_STREAM_COMPLETED,
-            schema_value::<OutboundStreamSummary>(),
+            with_optional_receipt(schema_value::<OutboundStreamSummary>()),
         ),
         (EVENT_STREAM_STARTED, json!({"type":"object"})),
         (EVENT_STREAM_CHUNK, schema_value::<StreamFrameEnvelope>()),
         (EVENT_STREAM_PROGRESS, schema_value::<StreamFrameEnvelope>()),
-        (EVENT_STREAM_ENDED, schema_value::<StreamFrameEnvelope>()),
-        (EVENT_STREAM_ERROR, schema_value::<StreamFrameEnvelope>()),
+        (
+            EVENT_STREAM_ENDED,
+            with_optional_receipt(schema_value::<StreamFrameEnvelope>()),
+        ),
+        (
+            EVENT_STREAM_ERROR,
+            with_optional_receipt(schema_value::<StreamFrameEnvelope>()),
+        ),
         (
             EVENT_STREAM_CANCELLED,
-            schema_value::<StreamFrameEnvelope>(),
+            with_optional_receipt(schema_value::<StreamFrameEnvelope>()),
         ),
-        (EVENT_STREAM_TIMEOUT, schema_value::<StreamFrameEnvelope>()),
+        (
+            EVENT_STREAM_TIMEOUT,
+            with_optional_receipt(schema_value::<StreamFrameEnvelope>()),
+        ),
         (EVENT_OUTBOUND_WEBSOCKET_OPENED, json!({"type":"object"})),
         (EVENT_OUTBOUND_WEBSOCKET_FRAME, json!({"type":"object"})),
         (EVENT_OUTBOUND_WEBSOCKET_ERROR, json!({"type":"object"})),
-        (EVENT_OUTBOUND_WEBSOCKET_COMPLETED, json!({"type":"object"})),
+        (
+            EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
         (EVENT_EXEC_REQUEST, json!({"type":"object"})),
-        (EVENT_EXEC_DENIED, json!({"type":"object"})),
+        (
+            EVENT_EXEC_DENIED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
         (EVENT_EXEC_STARTED, json!({"type":"object"})),
-        (EVENT_EXEC_STOPPED, json!({"type":"object"})),
-        (EVENT_EXEC_COMPLETED, json!({"type":"object"})),
-        (EVENT_EXEC_FAILED, json!({"type":"object"})),
+        (
+            EVENT_EXEC_STOPPED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
+        (
+            EVENT_EXEC_COMPLETED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
+        (
+            EVENT_EXEC_FAILED,
+            with_optional_receipt(json!({"type":"object"})),
+        ),
         (EVENT_PORT_LEASED, json!({"type":"object"})),
         (EVENT_PORT_RELEASED, json!({"type":"object"})),
         (EVENT_PORT_DENIED, json!({"type":"object"})),

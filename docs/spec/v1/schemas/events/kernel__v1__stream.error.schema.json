@@ -24,6 +24,53 @@
           "default": null,
           "description": "Opaque payload — capability-provider-defined; no kernel content semantics. May be `Null` for progress/end/cancelled/timeout frames."
         },
+        "receipt": {
+          "anyOf": [
+            {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "annotations": {
+                  "additionalProperties": true,
+                  "default": {},
+                  "type": "object"
+                },
+                "artifact_type_uri": {
+                  "type": "string"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "media_type": {
+                  "type": "string"
+                },
+                "references": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "size_bytes": {
+                  "format": "uint64",
+                  "minimum": 0.0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "artifact_type_uri",
+                "digest",
+                "media_type",
+                "size_bytes"
+              ],
+              "title": "ArtifactDescriptor",
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "redaction_state": {
           "allOf": [
             {

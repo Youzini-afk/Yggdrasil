@@ -1,14 +1,17 @@
 use serde_json::json;
 use std::fs;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use ygg_runtime::{
     ContractOwnerLayer, ContractSelection, ContractVersionRequirement, DeploymentReconcileSource,
-    EventStore, ExecStatusKind, InMemoryEventStore, LocalExecExecutorConfig,
-    ManagedContainerReport, PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal,
-    ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore, CONTRACT_LAYER_VERSION,
-    DEFAULT_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
+    EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore, LocalExecExecutor,
+    LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse, LocalExecStartRequest,
+    LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse, LocalExecStopRequest,
+    LocalExecStopResponse, ManagedContainerReport, PortLeaseStatusKind, ProtocolContext,
+    ProtocolPrincipal, ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore,
+    CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
 };
 
 use super::fixtures::*;
@@ -430,6 +433,266 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     );
 
     let _ = fs::remove_file(path);
+    Ok(())
+}
+
+pub(crate) async fn deployment_hub_exec_stop_receipt() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let mut config = RuntimeConfig::default();
+    config.local_exec_executor = LocalExecExecutorConfig::Fake;
+    let runtime = Runtime::new(store.clone(), config);
+    let context = ProtocolContext::host_dev("conformance");
+    let started = runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.exec.start",
+            json!({"target_id":"local","command":{"program":"demo","args":[]}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let exec_id = started["exec_id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("exec id missing"))?;
+    let stopped = runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.exec.stop",
+            json!({"exec_id": exec_id, "reason": "conformance"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(
+        stopped["status"]["kind"] == json!("stopped"),
+        "fake exec did not stop"
+    );
+    let events = store.list_all().await?;
+    let event = events
+        .iter()
+        .find(|event| event.kind == ygg_core::EVENT_EXEC_STOPPED)
+        .ok_or_else(|| anyhow::anyhow!("exec stopped event missing"))?;
+    let receipt_digest = event.payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("exec stopped receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "exec.run"
+            && replay.receipt.status == ygg_core::EffectTerminalStatus::Cancelled,
+        "exec stopped receipt is incomplete"
+    );
+    Ok(())
+}
+
+struct AutoTerminalExecExecutor {
+    status_polls: AtomicUsize,
+}
+
+#[async_trait]
+impl LocalExecExecutor for AutoTerminalExecExecutor {
+    fn supports_terminal_monitoring(&self) -> bool {
+        true
+    }
+
+    async fn start(
+        &self,
+        request: LocalExecStartRequest,
+    ) -> anyhow::Result<LocalExecStartResponse> {
+        let exec_id = "auto-terminal-exec".to_string();
+        let status = ExecStatus {
+            exec_id: Some(exec_id.clone()),
+            target_id: Some(request.target_id),
+            kind: ExecStatusKind::Running,
+            exit_code: None,
+            message: Some("running".to_string()),
+            ready: true,
+        };
+        Ok(LocalExecStartResponse {
+            exec_id: Some(exec_id),
+            status,
+            error: None,
+        })
+    }
+
+    async fn stop(&self, request: LocalExecStopRequest) -> anyhow::Result<LocalExecStopResponse> {
+        Ok(LocalExecStopResponse {
+            exec_id: request.exec_id.clone(),
+            status: ExecStatus {
+                exec_id: Some(request.exec_id),
+                target_id: Some("local".to_string()),
+                kind: ExecStatusKind::Stopped,
+                exit_code: None,
+                message: Some("stopped".to_string()),
+                ready: false,
+            },
+            error: None,
+        })
+    }
+
+    async fn status(
+        &self,
+        request: LocalExecStatusRequest,
+    ) -> anyhow::Result<LocalExecStatusResponse> {
+        self.status_polls.fetch_add(1, Ordering::SeqCst);
+        Ok(LocalExecStatusResponse {
+            status: ExecStatus {
+                exec_id: Some(request.exec_id),
+                target_id: Some("local".to_string()),
+                kind: ExecStatusKind::Exited,
+                exit_code: Some(0),
+                message: Some("exited".to_string()),
+                ready: false,
+            },
+            error: None,
+        })
+    }
+
+    async fn logs(&self, request: LocalExecLogsRequest) -> anyhow::Result<LocalExecLogsResponse> {
+        Ok(LocalExecLogsResponse {
+            exec_id: request.exec_id,
+            lines: Vec::new(),
+            next_seq: None,
+            error: None,
+        })
+    }
+}
+
+pub(crate) async fn deployment_hub_exec_terminal_is_observed_once() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let executor = Arc::new(AutoTerminalExecExecutor {
+        status_polls: AtomicUsize::new(0),
+    });
+    let mut config = RuntimeConfig::default();
+    let object_store = config.object_store.clone();
+    config.local_exec_executor = LocalExecExecutorConfig::Custom(executor.clone());
+    let runtime = Runtime::new(store.clone(), config);
+    let context = ProtocolContext::host_dev("conformance");
+    runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.exec.start",
+            json!({"target_id":"local","command":{"program":"demo","args":[]}}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+
+    let mut completed = None;
+    for _ in 0..100 {
+        if let Some(event) = store
+            .list_all()
+            .await?
+            .into_iter()
+            .find(|event| event.kind == ygg_core::EVENT_EXEC_COMPLETED)
+        {
+            completed = Some(event);
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    let completed = completed.ok_or_else(|| {
+        anyhow::anyhow!(
+            "exec terminal monitor did not converge after {} status polls",
+            executor.status_polls.load(Ordering::SeqCst)
+        )
+    })?;
+    let receipt_digest = completed.payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("natural exec completion receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "exec.run"
+            && replay.receipt.status == ygg_core::EffectTerminalStatus::Succeeded,
+        "natural exec completion receipt is incomplete"
+    );
+    anyhow::ensure!(
+        store
+            .list_all()
+            .await?
+            .iter()
+            .filter(|event| event.kind == ygg_core::EVENT_EXEC_COMPLETED)
+            .count()
+            == 1,
+        "natural exec completion emitted duplicate terminal events"
+    );
+
+    drop(runtime);
+    let mut hydrated_config = RuntimeConfig::default();
+    hydrated_config.object_store = object_store;
+    let hydrated = Runtime::new(store.clone(), hydrated_config);
+    hydrated.hydrate_deployment_from_events().await?;
+    let status = hydrated
+        .call_protocol(
+            &context,
+            "kernel.v1.exec.status",
+            json!({"exec_id": "auto-terminal-exec"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(
+        status["status"]["kind"] == json!("exited"),
+        "terminal exec status was not restored after hydration"
+    );
+    anyhow::ensure!(
+        store
+            .list_all()
+            .await?
+            .iter()
+            .filter(|event| event.kind == ygg_core::EVENT_EXEC_COMPLETED)
+            .count()
+            == 1,
+        "status after hydration emitted a duplicate terminal receipt"
+    );
+    Ok(())
+}
+
+pub(crate) async fn deployment_hub_exec_denial_is_deduplicated() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let context = ProtocolContext::host_dev("conformance");
+    for _ in 0..2 {
+        let response = runtime
+            .call_protocol(
+                &context,
+                "kernel.v1.exec.status",
+                json!({"exec_id": "denied-exec"}),
+            )
+            .await
+            .map_err(|error| anyhow::anyhow!(error.message))?;
+        anyhow::ensure!(
+            response["status"]["kind"] == json!("denied"),
+            "deny-all exec status did not return denied"
+        );
+    }
+    anyhow::ensure!(
+        store
+            .list_all()
+            .await?
+            .iter()
+            .filter(|event| event.kind == ygg_core::EVENT_EXEC_DENIED)
+            .count()
+            == 1,
+        "repeated denied status created duplicate receipts"
+    );
+
+    drop(runtime);
+    let hydrated = Runtime::new(store.clone(), RuntimeConfig::default());
+    hydrated.hydrate_deployment_from_events().await?;
+    hydrated
+        .call_protocol(
+            &context,
+            "kernel.v1.exec.status",
+            json!({"exec_id": "denied-exec"}),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    anyhow::ensure!(
+        store
+            .list_all()
+            .await?
+            .iter()
+            .filter(|event| event.kind == ygg_core::EVENT_EXEC_DENIED)
+            .count()
+            == 1,
+        "denied status after hydration created a duplicate receipt"
+    );
     Ok(())
 }
 

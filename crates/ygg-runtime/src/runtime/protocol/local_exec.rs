@@ -1,4 +1,9 @@
 use super::*;
+use crate::runtime::effects::{principal_identity, EffectReceiptRequest};
+use crate::runtime::local_exec::ExecEffectContext;
+use crate::DEFAULT_CONTRACT_PROFILE;
+use chrono::Utc;
+use ygg_core::{ArtifactDescriptor, EffectScope, EffectTerminalStatus};
 
 const DEPLOYMENT_HUB_SESSION_ID: &str = "kernel_deployment_hub";
 
@@ -50,6 +55,7 @@ where
         params: Value,
     ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecStartRequest = serde_json::from_value(params)?;
+        let effect_context = exec_effect_context(context, &request);
         self.append_deployment_hub_event(
             context,
             ygg_core::EVENT_EXEC_REQUEST,
@@ -62,34 +68,111 @@ where
         )
         .await?;
 
-        let response = self
-            .config
-            .local_exec_executor
-            .executor()
-            .start(request)
-            .await?;
+        let executor = self.config.local_exec_executor.executor();
+        let response = match executor.start(request).await {
+            Ok(response) => response,
+            Err(error) => {
+                let status = crate::runtime::ExecStatus {
+                    exec_id: None,
+                    target_id: Some(effect_context.target_id.clone()),
+                    kind: crate::runtime::ExecStatusKind::Failed,
+                    exit_code: None,
+                    message: None,
+                    ready: false,
+                };
+                let receipt = self
+                    .record_exec_effect(
+                        &effect_context,
+                        "exec.start",
+                        &status,
+                        EffectTerminalStatus::Failed,
+                    )
+                    .await?;
+                self.append_deployment_hub_event(
+                    context,
+                    ygg_core::EVENT_EXEC_FAILED,
+                    json!({
+                        "exec_id": Value::Null,
+                        "target_id": effect_context.target_id,
+                        "status": status.kind,
+                        "effect_kind": "exec.start",
+                        "error_present": true,
+                        "receipt": receipt,
+                    }),
+                )
+                .await?;
+                return Err(error);
+            }
+        };
         self.config
             .exec_registry
             .upsert_from_status(&response.status)
             .await;
 
-        let event_kind = if response.status.kind == crate::runtime::ExecStatusKind::Denied {
-            ygg_core::EVENT_EXEC_DENIED
-        } else {
-            ygg_core::EVENT_EXEC_STARTED
-        };
-        self.append_deployment_hub_event(
-            context,
-            event_kind,
-            json!({
-                "exec_id": response.exec_id,
-                "target_id": response.status.target_id,
-                "status": response.status.kind,
-                "ready": response.status.ready,
-                "error": response.error,
-            }),
-        )
-        .await?;
+        let terminal_status = exec_terminal_status(&response.status);
+        if let Some(terminal_status) = terminal_status {
+            if let Some(exec_id) = response.exec_id.as_ref() {
+                self.finalize_exec_terminal_once(
+                    context,
+                    &effect_context,
+                    exec_id,
+                    "exec.start",
+                    &response.status,
+                    terminal_status,
+                )
+                .await?;
+            } else {
+                let receipt = self
+                    .record_exec_effect(
+                        &effect_context,
+                        "exec.start",
+                        &response.status,
+                        terminal_status,
+                    )
+                    .await?;
+                self.append_deployment_hub_event(
+                    context,
+                    exec_terminal_event_kind(terminal_status),
+                    json!({
+                        "exec_id": Value::Null,
+                        "target_id": response.status.target_id,
+                        "status": response.status.kind,
+                        "ready": response.status.ready,
+                        "effect_kind": "exec.start",
+                        "error_present": response.error.is_some(),
+                        "receipt": receipt,
+                    }),
+                )
+                .await?;
+            }
+        } else if let Some(exec_id) = response.exec_id.as_ref() {
+            self.config
+                .exec_registry
+                .record_effect_context(exec_id.clone(), effect_context.clone())
+                .await;
+            self.append_deployment_hub_event(
+                context,
+                ygg_core::EVENT_EXEC_STARTED,
+                json!({
+                    "exec_id": response.exec_id,
+                    "target_id": response.status.target_id,
+                    "status": response.status.kind,
+                    "ready": response.status.ready,
+                    "effect_kind": "exec.run",
+                    "error_present": response.error.is_some(),
+                    "effect_context": effect_context.clone(),
+                }),
+            )
+            .await?;
+            if executor.supports_terminal_monitoring() {
+                self.spawn_exec_terminal_monitor(
+                    context.clone(),
+                    effect_context,
+                    exec_id.clone(),
+                    executor,
+                );
+            }
+        }
 
         Ok(serde_json::to_value(response)?)
     }
@@ -103,46 +186,256 @@ where
         if request.exec_id.trim().is_empty() {
             anyhow::bail!("kernel.v1.exec.stop requires exec_id");
         }
-        let response = self
+        let exec_id = request.exec_id.clone();
+        if let Some(status) = self.config.exec_registry.status(&exec_id).await {
+            if is_process_terminal(&status)
+                && self
+                    .config
+                    .exec_registry
+                    .terminal_receipt(&exec_id)
+                    .await
+                    .is_some()
+            {
+                return Ok(serde_json::to_value(
+                    crate::runtime::LocalExecStopResponse {
+                        exec_id,
+                        status,
+                        error: None,
+                    },
+                )?);
+            }
+        }
+        let effect_context = self
+            .config
+            .exec_registry
+            .effect_context(&exec_id)
+            .await
+            .unwrap_or_else(|| unknown_exec_effect_context(context, &exec_id));
+        let response = match self
             .config
             .local_exec_executor
             .executor()
             .stop(request)
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                let status = crate::runtime::ExecStatus {
+                    exec_id: Some(exec_id.clone()),
+                    target_id: Some(effect_context.target_id.clone()),
+                    kind: crate::runtime::ExecStatusKind::Failed,
+                    exit_code: None,
+                    message: None,
+                    ready: false,
+                };
+                let receipt = self
+                    .record_exec_effect(
+                        &effect_context,
+                        "exec.stop",
+                        &status,
+                        EffectTerminalStatus::Failed,
+                    )
+                    .await?;
+                self.append_deployment_hub_event(
+                    context,
+                    ygg_core::EVENT_EXEC_FAILED,
+                    json!({
+                        "exec_id": exec_id,
+                        "status": status.kind,
+                        "effect_kind": "exec.stop",
+                        "error_present": true,
+                        "receipt": receipt,
+                    }),
+                )
+                .await?;
+                return Err(error);
+            }
+        };
+        let terminal_status =
+            exec_terminal_status(&response.status).unwrap_or(EffectTerminalStatus::Failed);
+        if terminal_status == EffectTerminalStatus::Denied {
+            let operation_key = format!("exec.stop:{exec_id}");
+            if self
+                .config
+                .exec_registry
+                .operation_receipt(&operation_key)
+                .await
+                .is_none()
+            {
+                let receipt = self
+                    .record_exec_effect(
+                        &effect_context,
+                        "exec.stop",
+                        &response.status,
+                        terminal_status,
+                    )
+                    .await?;
+                self.config
+                    .exec_registry
+                    .record_operation_receipt(operation_key, receipt.clone())
+                    .await;
+                self.append_deployment_hub_event(
+                    context,
+                    ygg_core::EVENT_EXEC_DENIED,
+                    json!({
+                        "exec_id": response.exec_id,
+                        "status": response.status.kind,
+                        "effect_kind": "exec.stop",
+                        "error_present": response.error.is_some(),
+                        "receipt": receipt,
+                    }),
+                )
+                .await?;
+            }
+        } else {
+            self.config
+                .exec_registry
+                .upsert_from_status(&response.status)
+                .await;
+            self.finalize_exec_terminal_once(
+                context,
+                &effect_context,
+                &exec_id,
+                "exec.run",
+                &response.status,
+                terminal_status,
+            )
             .await?;
-        self.config
-            .exec_registry
-            .upsert_from_status(&response.status)
-            .await;
-
-        self.append_deployment_hub_event(
-            context,
-            ygg_core::EVENT_EXEC_STOPPED,
-            json!({
-                "exec_id": response.exec_id,
-                "status": response.status.kind,
-                "error": response.error,
-            }),
-        )
-        .await?;
+        }
 
         Ok(serde_json::to_value(response)?)
     }
 
-    pub(crate) async fn dispatch_exec_status(&self, params: Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_exec_status(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecStatusRequest = serde_json::from_value(params)?;
         if request.exec_id.trim().is_empty() {
             anyhow::bail!("kernel.v1.exec.status requires exec_id");
         }
-        let response = self
+        let exec_id = request.exec_id.clone();
+        if let Some(status) = self.config.exec_registry.status(&exec_id).await {
+            if is_process_terminal(&status)
+                && self
+                    .config
+                    .exec_registry
+                    .terminal_receipt(&exec_id)
+                    .await
+                    .is_some()
+            {
+                return Ok(serde_json::to_value(
+                    crate::runtime::LocalExecStatusResponse {
+                        status,
+                        error: None,
+                    },
+                )?);
+            }
+        }
+        let effect_context = self
+            .config
+            .exec_registry
+            .effect_context(&exec_id)
+            .await
+            .unwrap_or_else(|| unknown_exec_effect_context(context, &exec_id));
+        let response = match self
             .config
             .local_exec_executor
             .executor()
             .status(request)
-            .await?;
-        self.config
-            .exec_registry
-            .upsert_from_status(&response.status)
-            .await;
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                let status = crate::runtime::ExecStatus {
+                    exec_id: Some(exec_id.clone()),
+                    target_id: Some(effect_context.target_id.clone()),
+                    kind: crate::runtime::ExecStatusKind::Failed,
+                    exit_code: None,
+                    message: None,
+                    ready: false,
+                };
+                let receipt = self
+                    .record_exec_effect(
+                        &effect_context,
+                        "exec.status",
+                        &status,
+                        EffectTerminalStatus::Failed,
+                    )
+                    .await?;
+                self.append_deployment_hub_event(
+                    context,
+                    ygg_core::EVENT_EXEC_FAILED,
+                    json!({
+                        "exec_id": exec_id,
+                        "status": status.kind,
+                        "effect_kind": "exec.status",
+                        "error_present": true,
+                        "receipt": receipt,
+                    }),
+                )
+                .await?;
+                return Err(error);
+            }
+        };
+        if let Some(terminal_status) = exec_terminal_status(&response.status) {
+            if terminal_status == EffectTerminalStatus::Denied {
+                let operation_key = format!("exec.status:{exec_id}");
+                if self
+                    .config
+                    .exec_registry
+                    .operation_receipt(&operation_key)
+                    .await
+                    .is_none()
+                {
+                    let receipt = self
+                        .record_exec_effect(
+                            &effect_context,
+                            "exec.status",
+                            &response.status,
+                            terminal_status,
+                        )
+                        .await?;
+                    self.config
+                        .exec_registry
+                        .record_operation_receipt(operation_key, receipt.clone())
+                        .await;
+                    self.append_deployment_hub_event(
+                        context,
+                        ygg_core::EVENT_EXEC_DENIED,
+                        json!({
+                            "exec_id": exec_id,
+                            "target_id": response.status.target_id,
+                            "status": response.status.kind,
+                            "effect_kind": "exec.status",
+                            "error_present": response.error.is_some(),
+                            "receipt": receipt,
+                        }),
+                    )
+                    .await?;
+                }
+            } else {
+                self.config
+                    .exec_registry
+                    .upsert_from_status(&response.status)
+                    .await;
+                self.finalize_exec_terminal_once(
+                    context,
+                    &effect_context,
+                    &exec_id,
+                    "exec.run",
+                    &response.status,
+                    terminal_status,
+                )
+                .await?;
+            }
+        } else {
+            self.config
+                .exec_registry
+                .upsert_from_status(&response.status)
+                .await;
+        }
         Ok(serde_json::to_value(response)?)
     }
 
@@ -166,6 +459,205 @@ where
                 executions: self.config.exec_registry.list().await,
             },
         )?)
+    }
+
+    async fn record_exec_effect(
+        &self,
+        context: &ExecEffectContext,
+        effect_kind: &str,
+        status: &crate::runtime::ExecStatus,
+        terminal_status: EffectTerminalStatus,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let latency_ms = (Utc::now() - context.started_at).num_milliseconds().max(1) as u64;
+        let mut request = EffectReceiptRequest::live(
+            effect_kind,
+            context.principal.clone(),
+            json!({
+                "kind": "local_exec_executor",
+                "target_id": context.target_id,
+            }),
+            terminal_status,
+            context.started_at,
+            latency_ms,
+            context.trace_id.clone(),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        request.inputs = vec![json!({
+            "target_id": context.target_id,
+            "program": context.program,
+            "arg_count": context.arg_count,
+            "port_names": context.port_names,
+            "lifecycle": context.lifecycle,
+            "resource_limits": context.resource_limits,
+        })];
+        request.outputs = vec![json!({
+            "exec_id": status.exec_id,
+            "target_id": status.target_id,
+            "status": status.kind,
+            "exit_code": status.exit_code,
+            "ready": status.ready,
+        })];
+        request.external_effects = status
+            .exec_id
+            .as_ref()
+            .filter(|_| terminal_status != EffectTerminalStatus::Denied)
+            .map(|exec_id| {
+                json!({
+                    "kind": "host_process",
+                    "exec_id": exec_id,
+                    "target_id": status.target_id,
+                    "exit_code": status.exit_code,
+                })
+            })
+            .into_iter()
+            .collect();
+        request.authority = Some(json!({
+            "principal": context.principal,
+            "target_id": context.target_id,
+        }));
+        request.policy_decision = Some(json!({
+            "outcome": if terminal_status == EffectTerminalStatus::Denied {
+                "denied"
+            } else {
+                "allowed"
+            },
+        }));
+        request.scope = EffectScope {
+            session_id: context.session_id.clone(),
+            branch_id: None,
+        };
+        request.planned = json!({
+            "target_id": context.target_id,
+            "program": context.program,
+            "arg_count": context.arg_count,
+            "lifecycle": context.lifecycle,
+            "resource_limits": context.resource_limits,
+        });
+        request.actual = json!({
+            "exec_id": status.exec_id,
+            "target_id": status.target_id,
+            "status": terminal_status,
+            "exec_status": status.kind,
+            "exit_code": status.exit_code,
+            "ready": status.ready,
+        });
+        self.record_effect_receipt(request).await
+    }
+
+    async fn finalize_exec_terminal_once(
+        &self,
+        protocol_context: &ProtocolContext,
+        effect_context: &ExecEffectContext,
+        exec_id: &str,
+        effect_kind: &str,
+        status: &crate::runtime::ExecStatus,
+        terminal_status: EffectTerminalStatus,
+    ) -> anyhow::Result<Option<ArtifactDescriptor>> {
+        if !self
+            .config
+            .exec_registry
+            .claim_terminal_receipt(exec_id)
+            .await
+        {
+            return Ok(self.config.exec_registry.terminal_receipt(exec_id).await);
+        }
+
+        let result = async {
+            let receipt = self
+                .record_exec_effect(effect_context, effect_kind, status, terminal_status)
+                .await?;
+            self.append_deployment_hub_event(
+                protocol_context,
+                exec_terminal_event_kind(terminal_status),
+                json!({
+                    "exec_id": exec_id,
+                    "target_id": status.target_id,
+                    "status": status.kind,
+                    "exit_code": status.exit_code,
+                    "ready": status.ready,
+                    "effect_kind": effect_kind,
+                    "error_present": status.message.is_some(),
+                    "receipt": receipt,
+                }),
+            )
+            .await?;
+            self.config.exec_registry.upsert_from_status(status).await;
+            self.config
+                .exec_registry
+                .record_terminal_receipt(exec_id.to_string(), receipt.clone())
+                .await;
+            Ok::<ArtifactDescriptor, anyhow::Error>(receipt)
+        }
+        .await;
+
+        match result {
+            Ok(receipt) => Ok(Some(receipt)),
+            Err(error) => {
+                self.config
+                    .exec_registry
+                    .release_terminal_receipt_claim(exec_id)
+                    .await;
+                Err(error)
+            }
+        }
+    }
+
+    fn spawn_exec_terminal_monitor(
+        &self,
+        protocol_context: ProtocolContext,
+        effect_context: ExecEffectContext,
+        exec_id: String,
+        executor: std::sync::Arc<dyn crate::runtime::LocalExecExecutor>,
+    ) {
+        let runtime = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+                if runtime
+                    .config
+                    .exec_registry
+                    .terminal_receipt(&exec_id)
+                    .await
+                    .is_some()
+                {
+                    break;
+                }
+                let response = match executor
+                    .status(crate::runtime::LocalExecStatusRequest {
+                        exec_id: exec_id.clone(),
+                    })
+                    .await
+                {
+                    Ok(response) => response,
+                    Err(_) => continue,
+                };
+                if response.status.kind == crate::runtime::ExecStatusKind::Denied {
+                    continue;
+                }
+                runtime
+                    .config
+                    .exec_registry
+                    .upsert_from_status(&response.status)
+                    .await;
+                let Some(terminal_status) = exec_terminal_status(&response.status) else {
+                    continue;
+                };
+                match runtime
+                    .finalize_exec_terminal_once(
+                        &protocol_context,
+                        &effect_context,
+                        &exec_id,
+                        "exec.run",
+                        &response.status,
+                        terminal_status,
+                    )
+                    .await
+                {
+                    Ok(Some(_)) => break,
+                    Ok(None) | Err(_) => continue,
+                }
+            }
+        });
     }
 
     // --- Port ---
@@ -391,6 +883,83 @@ where
         );
         Ok(DEPLOYMENT_HUB_SESSION_ID.to_string())
     }
+}
+
+fn exec_effect_context(
+    context: &ProtocolContext,
+    request: &crate::runtime::LocalExecStartRequest,
+) -> ExecEffectContext {
+    ExecEffectContext {
+        principal: principal_identity(&context.principal),
+        target_id: request.target_id.clone(),
+        program: request.command.program.clone(),
+        arg_count: request.command.args.len(),
+        port_names: request.port_names.clone(),
+        lifecycle: request.lifecycle,
+        resource_limits: request.resource_limits.clone(),
+        session_id: context.session_id.clone(),
+        started_at: Utc::now(),
+        trace_id: context.effective_correlation_id().to_string(),
+    }
+}
+
+fn unknown_exec_effect_context(context: &ProtocolContext, exec_id: &str) -> ExecEffectContext {
+    ExecEffectContext {
+        principal: principal_identity(&context.principal),
+        target_id: "unknown".to_string(),
+        program: "unknown".to_string(),
+        arg_count: 0,
+        port_names: Vec::new(),
+        lifecycle: crate::runtime::ExecLifecyclePolicy::StopOnSessionClose,
+        resource_limits: crate::runtime::ExecResourceLimits::default(),
+        session_id: context.session_id.clone(),
+        started_at: Utc::now(),
+        trace_id: format!("{}:{exec_id}", context.effective_correlation_id()),
+    }
+}
+
+fn exec_terminal_status(status: &crate::runtime::ExecStatus) -> Option<EffectTerminalStatus> {
+    match status.kind {
+        crate::runtime::ExecStatusKind::Pending | crate::runtime::ExecStatusKind::Running => None,
+        crate::runtime::ExecStatusKind::Stopped => Some(EffectTerminalStatus::Cancelled),
+        crate::runtime::ExecStatusKind::Exited if status.exit_code.unwrap_or(0) == 0 => {
+            Some(EffectTerminalStatus::Succeeded)
+        }
+        crate::runtime::ExecStatusKind::Exited => Some(EffectTerminalStatus::Failed),
+        crate::runtime::ExecStatusKind::Failed => {
+            if status
+                .message
+                .as_deref()
+                .is_some_and(|message| message.to_ascii_lowercase().contains("timeout"))
+            {
+                Some(EffectTerminalStatus::TimedOut)
+            } else {
+                Some(EffectTerminalStatus::Failed)
+            }
+        }
+        crate::runtime::ExecStatusKind::Denied => Some(EffectTerminalStatus::Denied),
+        crate::runtime::ExecStatusKind::Unknown => Some(EffectTerminalStatus::Failed),
+    }
+}
+
+fn exec_terminal_event_kind(status: EffectTerminalStatus) -> &'static str {
+    match status {
+        EffectTerminalStatus::Succeeded => ygg_core::EVENT_EXEC_COMPLETED,
+        EffectTerminalStatus::Denied => ygg_core::EVENT_EXEC_DENIED,
+        EffectTerminalStatus::Cancelled => ygg_core::EVENT_EXEC_STOPPED,
+        EffectTerminalStatus::Failed
+        | EffectTerminalStatus::TimedOut
+        | EffectTerminalStatus::Partial => ygg_core::EVENT_EXEC_FAILED,
+    }
+}
+
+fn is_process_terminal(status: &crate::runtime::ExecStatus) -> bool {
+    matches!(
+        status.kind,
+        crate::runtime::ExecStatusKind::Stopped
+            | crate::runtime::ExecStatusKind::Exited
+            | crate::runtime::ExecStatusKind::Failed
+    )
 }
 
 fn required_str(params: &Value, field: &str, method: &str) -> anyhow::Result<String> {

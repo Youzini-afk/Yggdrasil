@@ -193,6 +193,8 @@ Acceptance:
 - denied/cancelled/timeout/partial/success all have distinguishable terminal receipts;
 - raw-secret scanning covers receipt and adapter output.
 
+Implementation result (2026-07-21): all deliverables and acceptance items above are implemented. See [`EFFECT_RECEIPTS.md`](../spec/EFFECT_RECEIPTS.en.md) and [`CHANGE_WORKFLOW.md`](../spec/CHANGE_WORKFLOW.en.md). The schema set now contains 14 top-level / 153 total files, every documented terminal event schema exposes the additive receipt descriptor, and CI performs structural additive-only validation against the base schemas. Executable evidence covers provider/executor-free replay, branch re-execution, change authority plus CAS-guarded commit/rejection/failure, outbound/stream/WebSocket timeout and cancellation semantics, actively monitored/restart-deduplicated exec receipts, missing objects, and strict raw-secret redaction.
+
 ### 6. Establish Protocol Commons scaffolding
 
 Deliver a protocol descriptor rather than inventing many domain protocols first.

@@ -1,5 +1,50 @@
 {
   "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "EffectReplayMode": {
+      "enum": [
+        "live",
+        "historical",
+        "reexecute"
+      ],
+      "type": "string"
+    },
     "Payload": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -18,6 +63,26 @@
         "output": true,
         "provider_package_id": {
           "type": "string"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replay_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectReplayMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

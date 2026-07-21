@@ -1,6 +1,8 @@
 pub mod asset;
 pub mod capability_handle;
+pub mod change;
 pub mod conformance;
+pub mod effect;
 pub mod event;
 pub mod ids;
 pub mod lockfile;
@@ -12,6 +14,16 @@ pub mod session;
 
 pub use asset::{ArtifactDescriptor, AssetRecord};
 pub use capability_handle::{CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope};
+pub use change::{
+    ChangeCommit, ChangeCommitStatus, ChangeOperation, ChangePrecondition, ChangeSet, Intent,
+    PolicyDecision, PolicyDecisionOutcome, CHANGE_COMMIT_TYPE_URI, CHANGE_SET_TYPE_URI,
+    INTENT_TYPE_URI,
+};
+pub use effect::{
+    EffectReceipt, EffectReplayMode, EffectScope, EffectTerminalStatus, PrincipalIdentity,
+    APPROVAL_EVIDENCE_TYPE_URI, AUTHORITY_EVIDENCE_TYPE_URI, COMPONENT_EVIDENCE_TYPE_URI,
+    EFFECT_RECEIPT_TYPE_URI, EFFECT_VALUE_TYPE_URI, POLICY_DECISION_TYPE_URI,
+};
 pub use event::{
     EventEnvelope, EventKind, EventSequence, OutboundAuditRecord, PackageLifecyclePayload,
     RedactionState, SchemaVersion, StreamFrameEnvelope, StreamFrameType, StreamInvocationRecord,

@@ -11,14 +11,16 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
-    new_id, CapabilityId, InvocationId, PackageId, RedactionState, SessionId, StreamFrameEnvelope,
-    StreamFrameType, StreamInvocationRecord, StreamInvocationState, EVENT_STREAM_CANCELLED,
-    EVENT_STREAM_CHUNK, EVENT_STREAM_ENDED, EVENT_STREAM_ERROR, EVENT_STREAM_PROGRESS,
-    EVENT_STREAM_STARTED, EVENT_STREAM_TIMEOUT,
+    new_id, ArtifactDescriptor, CapabilityId, EffectScope, EffectTerminalStatus, InvocationId,
+    PackageId, PrincipalIdentity, RedactionState, SessionId, StreamFrameEnvelope, StreamFrameType,
+    StreamInvocationRecord, StreamInvocationState, EVENT_STREAM_CANCELLED, EVENT_STREAM_CHUNK,
+    EVENT_STREAM_ENDED, EVENT_STREAM_ERROR, EVENT_STREAM_PROGRESS, EVENT_STREAM_STARTED,
+    EVENT_STREAM_TIMEOUT,
 };
 
+use super::effects::EffectReceiptRequest;
 use super::Runtime;
-use crate::EventStore;
+use crate::{sha256_digest, EventStore, DEFAULT_CONTRACT_PROFILE};
 
 /// The in-memory streaming invocation registry.
 ///
@@ -86,6 +88,27 @@ impl StreamRegistry {
             .values()
             .find(|record| record.stream_id == stream_id)
             .cloned()
+    }
+
+    pub async fn set_metadata_field(
+        &self,
+        invocation_id: &InvocationId,
+        key: impl Into<String>,
+        value: Value,
+    ) -> anyhow::Result<()> {
+        let mut invocations = self.invocations.write().await;
+        let record = invocations
+            .get_mut(invocation_id)
+            .ok_or_else(|| anyhow::anyhow!("invocation '{}' not found", invocation_id))?;
+        if !record.metadata.is_object() {
+            record.metadata = json!({});
+        }
+        record
+            .metadata
+            .as_object_mut()
+            .expect("stream metadata was normalized to an object")
+            .insert(key.into(), value);
+        Ok(())
     }
 
     /// Append a chunk frame to an active invocation.
@@ -221,7 +244,10 @@ impl StreamRegistry {
             sequence: record.frame_count,
             redaction_state: RedactionState::NotCaptured,
             timestamp: Utc::now(),
-            payload: json!({"error": error_message}),
+            payload: json!({
+                "error_code": "stream_failed",
+                "error_fingerprint": sha256_digest(error_message.as_bytes()),
+            }),
             metadata: json!({}),
         };
         Ok(frame)
@@ -295,6 +321,24 @@ impl StreamRegistry {
             metadata: json!({}),
         };
         Ok(frame)
+    }
+
+    pub async fn rollback_terminal(
+        &self,
+        invocation_id: &InvocationId,
+        expected_state: StreamInvocationState,
+    ) -> bool {
+        let mut invocations = self.invocations.write().await;
+        let Some(record) = invocations.get_mut(invocation_id) else {
+            return false;
+        };
+        if record.state != expected_state {
+            return false;
+        }
+        record.state = StreamInvocationState::Active;
+        record.ended_at = None;
+        record.frame_count = record.frame_count.saturating_sub(1);
+        true
     }
 
     /// List all invocation records.
@@ -442,18 +486,35 @@ where
         session_id: &SessionId,
         invocation_id: &InvocationId,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self.streams.end_invocation(invocation_id).await?;
-
-        let event_payload = json!({
-            "invocation_id": invocation_id,
-            "stream_id": frame.stream_id,
-            "sequence": frame.sequence,
-            "frame_count": frame.sequence,
-        });
-        self.append_kernel_event(session_id, EVENT_STREAM_ENDED, event_payload)
-            .await?;
-
-        Ok(frame)
+        let mut frame = self.streams.end_invocation(invocation_id).await?;
+        let record = self
+            .streams
+            .get_invocation(invocation_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("invocation '{}' not found", invocation_id))?;
+        let result = async {
+            let receipt = self
+                .record_stream_effect(&record, EffectTerminalStatus::Succeeded)
+                .await?;
+            attach_stream_receipt(&mut frame, &receipt)?;
+            let event_payload = json!({
+                "invocation_id": invocation_id,
+                "stream_id": frame.stream_id,
+                "sequence": frame.sequence,
+                "frame_count": frame.sequence,
+                "receipt": receipt,
+            });
+            self.append_kernel_event(session_id, EVENT_STREAM_ENDED, event_payload)
+                .await?;
+            Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
+        }
+        .await;
+        if result.is_err() {
+            self.streams
+                .rollback_terminal(invocation_id, StreamInvocationState::Ended)
+                .await;
+        }
+        result
     }
 
     /// Error-terminate a streaming invocation.
@@ -465,21 +526,39 @@ where
         invocation_id: &InvocationId,
         error_message: &str,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self
+        let mut frame = self
             .streams
             .error_invocation(invocation_id, error_message)
             .await?;
-
-        let event_payload = json!({
-            "invocation_id": invocation_id,
-            "stream_id": frame.stream_id,
-            "sequence": frame.sequence,
-            "error": error_message,
-        });
-        self.append_kernel_event(session_id, EVENT_STREAM_ERROR, event_payload)
-            .await?;
-
-        Ok(frame)
+        let record = self
+            .streams
+            .get_invocation(invocation_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("invocation '{}' not found", invocation_id))?;
+        let result = async {
+            let receipt = self
+                .record_stream_effect(&record, EffectTerminalStatus::Failed)
+                .await?;
+            attach_stream_receipt(&mut frame, &receipt)?;
+            let event_payload = json!({
+                "invocation_id": invocation_id,
+                "stream_id": frame.stream_id,
+                "sequence": frame.sequence,
+                "error_code": "stream_failed",
+                "error_fingerprint": sha256_digest(error_message.as_bytes()),
+                "receipt": receipt,
+            });
+            self.append_kernel_event(session_id, EVENT_STREAM_ERROR, event_payload)
+                .await?;
+            Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
+        }
+        .await;
+        if result.is_err() {
+            self.streams
+                .rollback_terminal(invocation_id, StreamInvocationState::Error)
+                .await;
+        }
+        result
     }
 
     /// Cancel a streaming invocation.
@@ -490,17 +569,34 @@ where
         session_id: &SessionId,
         invocation_id: &InvocationId,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self.streams.cancel_invocation(invocation_id).await?;
-
-        let event_payload = json!({
-            "invocation_id": invocation_id,
-            "stream_id": frame.stream_id,
-            "sequence": frame.sequence,
-        });
-        self.append_kernel_event(session_id, EVENT_STREAM_CANCELLED, event_payload)
-            .await?;
-
-        Ok(frame)
+        let mut frame = self.streams.cancel_invocation(invocation_id).await?;
+        let record = self
+            .streams
+            .get_invocation(invocation_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("invocation '{}' not found", invocation_id))?;
+        let result = async {
+            let receipt = self
+                .record_stream_effect(&record, EffectTerminalStatus::Cancelled)
+                .await?;
+            attach_stream_receipt(&mut frame, &receipt)?;
+            let event_payload = json!({
+                "invocation_id": invocation_id,
+                "stream_id": frame.stream_id,
+                "sequence": frame.sequence,
+                "receipt": receipt,
+            });
+            self.append_kernel_event(session_id, EVENT_STREAM_CANCELLED, event_payload)
+                .await?;
+            Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
+        }
+        .await;
+        if result.is_err() {
+            self.streams
+                .rollback_terminal(invocation_id, StreamInvocationState::Cancelled)
+                .await;
+        }
+        result
     }
 
     /// Timeout a streaming invocation.
@@ -511,18 +607,112 @@ where
         session_id: &SessionId,
         invocation_id: &InvocationId,
     ) -> anyhow::Result<StreamFrameEnvelope> {
-        let frame = self.streams.timeout_invocation(invocation_id).await?;
-
-        let event_payload = json!({
-            "invocation_id": invocation_id,
-            "stream_id": frame.stream_id,
-            "sequence": frame.sequence,
-        });
-        self.append_kernel_event(session_id, EVENT_STREAM_TIMEOUT, event_payload)
-            .await?;
-
-        Ok(frame)
+        let mut frame = self.streams.timeout_invocation(invocation_id).await?;
+        let record = self
+            .streams
+            .get_invocation(invocation_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("invocation '{}' not found", invocation_id))?;
+        let result = async {
+            let receipt = self
+                .record_stream_effect(&record, EffectTerminalStatus::TimedOut)
+                .await?;
+            attach_stream_receipt(&mut frame, &receipt)?;
+            let event_payload = json!({
+                "invocation_id": invocation_id,
+                "stream_id": frame.stream_id,
+                "sequence": frame.sequence,
+                "receipt": receipt,
+            });
+            self.append_kernel_event(session_id, EVENT_STREAM_TIMEOUT, event_payload)
+                .await?;
+            Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
+        }
+        .await;
+        if result.is_err() {
+            self.streams
+                .rollback_terminal(invocation_id, StreamInvocationState::Timeout)
+                .await;
+        }
+        result
     }
+
+    async fn record_stream_effect(
+        &self,
+        record: &StreamInvocationRecord,
+        status: EffectTerminalStatus,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let ended_at = record.ended_at.unwrap_or_else(Utc::now);
+        let latency_ms = (ended_at - record.started_at).num_milliseconds().max(1) as u64;
+        let mut request = EffectReceiptRequest::live(
+            "capability.stream",
+            PrincipalIdentity::Package {
+                package_id: record.provider_package_id.clone(),
+            },
+            json!({
+                "kind": "streaming_capability_provider",
+                "capability_id": record.capability_id,
+                "provider_package_id": record.provider_package_id,
+            }),
+            status,
+            record.started_at,
+            latency_ms,
+            record.invocation_id.clone(),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        if !record.metadata.is_null() {
+            request.inputs = vec![record.metadata.clone()];
+        }
+        request.outputs = vec![json!({
+            "stream_id": record.stream_id,
+            "frame_count": record.frame_count,
+            "state": record.state,
+        })];
+        request.authority = Some(json!({
+            "provider_package_id": record.provider_package_id,
+            "capability_id": record.capability_id,
+        }));
+        request.policy_decision = Some(json!({"outcome": "allowed"}));
+        request.parent_receipts = record
+            .metadata
+            .get("parent_receipts")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect();
+        request.scope = EffectScope {
+            session_id: Some(record.session_id.clone()),
+            branch_id: record
+                .metadata
+                .get("branch_id")
+                .and_then(Value::as_str)
+                .map(str::to_string),
+        };
+        request.planned = json!({
+            "capability_id": record.capability_id,
+            "provider_package_id": record.provider_package_id,
+        });
+        request.actual = json!({
+            "stream_id": record.stream_id,
+            "frame_count": record.frame_count,
+            "status": status,
+        });
+        self.record_effect_receipt(request).await
+    }
+}
+
+fn attach_stream_receipt(
+    frame: &mut StreamFrameEnvelope,
+    receipt: &ArtifactDescriptor,
+) -> anyhow::Result<()> {
+    let metadata = frame
+        .metadata
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("stream terminal frame metadata must be a JSON object"))?;
+    metadata.insert("receipt".to_string(), serde_json::to_value(receipt)?);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -686,7 +876,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(error.frame_type, StreamFrameType::Error);
-        assert_eq!(error.payload["error"], "something broke");
+        assert_eq!(error.payload["error_code"], "stream_failed");
+        assert_eq!(
+            error.payload["error_fingerprint"],
+            sha256_digest(b"something broke")
+        );
 
         let result = registry
             .append_chunk(

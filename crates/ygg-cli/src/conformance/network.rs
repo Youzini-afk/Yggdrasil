@@ -16,18 +16,19 @@
 use std::sync::Arc;
 
 use ygg_core::{
-    CapabilityDescriptor, EntryDescriptor, NetworkDeclaration, NetworkPermissions,
-    PackageContributions, PackageEntry, PackageManifest, PermissionSet, RedactionState,
-    SandboxPolicy, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED, EVENT_OUTBOUND_REQUEST,
-    EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED, EVENT_STREAM_CHUNK,
+    CapabilityDescriptor, EffectTerminalStatus, EntryDescriptor, NetworkDeclaration,
+    NetworkPermissions, PackageContributions, PackageEntry, PackageManifest, PermissionSet,
+    RedactionState, SandboxPolicy, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED,
+    EVENT_OUTBOUND_REQUEST, EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
+    EVENT_STREAM_CHUNK,
 };
 use ygg_runtime::{
     check_network_policy, EnvSecretResolver, EventStore, ExecutorKind, FakeOutboundExecutor,
-    FakeWebSocketExecutor, InMemoryEventStore, LiveHttpOutboundExecutor,
+    FakeWebSocketExecutor, InMemoryEventStore, InMemoryObjectStore, LiveHttpOutboundExecutor,
     LiveHttpOutboundExecutorConfig, LiveWebSocketExecutor, LiveWebSocketExecutorConfig,
     OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
-    OutboundRequest, OutboundWebSocketFrame, ProtocolPrincipal, Runtime, RuntimeConfig,
-    SecretResolverConfig, SseParser, WebSocketExecutor,
+    OutboundRequest, OutboundWebSocketFrame, ProtocolContext, ProtocolPrincipal, Runtime,
+    RuntimeConfig, SecretResolverConfig, SseParser, WebSocketExecutor,
 };
 
 use super::fixtures::runtime;
@@ -1430,7 +1431,7 @@ pub(crate) async fn outbound_execute_spoofed_package_id_rejected() -> anyhow::Re
 /// L3: Package without network permission is denied and executor is not called
 /// through the public protocol dispatch.
 pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()> {
-    let (_store, runtime, fake) = runtime_with_fake_executor();
+    let (store, runtime, fake) = runtime_with_fake_executor();
     runtime
         .load_package(network_package("example/l3-no-net", vec![], vec![]))
         .await?;
@@ -1457,6 +1458,16 @@ pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()
         fake.call_count() == 0,
         "executor should not be called for denied request, but call_count={}",
         fake.call_count()
+    );
+    let denied_events = wait_for_kind(&store, EVENT_OUTBOUND_DENIED).await?;
+    let receipt_digest = denied_events[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("outbound denial receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "outbound.policy"
+            && replay.receipt.status == EffectTerminalStatus::Denied,
+        "outbound denial receipt is not terminal denied evidence"
     );
 
     Ok(())
@@ -1913,6 +1924,14 @@ pub(crate) async fn outbound_websocket_idle_timeout_emits_error_and_completed() 
         completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("idle_timeout"),
         "completed reason should be idle_timeout"
     );
+    let receipt_digest = completed[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("idle-timeout receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.status == EffectTerminalStatus::TimedOut,
+        "idle timeout receipt was not timed_out"
+    );
     let errors = wait_for_kind(&store, ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR).await?;
     anyhow::ensure!(
         !errors.is_empty(),
@@ -2016,6 +2035,21 @@ pub(crate) async fn outbound_websocket_cancel_via_capability_cancel() -> anyhow:
         completed[0].payload.get("code").and_then(|v| v.as_u64()) == Some(1001),
         "cancel close code should be 1001"
     );
+    let events = store.list_all().await?;
+    anyhow::ensure!(
+        events
+            .iter()
+            .filter(|event| event.kind == ygg_core::EVENT_STREAM_CANCELLED)
+            .count()
+            == 1,
+        "websocket cancellation did not emit exactly one cancelled terminal event"
+    );
+    anyhow::ensure!(
+        events
+            .iter()
+            .all(|event| event.kind != ygg_core::EVENT_STREAM_ENDED),
+        "websocket cancellation was followed by a duplicate stream.ended event"
+    );
     Ok(())
 }
 
@@ -2038,6 +2072,138 @@ pub(crate) async fn outbound_execute_completed_audit_emitted() -> anyhow::Result
     anyhow::ensure!(
         events[0].payload.get("status").and_then(|v| v.as_str()) == Some("ok"),
         "execute completion status should be ok"
+    );
+    let receipt_digest = events[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("execute completion receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "outbound.execute"
+            && replay.receipt.status == EffectTerminalStatus::Succeeded
+            && replay.receipt.input_refs.len() == 1
+            && replay.receipt.output_refs.len() == 1,
+        "execute completion receipt is incomplete"
+    );
+    Ok(())
+}
+
+pub(crate) async fn outbound_consistency_failure_emits_receipt() -> anyhow::Result<()> {
+    let (store, runtime, fake) = runtime_with_fake_executor();
+    let result = runtime
+        .execute_outbound_with_policy(
+            OutboundRequest {
+                principal: ProtocolPrincipal::Package {
+                    package_id: "example/consistency".to_string(),
+                },
+                package_id: "example/consistency".to_string(),
+                capability_id: "example/consistency/fetch".to_string(),
+                destination_host: "policy.example.com".to_string(),
+                method: "POST".to_string(),
+                purpose: None,
+                secret_refs_used: Vec::new(),
+                correlation_id: None,
+            },
+            OutboundExecutorRequest {
+                package_id: "example/consistency".to_string(),
+                capability_id: "example/consistency/fetch".to_string(),
+                destination_host: "executor.example.com".to_string(),
+                method: "POST".to_string(),
+                path: None,
+                purpose: None,
+                secret_refs: Vec::new(),
+                redaction_state: None,
+                timeout_ms: None,
+                metadata: serde_json::Value::Null,
+                body_shape: None,
+                secret_headers: Vec::new(),
+                resolved_secret_headers: Vec::new(),
+                static_headers: Vec::new(),
+            },
+        )
+        .await;
+    anyhow::ensure!(
+        result.is_err(),
+        "inconsistent outbound request was accepted"
+    );
+    anyhow::ensure!(
+        fake.call_count() == 0,
+        "inconsistent outbound request reached the executor"
+    );
+    let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
+    anyhow::ensure!(
+        events[0].payload["status"] == serde_json::json!("invalid_request")
+            && events[0].payload["network_performed"] == serde_json::json!(false),
+        "consistency failure completion payload is incorrect"
+    );
+    let receipt_digest = events[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("consistency failure receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "outbound.execute"
+            && replay.receipt.status == EffectTerminalStatus::Failed,
+        "consistency failure receipt is incomplete"
+    );
+    Ok(())
+}
+
+pub(crate) async fn outbound_receipt_replays_without_executor() -> anyhow::Result<()> {
+    let store = Arc::new(InMemoryEventStore::default());
+    let object_store = Arc::new(InMemoryObjectStore::default());
+    let fake = Arc::new(FakeOutboundExecutor::new());
+    let config = RuntimeConfig {
+        object_store: object_store.clone(),
+        outbound_executor: OutboundExecutorConfig::Custom(fake),
+        ..RuntimeConfig::default()
+    };
+    let runtime = Runtime::new(store.clone(), config);
+    runtime
+        .load_package(network_package(
+            "example/receipt-replay",
+            vec![NetworkDeclaration {
+                host: "api.openai.com".to_string(),
+                methods: vec!["POST".to_string()],
+                purpose: None,
+            }],
+            vec![],
+        ))
+        .await?;
+    let context = ProtocolContext::package("example/receipt-replay", "in_process");
+    runtime
+        .call_protocol(
+            &context,
+            "kernel.v1.outbound.execute",
+            serde_json::json!({
+                "capability_id": "example/receipt-replay/fetch",
+                "destination_host": "api.openai.com",
+                "method": "POST"
+            }),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message))?;
+    let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
+    let receipt_digest = events[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("outbound receipt missing"))?
+        .to_string();
+    drop(runtime);
+
+    let replay_runtime = Runtime::new(
+        Arc::new(InMemoryEventStore::default()),
+        RuntimeConfig {
+            object_store,
+            outbound_executor: OutboundExecutorConfig::DenyAll,
+            ..RuntimeConfig::default()
+        },
+    );
+    let replay = replay_runtime
+        .replay_effect_receipt(&receipt_digest)
+        .await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "outbound.execute"
+            && replay.receipt.status == EffectTerminalStatus::Succeeded
+            && replay.outputs.len() == 1,
+        "historical outbound replay failed without executor"
     );
     Ok(())
 }
@@ -2098,6 +2264,15 @@ pub(crate) async fn outbound_stream_completed_audit_emitted() -> anyhow::Result<
             == Some("ended"),
         "stream completion should end normally"
     );
+    let receipt_digest = events[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("stream completion receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "outbound.stream"
+            && replay.receipt.status == EffectTerminalStatus::Succeeded,
+        "stream completion receipt is incomplete"
+    );
     Ok(())
 }
 
@@ -2129,6 +2304,16 @@ pub(crate) async fn outbound_websocket_completed_audit_emitted() -> anyhow::Resu
             && events[0].payload.get("data").is_none()
             && events[0].payload.get("body").is_none(),
         "websocket completion must not contain raw payload/body/data fields"
+    );
+    let receipt_digest = events[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("websocket completion receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "outbound.websocket"
+            && replay.receipt.status == EffectTerminalStatus::Succeeded
+            && replay.receipt.parent_receipts.len() == 1,
+        "websocket completion receipt is incomplete"
     );
     Ok(())
 }

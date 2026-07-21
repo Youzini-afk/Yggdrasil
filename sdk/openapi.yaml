@@ -356,6 +356,39 @@ components:
         type: object
       type: array
     CapabilityFailedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     CapabilityInvocationRequest:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -411,6 +444,14 @@ components:
         output: true
         provider_package_id:
           type: string
+        receipt:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        replay_mode:
+          anyOf:
+          - $ref: '#/components/schemas/EffectReplayMode'
+          - type: 'null'
       required:
       - capability_id
       - correlation_id
@@ -455,6 +496,131 @@ components:
       title: CapabilityStreamParams
       type: object
     CapabilityStreamResult:
+      type: object
+    ChangeCommit:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        branch_id:
+          type:
+          - string
+          - 'null'
+        change_set_id:
+          type: string
+        commit_type_uri:
+          default: urn:yggdrasil:change-commit:v1
+          type: string
+        completed_at:
+          format: date-time
+          type: string
+        error:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+        idempotency_key:
+          type:
+          - string
+          - 'null'
+        operation_receipts:
+          default: []
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        result_refs:
+          default: []
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        started_at:
+          format: date-time
+          type: string
+        status:
+          $ref: '#/components/schemas/ChangeCommitStatus'
+      required:
+      - change_set_id
+      - completed_at
+      - id
+      - started_at
+      - status
+      title: ChangeCommit
+      type: object
+    ChangeCommitStatus:
+      enum:
+      - committed
+      - failed
+      - partial
+      type: string
+    ChangeOperation:
+      properties:
+        input_refs:
+          default: []
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        op:
+          type: string
+        payload:
+          default: null
+        target:
+          type:
+          - string
+          - 'null'
+      required:
+      - op
+      type: object
+    ChangePrecondition:
+      properties:
+        expected:
+          default: null
+        kind:
+          type: string
+        target:
+          type:
+          - string
+          - 'null'
+      required:
+      - kind
+      type: object
+    ChangeSet:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        change_set_type_uri:
+          default: urn:yggdrasil:change-set:v1
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        expected_effects:
+          default: null
+        id:
+          type: string
+        idempotency_key:
+          type:
+          - string
+          - 'null'
+        intent_id:
+          type: string
+        operations:
+          default: []
+          items:
+            $ref: '#/components/schemas/ChangeOperation'
+          type: array
+        preconditions:
+          default: []
+          items:
+            $ref: '#/components/schemas/ChangePrecondition'
+          type: array
+        required_authority:
+          default: []
+          items:
+            type: string
+          type: array
+      required:
+      - created_at
+      - id
+      - intent_id
+      title: ChangeSet
       type: object
     ContractAdapter:
       enum:
@@ -770,6 +936,133 @@ components:
       - routes_removed
       title: DeploymentReconcileSummary
       type: object
+    EffectReceipt:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        actual:
+          default: null
+        annotations:
+          additionalProperties: true
+          default: {}
+          type: object
+        approval_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        authority_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        completed_at:
+          format: date-time
+          type: string
+        component_ref:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        cost:
+          default: null
+        effect_kind:
+          type: string
+        external_effect_refs:
+          default: []
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        input_refs:
+          default: []
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        latency_ms:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        output_refs:
+          default: []
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        parent_receipts:
+          default: []
+          items:
+            type: string
+          type: array
+        planned:
+          default: null
+        policy_decision_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        principal:
+          $ref: '#/components/schemas/PrincipalIdentity'
+        protocol_profiles:
+          default: []
+          items:
+            type: string
+          type: array
+        receipt_id:
+          type: string
+        receipt_type_uri:
+          type: string
+        replay_mode:
+          $ref: '#/components/schemas/EffectReplayMode'
+        schema_version:
+          format: uint16
+          minimum: 0.0
+          type: integer
+        scope:
+          allOf:
+          - $ref: '#/components/schemas/EffectScope'
+          default: {}
+        started_at:
+          format: date-time
+          type: string
+        status:
+          $ref: '#/components/schemas/EffectTerminalStatus'
+        trace_id:
+          type: string
+        usage:
+          default: null
+      required:
+      - completed_at
+      - component_ref
+      - effect_kind
+      - latency_ms
+      - principal
+      - receipt_id
+      - receipt_type_uri
+      - replay_mode
+      - schema_version
+      - started_at
+      - status
+      - trace_id
+      title: EffectReceipt
+      type: object
+    EffectReplayMode:
+      enum:
+      - live
+      - historical
+      - reexecute
+      type: string
+    EffectScope:
+      properties:
+        branch_id:
+          type:
+          - string
+          - 'null'
+        session_id:
+          type:
+          - string
+          - 'null'
+      type: object
+    EffectTerminalStatus:
+      enum:
+      - succeeded
+      - denied
+      - failed
+      - cancelled
+      - timed_out
+      - partial
+      type: string
     EmptyParams:
       $schema: https://json-schema.org/draft/2020-12/schema
       title: EmptyParams
@@ -1011,10 +1304,109 @@ components:
       - program
       type: object
     ExecCompletedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     ExecDeniedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     ExecFailedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     ExecIdParams:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -1100,6 +1492,39 @@ components:
       - unknown
       type: string
     ExecStoppedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     ExecutionTarget:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -1378,6 +1803,39 @@ components:
       type: object
     HostPrincipalResult:
       type: 'null'
+    Intent:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          default: {}
+          type: object
+        created_at:
+          format: date-time
+          type: string
+        goal:
+          default: null
+        id:
+          type: string
+        intent_type_uri:
+          default: urn:yggdrasil:intent:v1
+          type: string
+        principal:
+          $ref: '#/components/schemas/PrincipalIdentity'
+        target_branch_id:
+          type:
+          - string
+          - 'null'
+        target_session_id:
+          type:
+          - string
+          - 'null'
+      required:
+      - created_at
+      - id
+      - principal
+      title: Intent
+      type: object
     KernelOutboundStreamResponse:
       $schema: https://json-schema.org/draft/2020-12/schema
       description: |-
@@ -1779,6 +2237,105 @@ components:
           type:
           - string
           - 'null'
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
+        redaction_state:
+          allOf:
+          - $ref: '#/components/schemas/RedactionState'
+          default: not_captured
+          description: Redaction state — what data, if any, was recorded.
+        secret_refs_used:
+          default: []
+          description: Secret references used (not raw secrets).
+          items:
+            type: string
+          type: array
+        status:
+          description: 'Request status: "allowed", "denied", "error", etc.'
+          type: string
+        usage:
+          default: null
+          description: Usage placeholder (e.g. token count).
+      required:
+      - capability_id
+      - destination_host
+      - id
+      - method
+      - package_id
+      - principal
+      - status
+      title: OutboundAuditRecord
+      type: object
+    OutboundAuditRecord2:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      description: |-
+        Generic outbound audit record / envelope.
+
+        Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+      properties:
+        capability_id:
+          description: Capability through which the request was made.
+          type: string
+        cost:
+          default: null
+          description: Cost placeholder.
+        destination_host:
+          description: Destination host.
+          type: string
+        error:
+          default: null
+          description: Error message if status is not "allowed".
+          type:
+          - string
+          - 'null'
+        id:
+          description: Unique record id.
+          type: string
+        method:
+          description: HTTP method (GET, POST, etc).
+          type: string
+        package_id:
+          description: Package that owns the outbound request.
+          type: string
+        principal:
+          description: The principal that initiated the request.
+          type: string
+        purpose:
+          default: null
+          description: Declared purpose from the manifest or request context.
+          type:
+          - string
+          - 'null'
         redaction_state:
           allOf:
           - $ref: '#/components/schemas/RedactionState'
@@ -1876,6 +2433,39 @@ components:
         type: object
       type: array
     OutboundExecuteCompletedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     OutboundExecuteParams:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -2121,6 +2711,38 @@ components:
           type:
           - string
           - 'null'
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
         redaction_state:
           allOf:
           - $ref: '#/components/schemas/RedactionState'
@@ -2255,6 +2877,39 @@ components:
     OutboundWebsocketCloseResult:
       type: object
     OutboundWebsocketCompletedPayload:
+      properties:
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
       type: object
     OutboundWebsocketErrorPayload:
       type: object
@@ -2902,6 +3557,50 @@ components:
       type: object
     PermissionSet2:
       $ref: '#/components/schemas/PermissionSet'
+    PolicyDecision:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        change_set_id:
+          type: string
+        decided_at:
+          format: date-time
+          type: string
+        decision_type_uri:
+          default: urn:yggdrasil:policy-decision:v1
+          type: string
+        evaluated_authority:
+          default: []
+          items:
+            type: string
+          type: array
+        id:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/PolicyDecisionOutcome'
+        policy_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        principal:
+          $ref: '#/components/schemas/PrincipalIdentity'
+        reason:
+          type:
+          - string
+          - 'null'
+      required:
+      - change_set_id
+      - decided_at
+      - id
+      - outcome
+      - principal
+      title: PolicyDecision
+      type: object
+    PolicyDecisionOutcome:
+      enum:
+      - allowed
+      - denied
+      - requires_approval
+      type: string
     PortBindScope:
       enum:
       - loopback_only
@@ -3063,6 +3762,77 @@ components:
       type: string
     PortReleasedPayload:
       type: object
+    PrincipalIdentity:
+      oneOf:
+      - properties:
+          kind:
+            enum:
+            - kernel
+            type: string
+        required:
+        - kind
+        type: object
+      - properties:
+          kind:
+            enum:
+            - host_admin
+            type: string
+        required:
+        - kind
+        type: object
+      - properties:
+          kind:
+            enum:
+            - host_dev
+            type: string
+        required:
+        - kind
+        type: object
+      - properties:
+          kind:
+            enum:
+            - package
+            type: string
+          package_id:
+            type: string
+        required:
+        - kind
+        - package_id
+        type: object
+      - properties:
+          kind:
+            enum:
+            - human
+            type: string
+          user_id:
+            type: string
+        required:
+        - kind
+        - user_id
+        type: object
+      - properties:
+          assistant_id:
+            type: string
+          delegated_user_id:
+            type:
+            - string
+            - 'null'
+          kind:
+            enum:
+            - assistant
+            type: string
+        required:
+        - assistant_id
+        - kind
+        type: object
+      - properties:
+          kind:
+            enum:
+            - anonymous
+            type: string
+        required:
+        - kind
+        type: object
     ProjectGetResult:
       allOf:
       - $schema: https://json-schema.org/draft/2020-12/schema
@@ -3570,6 +4340,14 @@ components:
             - $ref: '#/components/schemas/ProposalApproval'
             - type: 'null'
             default: null
+          change_set:
+            anyOf:
+            - $ref: '#/components/schemas/ChangeSet'
+            - type: 'null'
+          commit:
+            anyOf:
+            - $ref: '#/components/schemas/ChangeCommit'
+            - type: 'null'
           created_at:
             format: date-time
             type: string
@@ -3583,11 +4361,23 @@ components:
           id:
             default: ''
             type: string
+          intent:
+            anyOf:
+            - $ref: '#/components/schemas/Intent'
+            - type: 'null'
           operations:
             default: []
             items:
               $ref: '#/components/schemas/ProposalOperation'
             type: array
+          policy_decision:
+            anyOf:
+            - $ref: '#/components/schemas/PolicyDecision'
+            - type: 'null'
+          receipt:
+            anyOf:
+            - $ref: '#/components/schemas/ArtifactDescriptor'
+            - type: 'null'
           required_permissions:
             default: []
             items:
@@ -3634,6 +4424,14 @@ components:
           - $ref: '#/components/schemas/ProposalApproval'
           - type: 'null'
           default: null
+        change_set:
+          anyOf:
+          - $ref: '#/components/schemas/ChangeSet'
+          - type: 'null'
+        commit:
+          anyOf:
+          - $ref: '#/components/schemas/ChangeCommit'
+          - type: 'null'
         created_at:
           format: date-time
           type: string
@@ -3647,11 +4445,23 @@ components:
         id:
           default: ''
           type: string
+        intent:
+          anyOf:
+          - $ref: '#/components/schemas/Intent'
+          - type: 'null'
         operations:
           default: []
           items:
             $ref: '#/components/schemas/ProposalOperation'
           type: array
+        policy_decision:
+          anyOf:
+          - $ref: '#/components/schemas/PolicyDecision'
+          - type: 'null'
+        receipt:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
         required_permissions:
           default: []
           items:
@@ -3679,8 +4489,10 @@ components:
       enum:
       - created
       - approved
+      - applying
       - rejected
       - applied
+      - partial
       - failed
       type: string
     ProtocolContext:
@@ -4190,6 +5002,82 @@ components:
       - stream_id
       title: StreamFrameEnvelope
       type: object
+    StreamFrameEnvelope2:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      description: |-
+        Generic stream frame envelope — the unit of streaming capability output.
+
+        This is a content-free protocol shape. It carries invocation/stream identifiers, sequencing, and redaction state, but no model, prompt, agent, or message semantics. The `payload` field is opaque JSON controlled by the capability provider.
+      properties:
+        frame_type:
+          allOf:
+          - $ref: '#/components/schemas/StreamFrameType'
+          description: Frame type discriminant.
+        invocation_id:
+          description: The invocation this frame belongs to.
+          type: string
+        metadata:
+          default: null
+          description: Opaque metadata — capability-provider-defined.
+        payload:
+          default: null
+          description: Opaque payload — capability-provider-defined; no kernel content semantics. May be `Null` for progress/end/cancelled/timeout frames.
+        receipt:
+          anyOf:
+          - $schema: https://json-schema.org/draft/2020-12/schema
+            properties:
+              annotations:
+                additionalProperties: true
+                default: {}
+                type: object
+              artifact_type_uri:
+                type: string
+              digest:
+                type: string
+              media_type:
+                type: string
+              references:
+                default: []
+                items:
+                  type: string
+                type: array
+              size_bytes:
+                format: uint64
+                minimum: 0.0
+                type: integer
+            required:
+            - artifact_type_uri
+            - digest
+            - media_type
+            - size_bytes
+            title: ArtifactDescriptor
+            type: object
+          - type: 'null'
+          default: null
+        redaction_state:
+          allOf:
+          - $ref: '#/components/schemas/RedactionState'
+          default: not_captured
+          description: Redaction state applied to the payload.
+        sequence:
+          description: Monotonically increasing sequence within this stream.
+          format: uint64
+          minimum: 0.0
+          type: integer
+        stream_id:
+          description: Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
+          type: string
+        timestamp:
+          description: Timestamp of frame emission.
+          format: date-time
+          type: string
+      required:
+      - frame_type
+      - invocation_id
+      - sequence
+      - stream_id
+      title: StreamFrameEnvelope
+      type: object
     StreamFrameType:
       description: The type of a stream frame — content-free, no model/prompt semantics.
       oneOf:
@@ -4623,6 +5511,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -4636,11 +5532,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -4743,6 +5651,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -4756,11 +5672,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -4818,6 +5746,14 @@ paths:
                       - $ref: '#/components/schemas/ProposalApproval'
                       - type: 'null'
                       default: null
+                    change_set:
+                      anyOf:
+                      - $ref: '#/components/schemas/ChangeSet'
+                      - type: 'null'
+                    commit:
+                      anyOf:
+                      - $ref: '#/components/schemas/ChangeCommit'
+                      - type: 'null'
                     created_at:
                       format: date-time
                       type: string
@@ -4831,11 +5767,23 @@ paths:
                     id:
                       default: ''
                       type: string
+                    intent:
+                      anyOf:
+                      - $ref: '#/components/schemas/Intent'
+                      - type: 'null'
                     operations:
                       default: []
                       items:
                         $ref: '#/components/schemas/ProposalOperation'
                       type: array
+                    policy_decision:
+                      anyOf:
+                      - $ref: '#/components/schemas/PolicyDecision'
+                      - type: 'null'
+                    receipt:
+                      anyOf:
+                      - $ref: '#/components/schemas/ArtifactDescriptor'
+                      - type: 'null'
                     required_permissions:
                       default: []
                       items:
@@ -4899,6 +5847,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -4912,11 +5868,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -5015,6 +5983,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -5028,11 +6004,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -5127,6 +6115,14 @@ paths:
                           - $ref: '#/components/schemas/ProposalApproval'
                           - type: 'null'
                           default: null
+                        change_set:
+                          anyOf:
+                          - $ref: '#/components/schemas/ChangeSet'
+                          - type: 'null'
+                        commit:
+                          anyOf:
+                          - $ref: '#/components/schemas/ChangeCommit'
+                          - type: 'null'
                         created_at:
                           format: date-time
                           type: string
@@ -5140,11 +6136,23 @@ paths:
                         id:
                           default: ''
                           type: string
+                        intent:
+                          anyOf:
+                          - $ref: '#/components/schemas/Intent'
+                          - type: 'null'
                         operations:
                           default: []
                           items:
                             $ref: '#/components/schemas/ProposalOperation'
                           type: array
+                        policy_decision:
+                          anyOf:
+                          - $ref: '#/components/schemas/PolicyDecision'
+                          - type: 'null'
+                        receipt:
+                          anyOf:
+                          - $ref: '#/components/schemas/ArtifactDescriptor'
+                          - type: 'null'
                         required_permissions:
                           default: []
                           items:
@@ -5248,6 +6256,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -5261,11 +6277,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -8598,6 +9626,14 @@ paths:
                       output: true
                       provider_package_id:
                         type: string
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
+                      replay_mode:
+                        anyOf:
+                        - $ref: '#/components/schemas/EffectReplayMode'
+                        - type: 'null'
                     required:
                     - capability_id
                     - correlation_id
@@ -13374,6 +14410,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -13387,11 +14431,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -13496,6 +14552,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -13509,11 +14573,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -13573,6 +14649,14 @@ paths:
                       - $ref: '#/components/schemas/ProposalApproval'
                       - type: 'null'
                       default: null
+                    change_set:
+                      anyOf:
+                      - $ref: '#/components/schemas/ChangeSet'
+                      - type: 'null'
+                    commit:
+                      anyOf:
+                      - $ref: '#/components/schemas/ChangeCommit'
+                      - type: 'null'
                     created_at:
                       format: date-time
                       type: string
@@ -13586,11 +14670,23 @@ paths:
                     id:
                       default: ''
                       type: string
+                    intent:
+                      anyOf:
+                      - $ref: '#/components/schemas/Intent'
+                      - type: 'null'
                     operations:
                       default: []
                       items:
                         $ref: '#/components/schemas/ProposalOperation'
                       type: array
+                    policy_decision:
+                      anyOf:
+                      - $ref: '#/components/schemas/PolicyDecision'
+                      - type: 'null'
+                    receipt:
+                      anyOf:
+                      - $ref: '#/components/schemas/ArtifactDescriptor'
+                      - type: 'null'
                     required_permissions:
                       default: []
                       items:
@@ -13654,6 +14750,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -13667,11 +14771,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -13772,6 +14888,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -13785,11 +14909,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:
@@ -13886,6 +15022,14 @@ paths:
                           - $ref: '#/components/schemas/ProposalApproval'
                           - type: 'null'
                           default: null
+                        change_set:
+                          anyOf:
+                          - $ref: '#/components/schemas/ChangeSet'
+                          - type: 'null'
+                        commit:
+                          anyOf:
+                          - $ref: '#/components/schemas/ChangeCommit'
+                          - type: 'null'
                         created_at:
                           format: date-time
                           type: string
@@ -13899,11 +15043,23 @@ paths:
                         id:
                           default: ''
                           type: string
+                        intent:
+                          anyOf:
+                          - $ref: '#/components/schemas/Intent'
+                          - type: 'null'
                         operations:
                           default: []
                           items:
                             $ref: '#/components/schemas/ProposalOperation'
                           type: array
+                        policy_decision:
+                          anyOf:
+                          - $ref: '#/components/schemas/PolicyDecision'
+                          - type: 'null'
+                        receipt:
+                          anyOf:
+                          - $ref: '#/components/schemas/ArtifactDescriptor'
+                          - type: 'null'
                         required_permissions:
                           default: []
                           items:
@@ -14009,6 +15165,14 @@ paths:
                         - $ref: '#/components/schemas/ProposalApproval'
                         - type: 'null'
                         default: null
+                      change_set:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeSet'
+                        - type: 'null'
+                      commit:
+                        anyOf:
+                        - $ref: '#/components/schemas/ChangeCommit'
+                        - type: 'null'
                       created_at:
                         format: date-time
                         type: string
@@ -14022,11 +15186,23 @@ paths:
                       id:
                         default: ''
                         type: string
+                      intent:
+                        anyOf:
+                        - $ref: '#/components/schemas/Intent'
+                        - type: 'null'
                       operations:
                         default: []
                         items:
                           $ref: '#/components/schemas/ProposalOperation'
                         type: array
+                      policy_decision:
+                        anyOf:
+                        - $ref: '#/components/schemas/PolicyDecision'
+                        - type: 'null'
+                      receipt:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
                       required_permissions:
                         default: []
                         items:

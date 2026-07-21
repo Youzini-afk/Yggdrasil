@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde_json::json;
-use ygg_runtime::{CapabilityInvocationRequest, ProtocolContext, RuntimeConfig};
+use ygg_runtime::{CapabilityInvocationRequest, EventStore, ProtocolContext, RuntimeConfig};
 
 use super::fixtures::*;
 use crate::commands::manifest;
@@ -279,7 +279,7 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
 
 pub(crate) async fn deployment_hub_local_exec_default_deny_all() -> anyhow::Result<()> {
     let store = std::sync::Arc::new(ygg_runtime::InMemoryEventStore::default());
-    let runtime = ygg_runtime::Runtime::new(store, RuntimeConfig::default());
+    let runtime = ygg_runtime::Runtime::new(store.clone(), RuntimeConfig::default());
     let response = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
@@ -294,6 +294,20 @@ pub(crate) async fn deployment_hub_local_exec_default_deny_all() -> anyhow::Resu
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(response["status"]["kind"] == json!("denied"));
     anyhow::ensure!(response["exec_id"].is_null());
+    let events = store.list_all().await?;
+    let denied = events
+        .iter()
+        .find(|event| event.kind == ygg_core::EVENT_EXEC_DENIED)
+        .ok_or_else(|| anyhow::anyhow!("exec denied event missing"))?;
+    let receipt_digest = denied.payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("exec denied receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "exec.start"
+            && replay.receipt.status == ygg_core::EffectTerminalStatus::Denied,
+        "exec denied receipt is incomplete"
+    );
     Ok(())
 }
 

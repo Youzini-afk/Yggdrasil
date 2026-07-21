@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use ygg_core::{CapHandleId, CapabilityDescriptor, CapabilityId, HookSubscription, PackageId};
+use ygg_core::{
+    ArtifactDescriptor, CapHandleId, CapabilityDescriptor, CapabilityId, EffectReplayMode,
+    HookSubscription, PackageId,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RegisteredCapability {
@@ -48,6 +51,10 @@ pub struct CapabilityInvocationResult {
     pub duration_ms: u64,
     #[schemars(schema_with = "uuid_schema")]
     pub correlation_id: Uuid,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replay_mode: Option<EffectReplayMode>,
 }
 
 fn uuid_schema(_gen: &mut SchemaGenerator) -> Schema {

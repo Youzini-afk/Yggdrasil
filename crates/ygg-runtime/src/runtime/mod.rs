@@ -7,11 +7,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use ygg_core::{
-    project::ProjectId, AssetRecord, EventEnvelope, KernelSession, PackageId, SessionId,
-    SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_DENIED,
-    EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
-    EVENT_PORT_LEASED, EVENT_PORT_RELEASED, EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED,
-    EVENT_PROXY_UNREGISTERED, EVENT_SESSION_FORKED,
+    project::ProjectId, ArtifactDescriptor, AssetRecord, EventEnvelope, KernelSession, PackageId,
+    SessionId, SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_COMPLETED,
+    EVENT_EXEC_DENIED, EVENT_EXEC_FAILED, EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED,
+    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED, EVENT_PORT_RELEASED,
+    EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED,
+    EVENT_SESSION_FORKED,
 };
 
 use crate::{
@@ -24,6 +25,7 @@ mod assets;
 mod audit;
 mod branches;
 mod capabilities;
+mod effects;
 mod events;
 mod handles;
 mod hooks;
@@ -54,6 +56,8 @@ pub use self::audit::{
     UnusedAuthority, UsedAuthority,
 };
 pub use self::branches::BranchRecord;
+pub use self::capabilities::CapabilityReexecutionResult;
+pub use self::effects::{EffectReplayResult, EFFECT_RECEIPT_MEDIA_TYPE, EFFECT_VALUE_MEDIA_TYPE};
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::handles::HandleTable;
 pub use self::local_exec::{
@@ -472,6 +476,10 @@ where
         let mut port_leases: HashMap<PortLeaseId, PortLeaseRecord> = HashMap::new();
         let mut proxy_routes: HashMap<ProxyRouteId, ProxyRouteRecord> = HashMap::new();
         let mut executions: HashMap<ExecId, ExecStatus> = HashMap::new();
+        let mut exec_effect_contexts: HashMap<ExecId, local_exec::ExecEffectContext> =
+            HashMap::new();
+        let mut exec_terminal_receipts: HashMap<ExecId, ArtifactDescriptor> = HashMap::new();
+        let mut exec_operation_receipts: HashMap<String, ArtifactDescriptor> = HashMap::new();
 
         for event in events {
             let payload = &event.payload;
@@ -500,21 +508,50 @@ where
                         }
                     }
                 }
-                EVENT_EXEC_STARTED | EVENT_EXEC_DENIED => {
+                EVENT_EXEC_STARTED => {
                     if let Some(status) = exec_status_from_payload(payload) {
                         if let Some(exec_id) = status.exec_id.clone() {
+                            if let Some(context) = payload
+                                .get("effect_context")
+                                .cloned()
+                                .and_then(|value| serde_json::from_value(value).ok())
+                            {
+                                exec_effect_contexts.insert(exec_id.clone(), context);
+                            }
                             executions.insert(exec_id, status);
                         }
                     }
                 }
+                EVENT_EXEC_COMPLETED | EVENT_EXEC_FAILED => {
+                    let effect_kind = payload_str(payload, "effect_kind")
+                        .unwrap_or_else(|| "exec.run".to_string());
+                    if effect_kind == "exec.run" {
+                        if let Some(status) = exec_status_from_payload(payload) {
+                            if let Some(exec_id) = status.exec_id.clone() {
+                                if let Some(receipt) = artifact_descriptor_from_payload(payload) {
+                                    exec_terminal_receipts.insert(exec_id.clone(), receipt);
+                                }
+                                executions.insert(exec_id, status);
+                            }
+                        }
+                    }
+                }
+                EVENT_EXEC_DENIED => {
+                    if let (Some(exec_id), Some(effect_kind), Some(receipt)) = (
+                        payload_str(payload, "exec_id"),
+                        payload_str(payload, "effect_kind"),
+                        artifact_descriptor_from_payload(payload),
+                    ) {
+                        exec_operation_receipts.insert(format!("{effect_kind}:{exec_id}"), receipt);
+                    }
+                }
                 EVENT_EXEC_STOPPED => {
                     if let Some(exec_id) = payload_str(payload, "exec_id") {
-                        let message = payload_str(payload, "error");
                         let status =
                             executions
                                 .entry(exec_id.clone())
                                 .or_insert_with(|| ExecStatus {
-                                    exec_id: Some(exec_id),
+                                    exec_id: Some(exec_id.clone()),
                                     target_id: None,
                                     kind: ExecStatusKind::Stopped,
                                     exit_code: None,
@@ -523,8 +560,8 @@ where
                                 });
                         status.kind = ExecStatusKind::Stopped;
                         status.ready = false;
-                        if message.is_some() {
-                            status.message = message;
+                        if let Some(receipt) = artifact_descriptor_from_payload(payload) {
+                            exec_terminal_receipts.insert(exec_id, receipt);
                         }
                     }
                 }
@@ -557,6 +594,24 @@ where
                 status.ready = false;
             }
             self.config.exec_registry.restore(status).await;
+        }
+        for (exec_id, context) in exec_effect_contexts {
+            self.config
+                .exec_registry
+                .record_effect_context(exec_id, context)
+                .await;
+        }
+        for (exec_id, receipt) in exec_terminal_receipts {
+            self.config
+                .exec_registry
+                .record_terminal_receipt(exec_id, receipt)
+                .await;
+        }
+        for (key, receipt) in exec_operation_receipts {
+            self.config
+                .exec_registry
+                .record_operation_receipt(key, receipt)
+                .await;
         }
 
         Ok(())
@@ -700,6 +755,13 @@ fn payload_u16(payload: &Value, field: &str) -> Option<u16> {
         .and_then(|value| u16::try_from(value).ok())
 }
 
+fn payload_i32(payload: &Value, field: &str) -> Option<i32> {
+    payload
+        .get(field)
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok())
+}
+
 fn payload_bool(payload: &Value, field: &str) -> bool {
     payload.get(field).and_then(Value::as_bool).unwrap_or(false)
 }
@@ -747,8 +809,15 @@ fn exec_status_from_payload(payload: &Value) -> Option<ExecStatus> {
         exec_id: Some(payload_str(payload, "exec_id")?),
         target_id: payload_str(payload, "target_id"),
         kind: enum_from_payload(payload, "status").unwrap_or(ExecStatusKind::Unknown),
-        exit_code: None,
+        exit_code: payload_i32(payload, "exit_code"),
         message: payload_str(payload, "error"),
         ready: payload_bool(payload, "ready"),
     })
+}
+
+fn artifact_descriptor_from_payload(payload: &Value) -> Option<ArtifactDescriptor> {
+    payload
+        .get("receipt")
+        .cloned()
+        .and_then(|value| serde_json::from_value(value).ok())
 }

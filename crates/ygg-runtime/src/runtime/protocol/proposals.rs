@@ -65,13 +65,17 @@ where
         )?)
     }
 
-    pub(crate) async fn dispatch_proposal_apply(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_proposal_apply(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.apply requires proposal_id"))?;
         Ok(serde_json::to_value(
-            self.apply_proposal(proposal_id).await?,
+            self.apply_proposal(context, proposal_id).await?,
         )?)
     }
 }

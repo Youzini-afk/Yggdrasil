@@ -10,7 +10,7 @@
 
 - 可以新增可选字段、事件类型、方法或 enum 变体（如果旧实现可安全忽略）。
 - 不得删除字段、改变字段类型、把可选字段改为必填、收紧已发布 enum、改变事件 payload 的既有含义。
-- schema 变更必须通过 `scripts/validate-schemas.sh`，CI 可设置 `BASE_SCHEMA_DIR` 检查文件级删除。
+- schema 变更必须通过 `scripts/validate-schemas.sh`；CI 会设置 `BASE_SCHEMA_DIR`，检测文件删除以及常见结构性破坏，包括 type/const 变化、新增 required 字段、enum 收窄、property/definition 删除、边界收紧和不兼容的组合器变化。
 
 ## 何时进入 v2
 

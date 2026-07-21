@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "PrincipalIdentity": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "kernel"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "annotations": {
+      "additionalProperties": true,
+      "default": {},
+      "type": "object"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "goal": {
+      "default": null
+    },
+    "id": {
+      "type": "string"
+    },
+    "intent_type_uri": {
+      "default": "urn:yggdrasil:intent:v1",
+      "type": "string"
+    },
+    "principal": {
+      "$ref": "#/$defs/PrincipalIdentity"
+    },
+    "target_branch_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target_session_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "created_at",
+    "id",
+    "principal"
+  ],
+  "title": "Intent",
+  "type": "object"
+}

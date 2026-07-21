@@ -1417,8 +1417,9 @@ fn doc_comment(text: &str) -> String {
     let mut out = String::new();
     out.push_str("/**\n");
     for line in text.lines() {
-        out.push_str(" * ");
-        out.push_str(line.trim());
+        let line = line.trim();
+        out.push_str(if line.is_empty() { " *" } else { " * " });
+        out.push_str(line);
         out.push('\n');
     }
     out.push_str(" */\n");

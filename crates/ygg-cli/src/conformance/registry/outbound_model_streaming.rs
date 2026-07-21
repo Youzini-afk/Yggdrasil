@@ -204,6 +204,16 @@ pub(super) fn y1_outbound_execute_profile_conformance_cases() -> Vec<Conformance
             crate::conformance::network::outbound_execute_completed_audit_emitted
         ),
         c!(
+            "outbound.consistency_failure_emits_receipt",
+            ["outbound", "network", "audit", "receipt"],
+            crate::conformance::network::outbound_consistency_failure_emits_receipt
+        ),
+        c!(
+            "outbound.receipt_replays_without_executor",
+            ["outbound", "receipt", "replay"],
+            crate::conformance::network::outbound_receipt_replays_without_executor
+        ),
+        c!(
             "outbound.execute_correlation_id_propagates",
             ["outbound", "network", "audit"],
             crate::conformance::network::outbound_execute_correlation_id_propagates

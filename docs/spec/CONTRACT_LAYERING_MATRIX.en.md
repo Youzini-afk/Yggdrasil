@@ -42,7 +42,7 @@ Dispositions:
 
 - Code contains 80 `KernelMethod` variants and 80 method schemas.
 - Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
-- There are 9 top-level schemas; Phase 2 added `contract-selection.schema.json`, and Phase 4 added `artifact-descriptor.schema.json`.
+- There are 14 top-level schemas. Phase 2 added `contract-selection.schema.json`, Phase 4 added `artifact-descriptor.schema.json`, and Phase 5 added EffectReceipt plus four Change primitive schemas.
 - Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
 - The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. Phase 3 publishes 36 canonical/legacy dual-stack routes across the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection.
 - The Web client still defaults to legacy `kernel.v1.*` IDs; generated SDKs derive canonical clients and explicit legacy wrappers from schema metadata and reject duplicate wire IDs, function names, or operation IDs before generation.
@@ -274,7 +274,7 @@ The first migration requirement is therefore a testable compatibility router, no
 | `kernel/v1/deployment.reconciled` | ✓ | `H` | Host deployment reconciliation |
 | `kernel/v1/deployment.health` | — | `H` | Host deployment health; add to v1 registry |
 
-## 9 top-level schemas
+## 14 top-level schemas
 
 | Current schema | Target | Disposition | Target shape |
 |---|---:|---|---|
@@ -282,6 +282,11 @@ The first migration requirement is therefore a testable compatibility router, no
 | `protocol-context.schema.json` | `S` | Strengthen | Authenticated principal, contract/profile negotiation, trace, and parent invocation |
 | `contract-selection.schema.json` | `S` | Retain | Explicit profile and per-layer version requirements; no silent downgrade |
 | `artifact-descriptor.schema.json` | `S` | Add | Open artifact type, SHA-256 digest, size, references, and annotations; bytes live in ObjectStore |
+| `effect-receipt.schema.json` | `S` | Add | Content-addressed terminal evidence referencing input/output/component/authority/policy/approval/parents |
+| `intent.schema.json` | `C` | Add | Principal goal and target scope; distinct from a proposal or command |
+| `change-set.schema.json` | `C` | Add | Open operations, preconditions, required authority, and idempotency |
+| `policy-decision.schema.json` | `S` | Add | allowed/denied/requires_approval with authority evidence |
+| `commit.schema.json` | `C` | Add | committed/failed/partial result references and operation receipts |
 | `capability-descriptor.schema.json` | `S` | Reshape | Component export + protocol claim + trust/conformance metadata |
 | `capability-invocation-request.schema.json` | `S` | Strengthen | Handle-first, idempotency, deadline, input references, requested profile |
 | `capability-invocation-result.schema.json` | `S` | Strengthen | Output references, receipt reference, terminal status; avoid permanent large payloads in envelope |

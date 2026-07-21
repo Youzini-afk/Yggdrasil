@@ -10,7 +10,7 @@ All v1 kernel methods use `kernel.v1.*`. `kernel.v1.*` and future `kernel.v2.*` 
 
 - Optional fields, event kinds, methods, or enum variants may be added when old implementations can safely ignore them.
 - Fields must not be removed, field types must not change, optional fields must not become required, published enums must not be narrowed, and existing event payload meaning must not change.
-- Schema changes must pass `scripts/validate-schemas.sh`; CI may set `BASE_SCHEMA_DIR` to detect file-level removals.
+- Schema changes must pass `scripts/validate-schemas.sh`; CI sets `BASE_SCHEMA_DIR` and checks removals plus common structural breakage such as type/const changes, new required fields, enum narrowing, removed properties/definitions, tighter bounds, and incompatible combinator changes.
 
 ## When v2 happens
 

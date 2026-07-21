@@ -62,8 +62,8 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 |---|---:|---|
 | `kernel.v1.capability.discover` | implemented | List registered capability descriptors. |
 | `kernel.v1.capability.describe` | planned | Reserved single-descriptor query. |
-| `kernel.v1.capability.invoke` | partial | Enforce caller context and capability handle, validate schema, and emit invoke/completed/failed audit; parity across entries and transports continues to harden. |
-| `kernel.v1.capability.stream` / `cancel` | partial | Streaming lifecycle, cancel, timeout, and events exist; transport parity continues to harden. |
+| `kernel.v1.capability.invoke` | partial | Enforce caller context and capability handles, validate schemas, attach EffectReceipt to completed/failed terminals, and support recorded replay plus branch re-execution; parity across entries and transports continues to harden. |
+| `kernel.v1.capability.stream` / `cancel` | partial | Streaming lifecycle, cancellation, timeout, and events exist; ended/error/cancelled/timeout produce distinct terminal receipts; transport parity continues to harden. |
 
 ### `kernel.v1.cap.*` (3)
 
@@ -89,9 +89,9 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `kernel.v1.proposal.create` | partial | Create approval-gated generic changes. |
 | `kernel.v1.proposal.get` | partial | Fetch a proposal. |
 | `kernel.v1.proposal.list` | partial | List proposals. |
-| `kernel.v1.proposal.approve` | partial | Mark approved and emit an event. |
-| `kernel.v1.proposal.reject` | partial | Mark rejected and emit an event. |
-| `kernel.v1.proposal.apply` | partial | Apply approved asset/projection operations. |
+| `kernel.v1.proposal.approve` | partial | Require proposal-scoped review authority, mark approved, and emit an event. |
+| `kernel.v1.proposal.reject` | partial | Require proposal-scoped review authority, mark rejected, and emit a denied receipt/event. |
+| `kernel.v1.proposal.apply` | partial | Recheck apply plus required authority, adapt the old Proposal into Intent/ChangeSet/PolicyDecision/Commit, preflight asset/projection operations, and CAS-record operation plus committed/failed/partial receipts. |
 
 ### `kernel.v1.asset.*` (3)
 
@@ -114,9 +114,9 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.outbound.audit` | partial | Query outbound audit; receipt and cross-executor parity continue to harden. |
-| `kernel.v1.outbound.execute` | partial | Manifest-gated unary HTTPS outbound with `secret_ref` support. |
-| `kernel.v1.outbound.stream` | partial | Manifest-gated SSE/NDJSON/raw streaming outbound. |
+| `kernel.v1.outbound.audit` | partial | Query outbound audit and terminal receipt descriptors; cross-executor view parity continues to harden. |
+| `kernel.v1.outbound.execute` | partial | Manifest-gated unary HTTPS outbound with `secret_ref` support; denied/error/success all produce receipts. |
+| `kernel.v1.outbound.stream` | partial | Manifest-gated SSE/NDJSON/raw streaming outbound with terminal completion receipts. |
 | `kernel.v1.outbound.websocket.*` | partial | Manifest-gated WSS open/send/close; connection lifecycle and event coverage continue to harden. |
 
 Git installation is not a kernel transport; future support belongs in the ordinary official capability package `official/git-tools-lab` using `kernel.v1.outbound.execute` plus `permissions.filesystem.write`.
@@ -129,9 +129,9 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `kernel.v1.target.status` | partial | HostAdmin/HostDev only; inspect one target. |
 | `kernel.v1.target.register` | partial | HostAdmin/HostDev only; register a controlled target. |
 | `kernel.v1.target.unregister` | partial | HostAdmin/HostDev only; unregister a target. |
-| `kernel.v1.exec.start` | partial | HostAdmin/HostDev only; start controlled execution through the host `LocalExecExecutor`; deny-all by default. |
-| `kernel.v1.exec.stop` | partial | HostAdmin/HostDev only; stop a known execution. |
-| `kernel.v1.exec.status` | partial | HostAdmin/HostDev only; inspect execution state. |
+| `kernel.v1.exec.start` | partial | HostAdmin/HostDev only; start controlled execution through the host `LocalExecExecutor`; deny-all by default, with receipts on denied/failed terminal paths. |
+| `kernel.v1.exec.stop` | partial | HostAdmin/HostDev only; stop a known execution and produce a cancelled/failed/denied receipt. |
+| `kernel.v1.exec.status` | partial | HostAdmin/HostDev only; return the runtime-observed status. Live executors are actively monitored, and status/stop/restart races reuse the unique persisted terminal receipt. |
 | `kernel.v1.exec.logs` | partial | HostAdmin/HostDev only; read redacted log tail. |
 | `kernel.v1.exec.list` | partial | HostAdmin/HostDev only; list execution records. |
 | `kernel.v1.port.lease` | partial | HostAdmin/HostDev only; lease a loopback port. |
@@ -285,7 +285,7 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 148 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 153 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -445,7 +445,7 @@ Undeclared secret refs, resolution failure, resolver denial, and raw secrets in 
 
 ## Proposal contract
 
-A proposal is an approval-gated change, not a content model. The kernel only manages lifecycle: create, approve, reject, apply, failed. Operation payload remains opaque JSON, but raw-secret scanning and basic schema shape must run.
+A proposal is an approval-gated change, not a content model. The kernel only manages lifecycle: create, approve, reject, apply, failed. Approval/apply boundaries enforce explicit authority, terminal transitions are compare-and-set guarded, and operation payload remains opaque JSON subject to raw-secret scanning and basic schema checks.
 
 Current apply supports generic asset/projection operations. Broader transactions, compensation, and revert are later work.
 
@@ -461,7 +461,7 @@ A v1 implementation must at least prove:
 
 1. 80 method schemas export.
 2. 59 event schemas validate.
-3. 9 top-level schemas validate.
+3. 14 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
 6. Invoke instrumentation emits lifecycle events.

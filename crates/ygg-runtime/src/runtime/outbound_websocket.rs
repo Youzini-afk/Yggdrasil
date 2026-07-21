@@ -224,7 +224,7 @@ impl FakeWebSocketExecutor {
         Self {
             simulated_close: Some((
                 Some("idle_timeout".to_string()),
-                1001,
+                1013,
                 "idle_timeout".to_string(),
             )),
             ..Self::new()
@@ -744,7 +744,7 @@ fn spawn_live_actor<S>(
             if started.elapsed() >= Duration::from_millis(max_duration_ms) {
                 let _ = event_tx.send(WebSocketEvent::Closed {
                     connection_id: connection_id.clone(),
-                    code: 1000,
+                    code: 1013,
                     reason: "max_duration_ms".to_string(),
                     total_frames_in: frames_in,
                     total_frames_out: frames_out,
@@ -762,7 +762,7 @@ fn spawn_live_actor<S>(
                 });
                 let _ = event_tx.send(WebSocketEvent::Closed {
                     connection_id: connection_id.clone(),
-                    code: 1001,
+                    code: 1013,
                     reason: "idle_timeout".to_string(),
                     total_frames_in: frames_in,
                     total_frames_out: frames_out,

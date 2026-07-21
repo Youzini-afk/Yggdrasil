@@ -100,6 +100,21 @@ pub(super) fn core_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::deployment_hub_proxy_requires_matching_lease_port
         ),
         c!(
+            "deployment_hub.exec_stop_receipt",
+            ["runtime", "deployment_hub", "exec", "receipt"],
+            crate::conformance::protocol::deployment_hub_exec_stop_receipt
+        ),
+        c!(
+            "deployment_hub.exec_terminal_is_observed_once",
+            ["runtime", "deployment_hub", "exec", "receipt", "rehydrate"],
+            crate::conformance::protocol::deployment_hub_exec_terminal_is_observed_once
+        ),
+        c!(
+            "deployment_hub.exec_denial_is_deduplicated",
+            ["runtime", "deployment_hub", "exec", "receipt", "rehydrate"],
+            crate::conformance::protocol::deployment_hub_exec_denial_is_deduplicated
+        ),
+        c!(
             "deployment.sqlite_rehydrate",
             ["deployment", "deployment_hub", "sqlite", "slow"],
             crate::conformance::protocol::deployment_sqlite_rehydrate
@@ -227,6 +242,16 @@ pub(super) fn proposals_cases() -> Vec<ConformanceCase> {
             "proposal.reject_and_apply_denied",
             ["runtime", "proposal"],
             crate::conformance::proposals::reject_and_apply_denied
+        ),
+        c!(
+            "proposal.authority_is_enforced",
+            ["runtime", "proposal", "permission"],
+            crate::conformance::proposals::authority_is_enforced
+        ),
+        c!(
+            "proposal.preflight_failure_is_structured",
+            ["runtime", "proposal", "receipt"],
+            crate::conformance::proposals::preflight_failure_is_structured
         ),
     ]
 }
@@ -576,6 +601,11 @@ pub(super) fn secret_conformance_cases() -> Vec<ConformanceCase> {
             "secret.raw_blocked_in_proposal",
             ["secret"],
             crate::conformance::secret_conformance::raw_secret_blocked_in_proposal
+        ),
+        c!(
+            "secret.effect_receipt_redacts_raw_fields",
+            ["secret", "receipt", "runtime"],
+            crate::conformance::secret_conformance::effect_receipt_redacts_raw_secret_fields
         ),
         c!(
             "secret.raw_blocked_in_asset_metadata",

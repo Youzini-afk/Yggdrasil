@@ -1,8 +1,26 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 use jsonschema::JSONSchema;
 use serde_json::Value;
+
+const TOP_LEVEL_SCHEMAS: &[&str] = &[
+    "artifact-descriptor.schema.json",
+    "capability-descriptor.schema.json",
+    "capability-invocation-request.schema.json",
+    "capability-invocation-result.schema.json",
+    "change-set.schema.json",
+    "commit.schema.json",
+    "contract-selection.schema.json",
+    "effect-receipt.schema.json",
+    "event-envelope.schema.json",
+    "intent.schema.json",
+    "manifest.schema.json",
+    "permission-set.schema.json",
+    "policy-decision.schema.json",
+    "protocol-context.schema.json",
+];
 
 fn main() -> anyhow::Result<()> {
     let root = Path::new("docs/spec/v1/schemas");
@@ -53,13 +71,15 @@ fn main() -> anyhow::Result<()> {
         "event schema count {event_count} is unexpectedly low"
     );
     anyhow::ensure!(
-        top_level_count == 9,
+        top_level_count == TOP_LEVEL_SCHEMAS.len(),
         "top-level schema count {top_level_count} does not match the canonical set"
     );
-    anyhow::ensure!(
-        root.join("artifact-descriptor.schema.json").exists(),
-        "artifact descriptor schema is missing"
-    );
+    for schema in TOP_LEVEL_SCHEMAS {
+        anyhow::ensure!(
+            root.join(schema).exists(),
+            "top-level schema '{schema}' is missing"
+        );
+    }
 
     // Additive-only diff hook for CI. Without a previous checkout, we validate the
     // canonical artifacts and leave breaking-change detection to CI that provides
@@ -77,6 +97,9 @@ fn main() -> anyhow::Result<()> {
                     "breaking schema removal: {}",
                     rel.display()
                 );
+                let old_schema: Value = serde_json::from_str(&fs::read_to_string(&old_file)?)?;
+                let new_schema: Value = serde_json::from_str(&fs::read_to_string(&new_file)?)?;
+                validate_additive_schema(&old_schema, &new_schema, "$", rel)?;
             }
         }
     }
@@ -84,6 +107,292 @@ fn main() -> anyhow::Result<()> {
         "validated {} schemas (methods: {method_count}, events: {event_count})",
         files.len()
     );
+    Ok(())
+}
+
+fn validate_additive_schema(
+    old: &Value,
+    new: &Value,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    if let Some(old_types) = schema_string_set(old.get("type")) {
+        let new_types = schema_string_set(new.get("type"));
+        anyhow::ensure!(
+            new_types
+                .as_ref()
+                .is_none_or(|types| old_types.is_subset(types)),
+            "breaking schema type narrowing in {} at {pointer}",
+            file.display()
+        );
+    } else {
+        anyhow::ensure!(
+            new.get("type").is_none(),
+            "breaking schema type constraint added in {} at {pointer}",
+            file.display()
+        );
+    }
+
+    if let Some(old_enum) = old.get("enum").and_then(Value::as_array) {
+        let new_enum = new.get("enum").and_then(Value::as_array).ok_or_else(|| {
+            anyhow::anyhow!("breaking enum removal in {} at {pointer}", file.display())
+        })?;
+        anyhow::ensure!(
+            old_enum.iter().all(|value| new_enum.contains(value)),
+            "breaking enum narrowing in {} at {pointer}",
+            file.display()
+        );
+    }
+    if let Some(old_const) = old.get("const") {
+        anyhow::ensure!(
+            new.get("const") == Some(old_const),
+            "breaking const change in {} at {pointer}",
+            file.display()
+        );
+    } else {
+        anyhow::ensure!(
+            new.get("const").is_none(),
+            "breaking const constraint added in {} at {pointer}",
+            file.display()
+        );
+    }
+
+    let old_required = schema_string_set(old.get("required")).unwrap_or_default();
+    let new_required = schema_string_set(new.get("required")).unwrap_or_default();
+    anyhow::ensure!(
+        new_required.is_subset(&old_required),
+        "breaking required field added in {} at {pointer}: {:?}",
+        file.display(),
+        new_required.difference(&old_required).collect::<Vec<_>>()
+    );
+
+    compare_schema_maps(old, new, "properties", pointer, file)?;
+    compare_schema_maps(old, new, "$defs", pointer, file)?;
+    compare_schema_child(old, new, "items", pointer, file)?;
+    compare_schema_child(old, new, "contains", pointer, file)?;
+    compare_additional_properties(old, new, pointer, file)?;
+
+    compare_lower_bound(old, new, "minimum", pointer, file)?;
+    compare_lower_bound(old, new, "exclusiveMinimum", pointer, file)?;
+    compare_lower_bound(old, new, "minLength", pointer, file)?;
+    compare_lower_bound(old, new, "minItems", pointer, file)?;
+    compare_lower_bound(old, new, "minProperties", pointer, file)?;
+    compare_upper_bound(old, new, "maximum", pointer, file)?;
+    compare_upper_bound(old, new, "exclusiveMaximum", pointer, file)?;
+    compare_upper_bound(old, new, "maxLength", pointer, file)?;
+    compare_upper_bound(old, new, "maxItems", pointer, file)?;
+    compare_upper_bound(old, new, "maxProperties", pointer, file)?;
+
+    compare_constraint(old, new, "$ref", pointer, file)?;
+    compare_constraint(old, new, "pattern", pointer, file)?;
+    compare_constraint(old, new, "format", pointer, file)?;
+    compare_constraint(old, new, "not", pointer, file)?;
+    compare_schema_array(old, new, "allOf", false, pointer, file)?;
+    compare_schema_array(old, new, "anyOf", true, pointer, file)?;
+    compare_schema_array(old, new, "oneOf", false, pointer, file)?;
+    Ok(())
+}
+
+fn schema_string_set(value: Option<&Value>) -> Option<BTreeSet<String>> {
+    match value? {
+        Value::String(value) => Some(BTreeSet::from([value.clone()])),
+        Value::Array(values) => Some(
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
+fn compare_schema_maps(
+    old: &Value,
+    new: &Value,
+    keyword: &str,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    let Some(old_map) = old.get(keyword).and_then(Value::as_object) else {
+        return Ok(());
+    };
+    let new_map = new.get(keyword).and_then(Value::as_object).ok_or_else(|| {
+        anyhow::anyhow!(
+            "breaking {keyword} removal in {} at {pointer}",
+            file.display()
+        )
+    })?;
+    for (name, old_schema) in old_map {
+        let new_schema = new_map.get(name).ok_or_else(|| {
+            anyhow::anyhow!(
+                "breaking {keyword} entry removal in {} at {pointer}/{keyword}/{name}",
+                file.display()
+            )
+        })?;
+        validate_additive_schema(
+            old_schema,
+            new_schema,
+            &format!("{pointer}/{keyword}/{name}"),
+            file,
+        )?;
+    }
+    Ok(())
+}
+
+fn compare_schema_child(
+    old: &Value,
+    new: &Value,
+    keyword: &str,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    match (old.get(keyword), new.get(keyword)) {
+        (Some(old_schema), Some(new_schema)) => validate_additive_schema(
+            old_schema,
+            new_schema,
+            &format!("{pointer}/{keyword}"),
+            file,
+        ),
+        (Some(_), None) => Ok(()),
+        (None, Some(_)) => anyhow::bail!(
+            "breaking {keyword} constraint added in {} at {pointer}",
+            file.display()
+        ),
+        (None, None) => Ok(()),
+    }
+}
+
+fn compare_additional_properties(
+    old: &Value,
+    new: &Value,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    let old_value = old.get("additionalProperties");
+    let new_value = new.get("additionalProperties");
+    if old_value != Some(&Value::Bool(false)) && new_value == Some(&Value::Bool(false)) {
+        anyhow::bail!(
+            "breaking additionalProperties restriction in {} at {pointer}",
+            file.display()
+        );
+    }
+    if let (Some(old_schema @ Value::Object(_)), Some(new_schema @ Value::Object(_))) =
+        (old_value, new_value)
+    {
+        validate_additive_schema(
+            old_schema,
+            new_schema,
+            &format!("{pointer}/additionalProperties"),
+            file,
+        )?;
+    }
+    Ok(())
+}
+
+fn compare_lower_bound(
+    old: &Value,
+    new: &Value,
+    keyword: &str,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    let old_value = old.get(keyword).and_then(Value::as_f64);
+    let new_value = new.get(keyword).and_then(Value::as_f64);
+    anyhow::ensure!(
+        match (old_value, new_value) {
+            (Some(old), Some(new)) => new <= old,
+            (Some(_), None) | (None, None) => true,
+            (None, Some(_)) => false,
+        },
+        "breaking {keyword} tightening in {} at {pointer}",
+        file.display()
+    );
+    Ok(())
+}
+
+fn compare_upper_bound(
+    old: &Value,
+    new: &Value,
+    keyword: &str,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    let old_value = old.get(keyword).and_then(Value::as_f64);
+    let new_value = new.get(keyword).and_then(Value::as_f64);
+    anyhow::ensure!(
+        match (old_value, new_value) {
+            (Some(old), Some(new)) => new >= old,
+            (Some(_), None) | (None, None) => true,
+            (None, Some(_)) => false,
+        },
+        "breaking {keyword} tightening in {} at {pointer}",
+        file.display()
+    );
+    Ok(())
+}
+
+fn compare_constraint(
+    old: &Value,
+    new: &Value,
+    keyword: &str,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    match (old.get(keyword), new.get(keyword)) {
+        (Some(old), Some(new)) => anyhow::ensure!(
+            old == new,
+            "breaking {keyword} change in {} at {pointer}",
+            file.display()
+        ),
+        (Some(_), None) | (None, None) => {}
+        (None, Some(_)) => anyhow::bail!(
+            "breaking {keyword} constraint added in {} at {pointer}",
+            file.display()
+        ),
+    }
+    Ok(())
+}
+
+fn compare_schema_array(
+    old: &Value,
+    new: &Value,
+    keyword: &str,
+    allow_additions: bool,
+    pointer: &str,
+    file: &Path,
+) -> anyhow::Result<()> {
+    let Some(old_items) = old.get(keyword).and_then(Value::as_array) else {
+        anyhow::ensure!(
+            new.get(keyword).is_none(),
+            "breaking {keyword} constraint added in {} at {pointer}",
+            file.display()
+        );
+        return Ok(());
+    };
+    let new_items = new.get(keyword).and_then(Value::as_array).ok_or_else(|| {
+        anyhow::anyhow!(
+            "breaking {keyword} removal in {} at {pointer}",
+            file.display()
+        )
+    })?;
+    anyhow::ensure!(
+        if allow_additions {
+            new_items.len() >= old_items.len()
+        } else {
+            new_items.len() == old_items.len()
+        },
+        "breaking {keyword} shape change in {} at {pointer}",
+        file.display()
+    );
+    for (index, old_schema) in old_items.iter().enumerate() {
+        validate_additive_schema(
+            old_schema,
+            &new_items[index],
+            &format!("{pointer}/{keyword}/{index}"),
+            file,
+        )?;
+    }
     Ok(())
 }
 

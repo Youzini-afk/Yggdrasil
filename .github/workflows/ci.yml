@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -45,6 +47,15 @@ jobs:
       - name: schemas and SDKs up to date
         run: |
           bash scripts/regen-sdks.sh
+          base_sha="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -n "$base_sha" ] && git cat-file -e "$base_sha:docs/spec/v1/schemas" 2>/dev/null; then
+            rm -rf /tmp/ygg-base-schemas
+            mkdir -p /tmp/ygg-base-schemas
+            git archive "$base_sha" docs/spec/v1/schemas | tar -x -C /tmp/ygg-base-schemas
+            BASE_SCHEMA_DIR=/tmp/ygg-base-schemas/docs/spec/v1/schemas bash scripts/validate-schemas.sh
+          else
+            bash scripts/validate-schemas.sh
+          fi
           test -z "$(git status --porcelain -- docs/spec/v1/schemas sdk)"
 
   web:

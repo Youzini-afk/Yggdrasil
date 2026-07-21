@@ -134,6 +134,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | projections | register and rebuild generic event-count projection | implemented |
 | substrate | SQLite event log rehydrates assets, branches, and projections | implemented |
 | substrate | permission grant survives SQLite-backed runtime rehydrate | implemented |
+| effect receipts | historical replay reads recorded output after provider unload, missing objects report incomplete history, and re-execution creates a new branch plus parent-linked receipt | implemented |
+| effect receipts | secret-bearing input/output enters receipts only as redacted object references and the receipt envelope scans clean | implemented |
 | secret refs | `secret_ref:`, `secretRef:`, `secret-ref:`, `host:` reference pattern validation | implemented |
 | secret refs | raw secret in proposal payload is rejected | implemented |
 | secret refs | raw secret in asset metadata is rejected | implemented |
@@ -202,6 +204,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
 | proposals | approved proposals can apply generic asset/projection operations | implemented |
 | proposals | rejected or unapproved proposals cannot apply | implemented |
+| proposals | v1 Proposal maps to Intent/ChangeSet/PolicyDecision/Commit and apply/reject produce operation/final receipts | implemented |
 | package authoring | generated Python subprocess package passes local conformance | implemented |
 | package authoring | generated TypeScript subprocess package passes local conformance | implemented |
 | package authoring | generated experience package surfaces pass local conformance | implemented |
@@ -254,6 +257,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | outbound | `kernel/v1/outbound.execute.completed` completion audit event emitted | implemented |
 | outbound | `kernel/v1/outbound.stream.completed` completion audit event emitted | implemented |
 | outbound | `kernel/v1/outbound.websocket.completed` completion audit event emitted | implemented |
+| outbound | HTTP/stream/WebSocket completion attaches terminal receipts; invalid policy/executor pairings emit failed receipts; timeout/cancel do not produce duplicate stream terminals; historical replay works with every executor disabled | implemented |
+| deployment exec | deny-all start and fake stop produce denied/cancelled receipts; live terminal state is actively observed; natural exit/timeout, repeated denial, stop/status races, and restart hydration preserve one terminal receipt | implemented |
 | secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call: principal binding, execute dispatch, stream chunks piped back | implemented |
 | sse_parser | outbound stream SSE parser basic smoke and partial chunk coalescing | implemented |
@@ -359,6 +364,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | invoke instrumentation | capability invoke emits `kernel/v1/capability.invoked` | implemented |
 | invoke instrumentation | successful capability invoke emits `kernel/v1/capability.completed` | implemented |
 | invoke instrumentation | failed capability invoke emits `kernel/v1/capability.failed` | implemented |
+| invoke instrumentation | completed/failed events and successful results attach the same EffectReceipt descriptor | implemented |
 | bindings | subprocess handshake injects the v1 bindings dictionary | implemented |
 | bindings | rust_inproc `KernelEnv` injects bindings | implemented |
 | package | `package.audit_report` / `kernel.v1.audit.package` reports declared vs used authority | implemented |

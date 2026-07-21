@@ -1101,35 +1101,125 @@ pub struct CapabilityDiscoverResultItem {
 /// ```json
 ///{
 ///  "title": "CapabilityFailedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct CapabilityFailedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for CapabilityFailedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct CapabilityFailedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<CapabilityFailedPayloadReceipt>,
+}
+impl ::std::default::Default for CapabilityFailedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<CapabilityFailedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: CapabilityFailedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for CapabilityFailedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`CapabilityFailedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct CapabilityFailedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`CapabilityInvocationRequest`
 ///
@@ -1261,6 +1351,26 @@ impl ::std::default::Default for CapabilityInvocationRequest {
 ///    "output": true,
 ///    "provider_package_id": {
 ///      "type": "string"
+///    },
+///    "receipt": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "replay_mode": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/EffectReplayMode"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
 ///    }
 ///  },
 ///  "$schema": "https://json-schema.org/draft/2020-12/schema"
@@ -1275,6 +1385,10 @@ pub struct CapabilityInvocationResult {
     pub duration_ms: u64,
     pub output: ::serde_json::Value,
     pub provider_package_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub replay_mode: ::std::option::Option<EffectReplayMode>,
 }
 ///`CapabilityInvokedPayload`
 ///
@@ -1445,6 +1559,349 @@ for CapabilityStreamResult {
     ) -> Self {
         Self(value)
     }
+}
+///`ChangeCommit`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ChangeCommit",
+///  "type": "object",
+///  "required": [
+///    "change_set_id",
+///    "completed_at",
+///    "id",
+///    "started_at",
+///    "status"
+///  ],
+///  "properties": {
+///    "branch_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "change_set_id": {
+///      "type": "string"
+///    },
+///    "commit_type_uri": {
+///      "default": "urn:yggdrasil:change-commit:v1",
+///      "type": "string"
+///    },
+///    "completed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "error": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "idempotency_key": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "operation_receipts": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "result_refs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "started_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ChangeCommitStatus"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ChangeCommit {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub branch_id: ::std::option::Option<::std::string::String>,
+    pub change_set_id: ::std::string::String,
+    #[serde(default = "defaults::change_commit_commit_type_uri")]
+    pub commit_type_uri: ::std::string::String,
+    pub completed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<::std::string::String>,
+    pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub idempotency_key: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub operation_receipts: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub result_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub started_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub status: ChangeCommitStatus,
+}
+///`ChangeCommitStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ChangeCommitStatus",
+///  "type": "string",
+///  "enum": [
+///    "committed",
+///    "failed",
+///    "partial"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ChangeCommitStatus {
+    #[serde(rename = "committed")]
+    Committed,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "partial")]
+    Partial,
+}
+impl ::std::fmt::Display for ChangeCommitStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Committed => f.write_str("committed"),
+            Self::Failed => f.write_str("failed"),
+            Self::Partial => f.write_str("partial"),
+        }
+    }
+}
+impl ::std::str::FromStr for ChangeCommitStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "committed" => Ok(Self::Committed),
+            "failed" => Ok(Self::Failed),
+            "partial" => Ok(Self::Partial),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ChangeCommitStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ChangeCommitStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ChangeCommitStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ChangeOperation`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ChangeOperation",
+///  "type": "object",
+///  "required": [
+///    "op"
+///  ],
+///  "properties": {
+///    "input_refs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "op": {
+///      "type": "string"
+///    },
+///    "payload": {
+///      "default": null
+///    },
+///    "target": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ChangeOperation {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub input_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub op: ::std::string::String,
+    #[serde(default = "defaults::change_operation_payload")]
+    pub payload: ::serde_json::Value,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target: ::std::option::Option<::std::string::String>,
+}
+///`ChangePrecondition`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ChangePrecondition",
+///  "type": "object",
+///  "required": [
+///    "kind"
+///  ],
+///  "properties": {
+///    "expected": {
+///      "default": null
+///    },
+///    "kind": {
+///      "type": "string"
+///    },
+///    "target": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ChangePrecondition {
+    #[serde(default = "defaults::change_precondition_expected")]
+    pub expected: ::serde_json::Value,
+    pub kind: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target: ::std::option::Option<::std::string::String>,
+}
+///`ChangeSet`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ChangeSet",
+///  "type": "object",
+///  "required": [
+///    "created_at",
+///    "id",
+///    "intent_id"
+///  ],
+///  "properties": {
+///    "change_set_type_uri": {
+///      "default": "urn:yggdrasil:change-set:v1",
+///      "type": "string"
+///    },
+///    "created_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "expected_effects": {
+///      "default": null
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "idempotency_key": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "intent_id": {
+///      "type": "string"
+///    },
+///    "operations": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ChangeOperation"
+///      }
+///    },
+///    "preconditions": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ChangePrecondition"
+///      }
+///    },
+///    "required_authority": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ChangeSet {
+    #[serde(default = "defaults::change_set_change_set_type_uri")]
+    pub change_set_type_uri: ::std::string::String,
+    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default = "defaults::change_set_expected_effects")]
+    pub expected_effects: ::serde_json::Value,
+    pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub idempotency_key: ::std::option::Option<::std::string::String>,
+    pub intent_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub operations: ::std::vec::Vec<ChangeOperation>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub preconditions: ::std::vec::Vec<ChangePrecondition>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub required_authority: ::std::vec::Vec<::std::string::String>,
 }
 ///`ContractAdapter`
 ///
@@ -2423,6 +2880,432 @@ pub struct DeploymentReconcileSummary {
     pub leases_released: u32,
     pub routes_promoted: u32,
     pub routes_removed: u32,
+}
+///`EffectReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EffectReceipt",
+///  "type": "object",
+///  "required": [
+///    "completed_at",
+///    "component_ref",
+///    "effect_kind",
+///    "latency_ms",
+///    "principal",
+///    "receipt_id",
+///    "receipt_type_uri",
+///    "replay_mode",
+///    "schema_version",
+///    "started_at",
+///    "status",
+///    "trace_id"
+///  ],
+///  "properties": {
+///    "actual": {
+///      "default": null
+///    },
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "approval_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "authority_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "completed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "component_ref": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "cost": {
+///      "default": null
+///    },
+///    "effect_kind": {
+///      "type": "string"
+///    },
+///    "external_effect_refs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "input_refs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "latency_ms": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "output_refs": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "parent_receipts": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "planned": {
+///      "default": null
+///    },
+///    "policy_decision_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "principal": {
+///      "$ref": "#/definitions/PrincipalIdentity"
+///    },
+///    "protocol_profiles": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "receipt_id": {
+///      "type": "string"
+///    },
+///    "receipt_type_uri": {
+///      "type": "string"
+///    },
+///    "replay_mode": {
+///      "$ref": "#/definitions/EffectReplayMode"
+///    },
+///    "schema_version": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "scope": {
+///      "default": {},
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/EffectScope"
+///        }
+///      ]
+///    },
+///    "started_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/EffectTerminalStatus"
+///    },
+///    "trace_id": {
+///      "type": "string"
+///    },
+///    "usage": {
+///      "default": null
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct EffectReceipt {
+    #[serde(default = "defaults::effect_receipt_actual")]
+    pub actual: ::serde_json::Value,
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub approval_ref: ::std::option::Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub authority_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub completed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub component_ref: ArtifactDescriptor,
+    #[serde(default = "defaults::effect_receipt_cost")]
+    pub cost: ::serde_json::Value,
+    pub effect_kind: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub external_effect_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub input_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub latency_ms: u64,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub output_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub parent_receipts: ::std::vec::Vec<::std::string::String>,
+    #[serde(default = "defaults::effect_receipt_planned")]
+    pub planned: ::serde_json::Value,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub policy_decision_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub principal: PrincipalIdentity,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_profiles: ::std::vec::Vec<::std::string::String>,
+    pub receipt_id: ::std::string::String,
+    pub receipt_type_uri: ::std::string::String,
+    pub replay_mode: EffectReplayMode,
+    pub schema_version: u16,
+    #[serde(default = "defaults::effect_receipt_scope")]
+    pub scope: EffectScope,
+    pub started_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub status: EffectTerminalStatus,
+    pub trace_id: ::std::string::String,
+    #[serde(default = "defaults::effect_receipt_usage")]
+    pub usage: ::serde_json::Value,
+}
+///`EffectReplayMode`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EffectReplayMode",
+///  "type": "string",
+///  "enum": [
+///    "live",
+///    "historical",
+///    "reexecute"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum EffectReplayMode {
+    #[serde(rename = "live")]
+    Live,
+    #[serde(rename = "historical")]
+    Historical,
+    #[serde(rename = "reexecute")]
+    Reexecute,
+}
+impl ::std::fmt::Display for EffectReplayMode {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Live => f.write_str("live"),
+            Self::Historical => f.write_str("historical"),
+            Self::Reexecute => f.write_str("reexecute"),
+        }
+    }
+}
+impl ::std::str::FromStr for EffectReplayMode {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "live" => Ok(Self::Live),
+            "historical" => Ok(Self::Historical),
+            "reexecute" => Ok(Self::Reexecute),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for EffectReplayMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for EffectReplayMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for EffectReplayMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`EffectScope`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EffectScope",
+///  "type": "object",
+///  "properties": {
+///    "branch_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "session_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct EffectScope {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub branch_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub session_id: ::std::option::Option<::std::string::String>,
+}
+impl ::std::default::Default for EffectScope {
+    fn default() -> Self {
+        Self {
+            branch_id: Default::default(),
+            session_id: Default::default(),
+        }
+    }
+}
+///`EffectTerminalStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EffectTerminalStatus",
+///  "type": "string",
+///  "enum": [
+///    "succeeded",
+///    "denied",
+///    "failed",
+///    "cancelled",
+///    "timed_out",
+///    "partial"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum EffectTerminalStatus {
+    #[serde(rename = "succeeded")]
+    Succeeded,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "timed_out")]
+    TimedOut,
+    #[serde(rename = "partial")]
+    Partial,
+}
+impl ::std::fmt::Display for EffectTerminalStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Succeeded => f.write_str("succeeded"),
+            Self::Denied => f.write_str("denied"),
+            Self::Failed => f.write_str("failed"),
+            Self::Cancelled => f.write_str("cancelled"),
+            Self::TimedOut => f.write_str("timed_out"),
+            Self::Partial => f.write_str("partial"),
+        }
+    }
+}
+impl ::std::str::FromStr for EffectTerminalStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "succeeded" => Ok(Self::Succeeded),
+            "denied" => Ok(Self::Denied),
+            "failed" => Ok(Self::Failed),
+            "cancelled" => Ok(Self::Cancelled),
+            "timed_out" => Ok(Self::TimedOut),
+            "partial" => Ok(Self::Partial),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for EffectTerminalStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for EffectTerminalStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for EffectTerminalStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`EmptyParams`
 ///
@@ -3437,35 +4320,125 @@ pub struct ExecCommand {
 /// ```json
 ///{
 ///  "title": "ExecCompletedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct ExecCompletedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for ExecCompletedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct ExecCompletedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ExecCompletedPayloadReceipt>,
+}
+impl ::std::default::Default for ExecCompletedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<ExecCompletedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: ExecCompletedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ExecCompletedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`ExecCompletedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecCompletedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`ExecDeniedPayload`
 ///
@@ -3474,35 +4447,125 @@ for ExecCompletedPayload {
 /// ```json
 ///{
 ///  "title": "ExecDeniedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct ExecDeniedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for ExecDeniedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct ExecDeniedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ExecDeniedPayloadReceipt>,
+}
+impl ::std::default::Default for ExecDeniedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<ExecDeniedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: ExecDeniedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ExecDeniedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`ExecDeniedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecDeniedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`ExecFailedPayload`
 ///
@@ -3511,35 +4574,125 @@ for ExecDeniedPayload {
 /// ```json
 ///{
 ///  "title": "ExecFailedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct ExecFailedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for ExecFailedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct ExecFailedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ExecFailedPayloadReceipt>,
+}
+impl ::std::default::Default for ExecFailedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<ExecFailedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: ExecFailedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ExecFailedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`ExecFailedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecFailedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`ExecIdParams`
 ///
@@ -3962,35 +5115,125 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecStatusKind {
 /// ```json
 ///{
 ///  "title": "ExecStoppedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct ExecStoppedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for ExecStoppedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct ExecStoppedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ExecStoppedPayloadReceipt>,
+}
+impl ::std::default::Default for ExecStoppedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<ExecStoppedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: ExecStoppedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for ExecStoppedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`ExecStoppedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecStoppedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`ExecutionTarget`
 ///
@@ -5202,6 +6445,76 @@ impl ::std::convert::From<()> for HostPrincipalResult {
         Self(value)
     }
 }
+///`Intent`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "Intent",
+///  "type": "object",
+///  "required": [
+///    "created_at",
+///    "id",
+///    "principal"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "created_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "goal": {
+///      "default": null
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "intent_type_uri": {
+///      "default": "urn:yggdrasil:intent:v1",
+///      "type": "string"
+///    },
+///    "principal": {
+///      "$ref": "#/definitions/PrincipalIdentity"
+///    },
+///    "target_branch_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "target_session_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct Intent {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default = "defaults::intent_goal")]
+    pub goal: ::serde_json::Value,
+    pub id: ::std::string::String,
+    #[serde(default = "defaults::intent_intent_type_uri")]
+    pub intent_type_uri: ::std::string::String,
+    pub principal: PrincipalIdentity,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_branch_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_session_id: ::std::option::Option<::std::string::String>,
+}
 /**Response returned by `kernel.v1.outbound.stream` on the initial call.
 
 Contains the stream_id for subscribing to events, the start status, and metadata about the executor that will handle the stream.*/
@@ -6233,6 +7546,51 @@ Records an outbound network request made by a package through Ygg-provided netwo
 ///        "null"
 ///      ]
 ///    },
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "redaction_state": {
 ///      "description": "Redaction state — what data, if any, was recorded.",
 ///      "default": "not_captured",
@@ -6287,6 +7645,8 @@ pub struct OutboundAuditRecord {
     ///Declared purpose from the manifest or request context.
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub purpose: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<OutboundAuditRecordReceipt>,
     ///Redaction state — what data, if any, was recorded.
     #[serde(default = "defaults::outbound_audit_record_redaction_state")]
     pub redaction_state: RedactionState,
@@ -6298,6 +7658,193 @@ pub struct OutboundAuditRecord {
     ///Usage placeholder (e.g. token count).
     #[serde(default = "defaults::outbound_audit_record_usage")]
     pub usage: ::serde_json::Value,
+}
+/**Generic outbound audit record / envelope.
+
+Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "OutboundAuditRecord2",
+///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
+///  "type": "object",
+///  "required": [
+///    "capability_id",
+///    "destination_host",
+///    "id",
+///    "method",
+///    "package_id",
+///    "principal",
+///    "status"
+///  ],
+///  "properties": {
+///    "capability_id": {
+///      "description": "Capability through which the request was made.",
+///      "type": "string"
+///    },
+///    "cost": {
+///      "description": "Cost placeholder.",
+///      "default": null
+///    },
+///    "destination_host": {
+///      "description": "Destination host.",
+///      "type": "string"
+///    },
+///    "error": {
+///      "description": "Error message if status is not \"allowed\".",
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "id": {
+///      "description": "Unique record id.",
+///      "type": "string"
+///    },
+///    "method": {
+///      "description": "HTTP method (GET, POST, etc).",
+///      "type": "string"
+///    },
+///    "package_id": {
+///      "description": "Package that owns the outbound request.",
+///      "type": "string"
+///    },
+///    "principal": {
+///      "description": "The principal that initiated the request.",
+///      "type": "string"
+///    },
+///    "purpose": {
+///      "description": "Declared purpose from the manifest or request context.",
+///      "default": null,
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "redaction_state": {
+///      "description": "Redaction state — what data, if any, was recorded.",
+///      "default": "not_captured",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/RedactionState"
+///        }
+///      ]
+///    },
+///    "secret_refs_used": {
+///      "description": "Secret references used (not raw secrets).",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "status": {
+///      "description": "Request status: \"allowed\", \"denied\", \"error\", etc.",
+///      "type": "string"
+///    },
+///    "usage": {
+///      "description": "Usage placeholder (e.g. token count).",
+///      "default": null
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct OutboundAuditRecord2 {
+    ///Capability through which the request was made.
+    pub capability_id: ::std::string::String,
+    ///Cost placeholder.
+    #[serde(default = "defaults::outbound_audit_record2_cost")]
+    pub cost: ::serde_json::Value,
+    ///Destination host.
+    pub destination_host: ::std::string::String,
+    ///Error message if status is not "allowed".
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub error: ::std::option::Option<::std::string::String>,
+    ///Unique record id.
+    pub id: ::std::string::String,
+    ///HTTP method (GET, POST, etc).
+    pub method: ::std::string::String,
+    ///Package that owns the outbound request.
+    pub package_id: ::std::string::String,
+    ///The principal that initiated the request.
+    pub principal: ::std::string::String,
+    ///Declared purpose from the manifest or request context.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub purpose: ::std::option::Option<::std::string::String>,
+    ///Redaction state — what data, if any, was recorded.
+    #[serde(default = "defaults::outbound_audit_record2_redaction_state")]
+    pub redaction_state: RedactionState,
+    ///Secret references used (not raw secrets).
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub secret_refs_used: ::std::vec::Vec<::std::string::String>,
+    ///Request status: "allowed", "denied", "error", etc.
+    pub status: ::std::string::String,
+    ///Usage placeholder (e.g. token count).
+    #[serde(default = "defaults::outbound_audit_record2_usage")]
+    pub usage: ::serde_json::Value,
+}
+///`OutboundAuditRecordReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct OutboundAuditRecordReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`OutboundAuditResult`
 ///
@@ -6552,35 +8099,125 @@ pub struct OutboundAuditResultItem {
 /// ```json
 ///{
 ///  "title": "OutboundExecuteCompletedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct OutboundExecuteCompletedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for OutboundExecuteCompletedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct OutboundExecuteCompletedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<OutboundExecuteCompletedPayloadReceipt>,
+}
+impl ::std::default::Default for OutboundExecuteCompletedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<OutboundExecuteCompletedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: OutboundExecuteCompletedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundExecuteCompletedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`OutboundExecuteCompletedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct OutboundExecuteCompletedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`OutboundExecuteParams`
 ///
@@ -7060,6 +8697,51 @@ pub struct OutboundStreamParams {
 ///        "null"
 ///      ]
 ///    },
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "redaction_state": {
 ///      "description": "Redaction state applied to the stream.",
 ///      "default": "not_captured",
@@ -7108,6 +8790,8 @@ pub struct OutboundStreamSummary {
     ///Provider-assigned request id if available.
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub provider_request_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<OutboundStreamSummaryReceipt>,
     ///Redaction state applied to the stream.
     #[serde(default = "defaults::outbound_stream_summary_redaction_state")]
     pub redaction_state: RedactionState,
@@ -7116,6 +8800,62 @@ pub struct OutboundStreamSummary {
     ///HTTP status code if available.
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub status_code: ::std::option::Option<u16>,
+}
+///`OutboundStreamSummaryReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct OutboundStreamSummaryReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///Request to open a WebSocket connection.
 ///
@@ -7367,35 +9107,125 @@ for OutboundWebsocketCloseResult {
 /// ```json
 ///{
 ///  "title": "OutboundWebsocketCompletedPayload",
-///  "type": "object"
+///  "type": "object",
+///  "properties": {
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
 ///}
 /// ```
 /// </details>
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-#[serde(transparent)]
-pub struct OutboundWebsocketCompletedPayload(
-    pub ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-);
-impl ::std::ops::Deref for OutboundWebsocketCompletedPayload {
-    type Target = ::serde_json::Map<::std::string::String, ::serde_json::Value>;
-    fn deref(&self) -> &::serde_json::Map<::std::string::String, ::serde_json::Value> {
-        &self.0
+pub struct OutboundWebsocketCompletedPayload {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<OutboundWebsocketCompletedPayloadReceipt>,
+}
+impl ::std::default::Default for OutboundWebsocketCompletedPayload {
+    fn default() -> Self {
+        Self {
+            receipt: Default::default(),
+        }
     }
 }
-impl ::std::convert::From<OutboundWebsocketCompletedPayload>
-for ::serde_json::Map<::std::string::String, ::serde_json::Value> {
-    fn from(value: OutboundWebsocketCompletedPayload) -> Self {
-        value.0
-    }
-}
-impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json::Value>>
-for OutboundWebsocketCompletedPayload {
-    fn from(
-        value: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    ) -> Self {
-        Self(value)
-    }
+///`OutboundWebsocketCompletedPayloadReceipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct OutboundWebsocketCompletedPayloadReceipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
 }
 ///`OutboundWebsocketErrorPayload`
 ///
@@ -9335,6 +11165,170 @@ impl ::std::default::Default for PermissionSet {
         }
     }
 }
+///`PolicyDecision`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PolicyDecision",
+///  "type": "object",
+///  "required": [
+///    "change_set_id",
+///    "decided_at",
+///    "id",
+///    "outcome",
+///    "principal"
+///  ],
+///  "properties": {
+///    "change_set_id": {
+///      "type": "string"
+///    },
+///    "decided_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "decision_type_uri": {
+///      "default": "urn:yggdrasil:policy-decision:v1",
+///      "type": "string"
+///    },
+///    "evaluated_authority": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "outcome": {
+///      "$ref": "#/definitions/PolicyDecisionOutcome"
+///    },
+///    "policy_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "principal": {
+///      "$ref": "#/definitions/PrincipalIdentity"
+///    },
+///    "reason": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PolicyDecision {
+    pub change_set_id: ::std::string::String,
+    pub decided_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    #[serde(default = "defaults::policy_decision_decision_type_uri")]
+    pub decision_type_uri: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub evaluated_authority: ::std::vec::Vec<::std::string::String>,
+    pub id: ::std::string::String,
+    pub outcome: PolicyDecisionOutcome,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub policy_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub principal: PrincipalIdentity,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub reason: ::std::option::Option<::std::string::String>,
+}
+///`PolicyDecisionOutcome`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PolicyDecisionOutcome",
+///  "type": "string",
+///  "enum": [
+///    "allowed",
+///    "denied",
+///    "requires_approval"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PolicyDecisionOutcome {
+    #[serde(rename = "allowed")]
+    Allowed,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "requires_approval")]
+    RequiresApproval,
+}
+impl ::std::fmt::Display for PolicyDecisionOutcome {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Allowed => f.write_str("allowed"),
+            Self::Denied => f.write_str("denied"),
+            Self::RequiresApproval => f.write_str("requires_approval"),
+        }
+    }
+}
+impl ::std::str::FromStr for PolicyDecisionOutcome {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "allowed" => Ok(Self::Allowed),
+            "denied" => Ok(Self::Denied),
+            "requires_approval" => Ok(Self::RequiresApproval),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PolicyDecisionOutcome {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PolicyDecisionOutcome {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PolicyDecisionOutcome {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`PortBindScope`
 ///
 /// <details><summary>JSON schema</summary>
@@ -10061,6 +12055,157 @@ for PortReleasedPayload {
     ) -> Self {
         Self(value)
     }
+}
+///`PrincipalIdentity`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PrincipalIdentity",
+///  "oneOf": [
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "kernel"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "host_admin"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "host_dev"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "package_id"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "package"
+///          ]
+///        },
+///        "package_id": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "user_id"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "human"
+///          ]
+///        },
+///        "user_id": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "assistant_id",
+///        "kind"
+///      ],
+///      "properties": {
+///        "assistant_id": {
+///          "type": "string"
+///        },
+///        "delegated_user_id": {
+///          "type": [
+///            "string",
+///            "null"
+///          ]
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "assistant"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "anonymous"
+///          ]
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum PrincipalIdentity {
+    #[serde(rename = "kernel")]
+    Kernel,
+    #[serde(rename = "host_admin")]
+    HostAdmin,
+    #[serde(rename = "host_dev")]
+    HostDev,
+    #[serde(rename = "package")]
+    Package { package_id: ::std::string::String },
+    #[serde(rename = "human")]
+    Human { user_id: ::std::string::String },
+    #[serde(rename = "assistant")]
+    Assistant {
+        assistant_id: ::std::string::String,
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        delegated_user_id: ::std::option::Option<::std::string::String>,
+    },
+    #[serde(rename = "anonymous")]
+    Anonymous,
 }
 ///`ProjectGetResult`
 ///
@@ -11601,6 +13746,26 @@ pub struct ProposalIdParams {
 ///          }
 ///        ]
 ///      },
+///      "change_set": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/ChangeSet"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
+///      "commit": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/ChangeCommit"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
 ///      "created_at": {
 ///        "type": "string",
 ///        "format": "date-time"
@@ -11622,12 +13787,42 @@ pub struct ProposalIdParams {
 ///        "default": "",
 ///        "type": "string"
 ///      },
+///      "intent": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/Intent"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
 ///      "operations": {
 ///        "default": [],
 ///        "type": "array",
 ///        "items": {
 ///          "$ref": "#/definitions/ProposalOperation"
 ///        }
+///      },
+///      "policy_decision": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/PolicyDecision"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
+///      "receipt": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/ArtifactDescriptor"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
 ///      },
 ///      "required_permissions": {
 ///        "default": [],
@@ -11707,6 +13902,26 @@ for ProposalListResult {
 ///        }
 ///      ]
 ///    },
+///    "change_set": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ChangeSet"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "commit": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ChangeCommit"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "created_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -11728,12 +13943,42 @@ for ProposalListResult {
 ///      "default": "",
 ///      "type": "string"
 ///    },
+///    "intent": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/Intent"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "operations": {
 ///      "default": [],
 ///      "type": "array",
 ///      "items": {
 ///        "$ref": "#/definitions/ProposalOperation"
 ///      }
+///    },
+///    "policy_decision": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PolicyDecision"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "receipt": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
 ///    },
 ///    "required_permissions": {
 ///      "default": [],
@@ -11777,6 +14022,10 @@ pub struct ProposalListResultItem {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub change_set: ::std::option::Option<ChangeSet>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub commit: ::std::option::Option<ChangeCommit>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_list_result_item_created_by")]
     pub created_by: ProtocolPrincipal,
@@ -11784,8 +14033,14 @@ pub struct ProposalListResultItem {
     pub expected_effects: ::serde_json::Value,
     #[serde(default)]
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub intent: ::std::option::Option<Intent>,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub operations: ::std::vec::Vec<ProposalOperation>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub policy_decision: ::std::option::Option<PolicyDecision>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub required_permissions: ::std::vec::Vec<::std::string::String>,
     #[serde(default = "defaults::proposal_list_result_item_result")]
@@ -11801,11 +14056,16 @@ impl ::std::default::Default for ProposalListResultItem {
     fn default() -> Self {
         Self {
             approval: Default::default(),
+            change_set: Default::default(),
+            commit: Default::default(),
             created_at: Default::default(),
             created_by: defaults::proposal_list_result_item_created_by(),
             expected_effects: defaults::proposal_list_result_item_expected_effects(),
             id: Default::default(),
+            intent: Default::default(),
             operations: Default::default(),
+            policy_decision: Default::default(),
+            receipt: Default::default(),
             required_permissions: Default::default(),
             result: defaults::proposal_list_result_item_result(),
             status: defaults::proposal_list_result_item_status(),
@@ -11872,6 +14132,26 @@ pub struct ProposalOperation {
 ///        }
 ///      ]
 ///    },
+///    "change_set": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ChangeSet"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "commit": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ChangeCommit"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "created_at": {
 ///      "type": "string",
 ///      "format": "date-time"
@@ -11893,12 +14173,42 @@ pub struct ProposalOperation {
 ///      "default": "",
 ///      "type": "string"
 ///    },
+///    "intent": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/Intent"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "operations": {
 ///      "default": [],
 ///      "type": "array",
 ///      "items": {
 ///        "$ref": "#/definitions/ProposalOperation"
 ///      }
+///    },
+///    "policy_decision": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PolicyDecision"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "receipt": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
 ///    },
 ///    "required_permissions": {
 ///      "default": [],
@@ -11943,6 +14253,10 @@ pub struct ProposalRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub approval: ::std::option::Option<ProposalApproval>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub change_set: ::std::option::Option<ChangeSet>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub commit: ::std::option::Option<ChangeCommit>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub created_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
     #[serde(default = "defaults::proposal_record_created_by")]
     pub created_by: ProtocolPrincipal,
@@ -11950,8 +14264,14 @@ pub struct ProposalRecord {
     pub expected_effects: ::serde_json::Value,
     #[serde(default)]
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub intent: ::std::option::Option<Intent>,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub operations: ::std::vec::Vec<ProposalOperation>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub policy_decision: ::std::option::Option<PolicyDecision>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub required_permissions: ::std::vec::Vec<::std::string::String>,
     #[serde(default = "defaults::proposal_record_result")]
@@ -11967,11 +14287,16 @@ impl ::std::default::Default for ProposalRecord {
     fn default() -> Self {
         Self {
             approval: Default::default(),
+            change_set: Default::default(),
+            commit: Default::default(),
             created_at: Default::default(),
             created_by: defaults::proposal_record_created_by(),
             expected_effects: defaults::proposal_record_expected_effects(),
             id: Default::default(),
+            intent: Default::default(),
             operations: Default::default(),
+            policy_decision: Default::default(),
+            receipt: Default::default(),
             required_permissions: Default::default(),
             result: defaults::proposal_record_result(),
             status: defaults::proposal_record_status(),
@@ -11991,8 +14316,10 @@ impl ::std::default::Default for ProposalRecord {
 ///  "enum": [
 ///    "created",
 ///    "approved",
+///    "applying",
 ///    "rejected",
 ///    "applied",
+///    "partial",
 ///    "failed"
 ///  ]
 ///}
@@ -12016,10 +14343,14 @@ pub enum ProposalStatus {
     Created,
     #[serde(rename = "approved")]
     Approved,
+    #[serde(rename = "applying")]
+    Applying,
     #[serde(rename = "rejected")]
     Rejected,
     #[serde(rename = "applied")]
     Applied,
+    #[serde(rename = "partial")]
+    Partial,
     #[serde(rename = "failed")]
     Failed,
 }
@@ -12028,8 +14359,10 @@ impl ::std::fmt::Display for ProposalStatus {
         match *self {
             Self::Created => f.write_str("created"),
             Self::Approved => f.write_str("approved"),
+            Self::Applying => f.write_str("applying"),
             Self::Rejected => f.write_str("rejected"),
             Self::Applied => f.write_str("applied"),
+            Self::Partial => f.write_str("partial"),
             Self::Failed => f.write_str("failed"),
         }
     }
@@ -12042,8 +14375,10 @@ impl ::std::str::FromStr for ProposalStatus {
         match value {
             "created" => Ok(Self::Created),
             "approved" => Ok(Self::Approved),
+            "applying" => Ok(Self::Applying),
             "rejected" => Ok(Self::Rejected),
             "applied" => Ok(Self::Applied),
+            "partial" => Ok(Self::Partial),
             "failed" => Ok(Self::Failed),
             _ => Err("invalid value".into()),
         }
@@ -14065,6 +16400,200 @@ pub struct StreamFrameEnvelope {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
 }
+/**Generic stream frame envelope — the unit of streaming capability output.
+
+This is a content-free protocol shape. It carries invocation/stream identifiers, sequencing, and redaction state, but no model, prompt, agent, or message semantics. The `payload` field is opaque JSON controlled by the capability provider.*/
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StreamFrameEnvelope2",
+///  "description": "Generic stream frame envelope — the unit of streaming capability output.\n\nThis is a content-free protocol shape. It carries invocation/stream identifiers, sequencing, and redaction state, but no model, prompt, agent, or message semantics. The `payload` field is opaque JSON controlled by the capability provider.",
+///  "type": "object",
+///  "required": [
+///    "frame_type",
+///    "invocation_id",
+///    "sequence",
+///    "stream_id"
+///  ],
+///  "properties": {
+///    "frame_type": {
+///      "description": "Frame type discriminant.",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/StreamFrameType"
+///        }
+///      ]
+///    },
+///    "invocation_id": {
+///      "description": "The invocation this frame belongs to.",
+///      "type": "string"
+///    },
+///    "metadata": {
+///      "description": "Opaque metadata — capability-provider-defined.",
+///      "default": null
+///    },
+///    "payload": {
+///      "description": "Opaque payload — capability-provider-defined; no kernel content semantics. May be `Null` for progress/end/cancelled/timeout frames.",
+///      "default": null
+///    },
+///    "receipt": {
+///      "default": null,
+///      "anyOf": [
+///        {
+///          "type": "object",
+///          "required": [
+///            "artifact_type_uri",
+///            "digest",
+///            "media_type",
+///            "size_bytes"
+///          ],
+///          "properties": {
+///            "annotations": {
+///              "default": {},
+///              "type": "object",
+///              "additionalProperties": true
+///            },
+///            "artifact_type_uri": {
+///              "type": "string"
+///            },
+///            "digest": {
+///              "type": "string"
+///            },
+///            "media_type": {
+///              "type": "string"
+///            },
+///            "references": {
+///              "default": [],
+///              "type": "array",
+///              "items": {
+///                "type": "string"
+///              }
+///            },
+///            "size_bytes": {
+///              "type": "integer",
+///              "format": "uint64",
+///              "minimum": 0.0
+///            }
+///          }
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "redaction_state": {
+///      "description": "Redaction state applied to the payload.",
+///      "default": "not_captured",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/RedactionState"
+///        }
+///      ]
+///    },
+///    "sequence": {
+///      "description": "Monotonically increasing sequence within this stream.",
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "stream_id": {
+///      "description": "Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).",
+///      "type": "string"
+///    },
+///    "timestamp": {
+///      "description": "Timestamp of frame emission.",
+///      "type": "string",
+///      "format": "date-time"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct StreamFrameEnvelope2 {
+    ///Frame type discriminant.
+    pub frame_type: StreamFrameType,
+    ///The invocation this frame belongs to.
+    pub invocation_id: ::std::string::String,
+    ///Opaque metadata — capability-provider-defined.
+    #[serde(default = "defaults::stream_frame_envelope2_metadata")]
+    pub metadata: ::serde_json::Value,
+    ///Opaque payload — capability-provider-defined; no kernel content semantics. May be `Null` for progress/end/cancelled/timeout frames.
+    #[serde(default = "defaults::stream_frame_envelope2_payload")]
+    pub payload: ::serde_json::Value,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt: ::std::option::Option<StreamFrameEnvelope2Receipt>,
+    ///Redaction state applied to the payload.
+    #[serde(default = "defaults::stream_frame_envelope2_redaction_state")]
+    pub redaction_state: RedactionState,
+    ///Monotonically increasing sequence within this stream.
+    pub sequence: u64,
+    ///Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
+    pub stream_id: ::std::string::String,
+    ///Timestamp of frame emission.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub timestamp: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+}
+///`StreamFrameEnvelope2Receipt`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "artifact_type_uri",
+///    "digest",
+///    "media_type",
+///    "size_bytes"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "artifact_type_uri": {
+///      "type": "string"
+///    },
+///    "digest": {
+///      "type": "string"
+///    },
+///    "media_type": {
+///      "type": "string"
+///    },
+///    "references": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "size_bytes": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct StreamFrameEnvelope2Receipt {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub artifact_type_uri: ::std::string::String,
+    pub digest: ::std::string::String,
+    pub media_type: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub references: ::std::vec::Vec<::std::string::String>,
+    pub size_bytes: u64,
+}
 ///The type of a stream frame — content-free, no model/prompt semantics.
 ///
 /// <details><summary>JSON schema</summary>
@@ -15653,6 +18182,39 @@ pub mod defaults {
     pub(super) fn capability_invocation_request_input() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
+    pub(super) fn change_commit_commit_type_uri() -> ::std::string::String {
+        "urn:yggdrasil:change-commit:v1".to_string()
+    }
+    pub(super) fn change_operation_payload() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn change_precondition_expected() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn change_set_change_set_type_uri() -> ::std::string::String {
+        "urn:yggdrasil:change-set:v1".to_string()
+    }
+    pub(super) fn change_set_expected_effects() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn effect_receipt_actual() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn effect_receipt_cost() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn effect_receipt_planned() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn effect_receipt_scope() -> super::EffectScope {
+        super::EffectScope {
+            branch_id: Default::default(),
+            session_id: Default::default(),
+        }
+    }
+    pub(super) fn effect_receipt_usage() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
     pub(super) fn entry_descriptor_variant0_contract() -> super::ContractMode {
         super::ContractMode::V1
     }
@@ -15679,6 +18241,12 @@ pub mod defaults {
     }
     pub(super) fn extension_point_descriptor_payload_schema() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn intent_goal() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn intent_intent_type_uri() -> ::std::string::String {
+        "urn:yggdrasil:intent:v1".to_string()
     }
     pub(super) fn kernel_outbound_stream_response_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
@@ -15713,6 +18281,15 @@ pub mod defaults {
         super::RedactionState::NotCaptured
     }
     pub(super) fn outbound_audit_record_usage() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn outbound_audit_record2_cost() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn outbound_audit_record2_redaction_state() -> super::RedactionState {
+        super::RedactionState::NotCaptured
+    }
+    pub(super) fn outbound_audit_record2_usage() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
     pub(super) fn outbound_audit_result_item_cost() -> ::serde_json::Value {
@@ -15857,6 +18434,9 @@ pub mod defaults {
             max_count: ::std::option::Option::None,
         }
     }
+    pub(super) fn policy_decision_decision_type_uri() -> ::std::string::String {
+        "urn:yggdrasil:policy-decision:v1".to_string()
+    }
     pub(super) fn port_lease_request_protocol() -> super::PortProtocol {
         super::PortProtocol::Tcp
     }
@@ -15915,6 +18495,15 @@ pub mod defaults {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
     pub(super) fn stream_frame_envelope_redaction_state() -> super::RedactionState {
+        super::RedactionState::NotCaptured
+    }
+    pub(super) fn stream_frame_envelope2_metadata() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn stream_frame_envelope2_payload() -> ::serde_json::Value {
+        ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn stream_frame_envelope2_redaction_state() -> super::RedactionState {
         super::RedactionState::NotCaptured
     }
     pub(super) fn surface_activation_input_schema() -> ::serde_json::Value {

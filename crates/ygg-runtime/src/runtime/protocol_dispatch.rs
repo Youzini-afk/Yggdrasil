@@ -79,10 +79,12 @@ where
                 self.dispatch_outbound_websocket_open(context, params).await
             }
             KernelMethod::OutboundWebSocketSend => {
-                self.dispatch_outbound_websocket_send(&params).await
+                self.dispatch_outbound_websocket_send(context, &params)
+                    .await
             }
             KernelMethod::OutboundWebSocketClose => {
-                self.dispatch_outbound_websocket_close(&params).await
+                self.dispatch_outbound_websocket_close(context, &params)
+                    .await
             }
             KernelMethod::TargetList => self.dispatch_target_list().await,
             KernelMethod::TargetStatus => self.dispatch_target_status(&params).await,
@@ -90,7 +92,7 @@ where
             KernelMethod::TargetUnregister => self.dispatch_target_unregister(&params).await,
             KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
             KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
-            KernelMethod::ExecStatus => self.dispatch_exec_status(params).await,
+            KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
             KernelMethod::ExecLogs => self.dispatch_exec_logs(params).await,
             KernelMethod::ExecList => self.dispatch_exec_list().await,
             KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
@@ -159,10 +161,12 @@ where
                 self.dispatch_outbound_websocket_open(context, params).await
             }
             KernelMethod::OutboundWebSocketSend => {
-                self.dispatch_outbound_websocket_send(&params).await
+                self.dispatch_outbound_websocket_send(context, &params)
+                    .await
             }
             KernelMethod::OutboundWebSocketClose => {
-                self.dispatch_outbound_websocket_close(&params).await
+                self.dispatch_outbound_websocket_close(context, &params)
+                    .await
             }
 
             // Permission domain
@@ -180,7 +184,7 @@ where
             KernelMethod::ProposalList => self.dispatch_proposal_list().await,
             KernelMethod::ProposalApprove => self.dispatch_proposal_approve(context, &params).await,
             KernelMethod::ProposalReject => self.dispatch_proposal_reject(context, &params).await,
-            KernelMethod::ProposalApply => self.dispatch_proposal_apply(&params).await,
+            KernelMethod::ProposalApply => self.dispatch_proposal_apply(context, &params).await,
 
             // Session domain
             KernelMethod::SessionOpen => Ok(serde_json::to_value(
@@ -222,7 +226,7 @@ where
             KernelMethod::TargetUnregister => self.dispatch_target_unregister(&params).await,
             KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
             KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
-            KernelMethod::ExecStatus => self.dispatch_exec_status(params).await,
+            KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
             KernelMethod::ExecLogs => self.dispatch_exec_logs(params).await,
             KernelMethod::ExecList => self.dispatch_exec_list().await,
             KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,

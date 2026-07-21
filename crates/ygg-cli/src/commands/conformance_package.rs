@@ -580,7 +580,17 @@ async fn check_events_and_errors(
                     .payload
                     .get("error_message")
                     .and_then(Value::as_str)
-                    .is_some();
+                    .is_some()
+                && event
+                    .payload
+                    .get("error_message_present")
+                    .and_then(Value::as_bool)
+                    .is_some()
+                && event
+                    .payload
+                    .get("error_fingerprint")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value.starts_with("sha256:"));
             if !ok {
                 failures.push(format!(
                     "capability failure event '{}' has invalid error shape",

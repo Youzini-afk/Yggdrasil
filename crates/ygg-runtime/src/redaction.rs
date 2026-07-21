@@ -8,10 +8,10 @@
 //! - Asset metadata
 //! - Audit-like payloads (permission events, kernel events)
 //!
-//! The scanner is intentionally conservative: it targets obvious API-key
-//! field names and high-entropy value patterns. It does NOT scan
-//! arbitrary user content fields like `content`, `description`, or `title`
-//! to avoid false positives on ordinary text.
+//! The general scanner is intentionally conservative: it targets obvious
+//! API-key field names and high-entropy value patterns, while excluding
+//! arbitrary user-content fields to avoid false positives. Effect evidence
+//! uses the strict scanner and redactor, which includes those fields.
 
 use serde_json::Value;
 use ygg_core::{is_secret_field_name, looks_like_raw_secret};
@@ -68,6 +68,17 @@ pub fn scan_value_for_raw_secrets(value: &Value, root_path: &str) -> SecretScanR
     let mut result = SecretScanResult {
         findings: Vec::new(),
     };
+    scan_recursive(value, root_path, &mut result, true);
+    result
+}
+
+/// Strict scan for persisted effect evidence. Unlike the general proposal/asset
+/// scanner, this checks arbitrary content-like fields because receipts must not
+/// persist raw credential-shaped material by reference.
+pub fn scan_effect_value_for_raw_secrets(value: &Value, root_path: &str) -> SecretScanResult {
+    let mut result = SecretScanResult {
+        findings: Vec::new(),
+    };
     scan_recursive(value, root_path, &mut result, false);
     result
 }
@@ -91,7 +102,12 @@ const EXCLUDED_VALUE_SCAN_FIELDS: &[&str] = &[
     "author",
 ];
 
-fn scan_recursive(value: &Value, path: &str, result: &mut SecretScanResult, _in_excluded: bool) {
+fn scan_recursive(
+    value: &Value,
+    path: &str,
+    result: &mut SecretScanResult,
+    honor_value_exclusions: bool,
+) {
     match value {
         Value::Object(map) => {
             for (key, child) in map {
@@ -100,7 +116,8 @@ fn scan_recursive(value: &Value, path: &str, result: &mut SecretScanResult, _in_
                 } else {
                     format!("{}.{}", path, key)
                 };
-                let is_excluded = EXCLUDED_VALUE_SCAN_FIELDS.iter().any(|f| f == key);
+                let is_excluded = honor_value_exclusions
+                    && EXCLUDED_VALUE_SCAN_FIELDS.iter().any(|field| field == key);
 
                 // Check field name
                 if is_secret_field_name(key) {
@@ -130,13 +147,13 @@ fn scan_recursive(value: &Value, path: &str, result: &mut SecretScanResult, _in_
                 }
 
                 // Recurse into child
-                scan_recursive(child, &child_path, result, is_excluded);
+                scan_recursive(child, &child_path, result, honor_value_exclusions);
             }
         }
         Value::Array(arr) => {
             for (i, child) in arr.iter().enumerate() {
                 let child_path = format!("{}[{}]", path, i);
-                scan_recursive(child, &child_path, result, false);
+                scan_recursive(child, &child_path, result, honor_value_exclusions);
             }
         }
         _ => {}
@@ -159,52 +176,52 @@ pub fn redact_secrets_in_value(value: &Value) -> (Value, SecretScanResult) {
     (redacted, scan)
 }
 
+pub fn redact_effect_value(value: &Value) -> (Value, SecretScanResult) {
+    let scan = scan_effect_value_for_raw_secrets(value, "");
+    if scan.findings.is_empty() {
+        return (value.clone(), scan);
+    }
+    let mut redacted = value.clone();
+    for finding in &scan.findings {
+        apply_redaction(&mut redacted, &finding.path);
+    }
+    (redacted, scan)
+}
+
 fn apply_redaction(value: &mut Value, path: &str) {
     let parts: Vec<&str> = path.split('.').collect();
     redact_path_recursive(value, &parts);
 }
 
 fn redact_path_recursive(value: &mut Value, parts: &[&str]) {
-    if parts.is_empty() {
+    let Some((segment, rest)) = parts.split_first() else {
         return;
-    }
-
-    // Handle array indexing like "path[0]"
-    let (current_key, remaining) = parts[0].split_once('[').unwrap_or((parts[0], ""));
-    let array_index = if remaining.ends_with(']') && !remaining.is_empty() {
-        remaining.trim_end_matches(']').parse::<usize>().ok()
-    } else {
-        None
     };
-
-    if parts.len() == 1 {
-        // Terminal: redact the value
-        if let Value::Object(map) = value {
-            if let Some(v) = map.get_mut(current_key) {
-                *v = Value::String("<secret:redacted>".to_string());
-            }
-        } else if let Value::Array(arr) = value {
-            if let Some(idx) = array_index {
-                if idx < arr.len() {
-                    arr[idx] = Value::String("<secret:redacted>".to_string());
-                }
-            }
-        }
+    let Some(target) = descend_path_segment_mut(value, segment) else {
         return;
+    };
+    if rest.is_empty() {
+        *target = Value::String("<secret:redacted>".to_string());
+    } else {
+        redact_path_recursive(target, rest);
     }
+}
 
-    // Recurse
-    let rest = &parts[1..];
-    if let Value::Object(map) = value {
-        if let Some(child) = map.get_mut(current_key) {
-            redact_path_recursive(child, rest);
+fn descend_path_segment_mut<'a>(value: &'a mut Value, segment: &str) -> Option<&'a mut Value> {
+    let (key, index) = match segment.split_once('[') {
+        Some((key, index)) if index.ends_with(']') => {
+            (key, index.trim_end_matches(']').parse::<usize>().ok())
         }
-    } else if let Value::Array(arr) = value {
-        if let Some(idx) = array_index {
-            if idx < arr.len() {
-                redact_path_recursive(&mut arr[idx], rest);
-            }
-        }
+        _ => (segment, None),
+    };
+    let target = if key.is_empty() {
+        value
+    } else {
+        value.as_object_mut()?.get_mut(key)?
+    };
+    match index {
+        Some(index) => target.as_array_mut()?.get_mut(index),
+        None => Some(target),
     }
 }
 
@@ -242,6 +259,17 @@ mod tests {
         let result = scan_value_for_raw_secrets(&value, "");
         // Field-name detection wouldn't fire either since "content" isn't a secret field name
         assert!(!result.has_findings());
+    }
+
+    #[test]
+    fn effect_scan_includes_content_fields() {
+        let value = json!({
+            "items": [{"content": "sk-abc123def456ghi789jkl012mno345pqr678stu901vwx"}]
+        });
+        let result = scan_effect_value_for_raw_secrets(&value, "");
+        assert!(result.has_findings());
+        let (redacted, _) = redact_effect_value(&value);
+        assert_eq!(redacted["items"][0]["content"], "<secret:redacted>");
     }
 
     #[test]

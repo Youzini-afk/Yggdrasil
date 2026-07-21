@@ -60,6 +60,23 @@ pub fn export_all() -> anyhow::Result<()> {
         out.join("artifact-descriptor.schema.json"),
         &schema_value::<ArtifactDescriptor>(),
     )?;
+    write_json(
+        out.join("effect-receipt.schema.json"),
+        &schema_value::<EffectReceipt>(),
+    )?;
+    write_json(out.join("intent.schema.json"), &schema_value::<Intent>())?;
+    write_json(
+        out.join("change-set.schema.json"),
+        &schema_value::<ChangeSet>(),
+    )?;
+    write_json(
+        out.join("policy-decision.schema.json"),
+        &schema_value::<PolicyDecision>(),
+    )?;
+    write_json(
+        out.join("commit.schema.json"),
+        &schema_value::<ChangeCommit>(),
+    )?;
 
     for (method, params, result) in method_schemas() {
         write_method(&out, method, params, result)?;

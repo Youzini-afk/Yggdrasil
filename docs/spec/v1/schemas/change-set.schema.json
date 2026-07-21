@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "ChangeOperation": {
+      "properties": {
+        "input_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "op": {
+          "type": "string"
+        },
+        "payload": {
+          "default": null
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    "ChangePrecondition": {
+      "properties": {
+        "expected": {
+          "default": null
+        },
+        "kind": {
+          "type": "string"
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "change_set_type_uri": {
+      "default": "urn:yggdrasil:change-set:v1",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "expected_effects": {
+      "default": null
+    },
+    "id": {
+      "type": "string"
+    },
+    "idempotency_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "intent_id": {
+      "type": "string"
+    },
+    "operations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ChangeOperation"
+      },
+      "type": "array"
+    },
+    "preconditions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ChangePrecondition"
+      },
+      "type": "array"
+    },
+    "required_authority": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "created_at",
+    "id",
+    "intent_id"
+  ],
+  "title": "ChangeSet",
+  "type": "object"
+}

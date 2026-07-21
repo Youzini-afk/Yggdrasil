@@ -134,6 +134,8 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | projections | 注册并 rebuild 通用事件计数 projection | implemented |
 | substrate | SQLite 事件日志 rehydrate asset、branch 和 projection | implemented |
 | substrate | permission grant 在 SQLite-backed runtime rehydrate 后仍存在 | implemented |
+| effect receipts | capability/provider 卸载后 historical replay 仍读取 recorded output；缺失 object 明确报 incomplete history；re-execute 创建新 branch 和 parent-linked receipt | implemented |
+| effect receipts | raw secret-bearing input/output 只以 redacted object refs 进入 receipt，receipt envelope 扫描无 findings | implemented |
 | secret refs | `secret_ref:`、`secretRef:`、`secret-ref:`、`host:` reference pattern validation | implemented |
 | secret refs | proposal payload 中的 raw secret 会被拒绝 | implemented |
 | secret refs | asset metadata 中的 raw secret 会被拒绝 | implemented |
@@ -202,6 +204,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
 | proposals | 已批准的 proposal 可以执行通用 asset/projection 操作 | implemented |
 | proposals | 被拒绝或未批准的 proposal 不能执行 | implemented |
+| proposals | v1 Proposal 映射为 Intent/ChangeSet/PolicyDecision/Commit；apply/reject 产生 operation/final receipt | implemented |
 | package authoring | 生成的 Python subprocess 包通过本地 conformance | implemented |
 | package authoring | 生成的 TypeScript subprocess 包通过本地 conformance | implemented |
 | package authoring | 生成的 experience 包 surface 通过本地 conformance | implemented |
@@ -254,6 +257,8 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | outbound | `kernel/v1/outbound.execute.completed` 完成审计事件发出 | implemented |
 | outbound | `kernel/v1/outbound.stream.completed` 完成审计事件发出 | implemented |
 | outbound | `kernel/v1/outbound.websocket.completed` 完成审计事件发出 | implemented |
+| outbound | HTTP/stream/WebSocket completion 挂接 terminal receipt；policy/executor 不一致会产生 failed receipt；timeout/cancel 不产生重复 stream terminal；所有 executor 禁用后仍可 historical replay | implemented |
+| deployment exec | deny-all start 与 fake stop 产生 denied/cancelled receipt；runtime 主动观察 live terminal；自然退出/超时、重复 denial、stop/status 竞态和重启 hydration 均保持唯一终态 receipt | implemented |
 | secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call：principal 绑定、execute 调度、stream chunks 回传 | implemented |
 | sse_parser | outbound stream SSE parser basic smoke 与 partial chunk 归并 | implemented |
@@ -350,6 +355,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | invoke instrumentation | capability invoke 发出 `kernel/v1/capability.invoked` | implemented |
 | invoke instrumentation | capability invoke 成功发出 `kernel/v1/capability.completed` | implemented |
 | invoke instrumentation | capability invoke 失败发出 `kernel/v1/capability.failed` | implemented |
+| invoke instrumentation | completed/failed event 与 result 挂接同一 EffectReceipt descriptor | implemented |
 | bindings | subprocess handshake 注入 v1 bindings 字典 | implemented |
 | bindings | rust_inproc `KernelEnv` 注入 bindings | implemented |
 | package | `package.audit_report` / `kernel.v1.audit.package` 报告 declared vs used authority | implemented |

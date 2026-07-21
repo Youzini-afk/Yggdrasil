@@ -8,16 +8,19 @@
 //! The checker is called before the runtime records an outbound
 //! audit event and before the request is forwarded.
 
+use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
-    new_id, CapabilityId, NetworkDeclaration, NetworkPermissions, OutboundAuditRecord, PackageId,
+    new_id, ArtifactDescriptor, CapabilityId, EffectScope, EffectTerminalStatus,
+    NetworkDeclaration, NetworkPermissions, OutboundAuditRecord, PackageId, PrincipalIdentity,
     RedactionState, EVENT_OUTBOUND_DENIED, EVENT_OUTBOUND_EXECUTE_COMPLETED,
     EVENT_OUTBOUND_REQUEST, EVENT_OUTBOUND_STREAM_COMPLETED, EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
 };
 
+use super::effects::{principal_identity, EffectReceiptRequest};
 use super::Runtime;
-use crate::{EventStore, ProtocolPrincipal};
+use crate::{EventStore, ProtocolPrincipal, DEFAULT_CONTRACT_PROFILE};
 
 /// Result of a network policy check.
 #[derive(Debug, Clone)]
@@ -161,6 +164,8 @@ pub struct OutboundExecuteCompletion<'a> {
     pub redaction_state: RedactionState,
     pub secret_refs_used: &'a [String],
     pub correlation_id: Option<Uuid>,
+    pub usage: Value,
+    pub cost: Value,
 }
 
 #[derive(Debug, Clone)]
@@ -202,6 +207,7 @@ pub struct OutboundWebSocketCompletion<'a> {
     pub redaction_state: RedactionState,
     pub secret_refs_used: &'a [String],
     pub correlation_id: Option<Uuid>,
+    pub parent_receipts: &'a [String],
 }
 
 impl<S> Runtime<S>
@@ -255,12 +261,16 @@ where
                 error: decision.denial_reason.clone(),
             };
             let session_id = format!("kernel_outbound_{}", request.package_id.replace('/', "_"));
-            self.append_kernel_event(
-                &session_id,
-                EVENT_OUTBOUND_DENIED,
-                serde_json::to_value(&record)?,
-            )
-            .await?;
+            let receipt = self
+                .record_outbound_policy_denial(&request, &record)
+                .await?;
+            let mut payload = serde_json::to_value(&record)?;
+            payload
+                .as_object_mut()
+                .expect("outbound audit record serializes as an object")
+                .insert("receipt".to_string(), serde_json::to_value(receipt)?);
+            self.append_kernel_event(&session_id, EVENT_OUTBOUND_DENIED, payload)
+                .await?;
             anyhow::bail!(
                 "outbound request denied: {}",
                 decision.denial_reason.unwrap_or_default()
@@ -303,79 +313,104 @@ where
     pub async fn emit_outbound_execute_completed(
         &self,
         completion: OutboundExecuteCompletion<'_>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<ArtifactDescriptor> {
         let session_id = format!(
             "kernel_outbound_{}",
             completion.package_id.replace('/', "_")
         );
-        self.append_kernel_event(
-            &session_id,
-            EVENT_OUTBOUND_EXECUTE_COMPLETED,
-            json!({
-                "id": completion.id,
-                "package_id": completion.package_id,
-                "capability_id": completion.capability_id,
-                "destination_host": completion.destination_host,
-                "method": completion.method,
-                "status": completion.status,
-                "executor_kind": completion.executor_kind,
-                "status_code": completion.status_code,
-                "total_bytes_request": completion.total_bytes_request,
-                "total_bytes_response": completion.total_bytes_response,
-                "duration_ms": completion.duration_ms,
-                "network_performed": completion.network_performed,
-                "redaction_state": completion.redaction_state,
-                "secret_refs_used": completion.secret_refs_used,
-                "correlation_id": completion.correlation_id,
-            }),
-        )
-        .await?;
-        Ok(())
+        let payload = json!({
+            "id": completion.id,
+            "package_id": completion.package_id,
+            "capability_id": completion.capability_id,
+            "destination_host": completion.destination_host,
+            "method": completion.method,
+            "status": completion.status,
+            "executor_kind": completion.executor_kind,
+            "status_code": completion.status_code,
+            "total_bytes_request": completion.total_bytes_request,
+            "total_bytes_response": completion.total_bytes_response,
+            "duration_ms": completion.duration_ms,
+            "network_performed": completion.network_performed,
+            "redaction_state": completion.redaction_state,
+            "secret_refs_used": completion.secret_refs_used,
+            "correlation_id": completion.correlation_id,
+        });
+        let receipt = self
+            .record_outbound_execute_effect(&completion, &payload)
+            .await?;
+        let mut payload = payload;
+        payload
+            .as_object_mut()
+            .expect("outbound completion payload is an object")
+            .insert("receipt".to_string(), serde_json::to_value(&receipt)?);
+        self.append_kernel_event(&session_id, EVENT_OUTBOUND_EXECUTE_COMPLETED, payload)
+            .await?;
+        Ok(receipt)
     }
 
     pub async fn emit_outbound_stream_completed(
         &self,
         session_id: &str,
         completion: OutboundStreamCompletion<'_>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let payload = json!({
+            "id": completion.id,
+            "package_id": completion.package_id,
+            "capability_id": completion.capability_id,
+            "destination_host": completion.destination_host,
+            "method": completion.method,
+            "stream_format": completion.stream_format,
+            "status": completion.status,
+            "total_chunks": completion.total_chunks,
+            "total_bytes": completion.total_bytes,
+            "duration_ms": completion.duration_ms,
+            "final_termination": completion.final_termination,
+            "executor_kind": completion.executor_kind,
+            "network_performed": completion.network_performed,
+            "redaction_state": completion.redaction_state,
+            "secret_refs_used": completion.secret_refs_used,
+            "correlation_id": completion.correlation_id,
+        });
+        let receipt = self
+            .record_outbound_stream_effect(&completion, &payload)
+            .await?;
+        let mut payload = payload;
+        payload
+            .as_object_mut()
+            .expect("outbound stream completion payload is an object")
+            .insert("receipt".to_string(), serde_json::to_value(&receipt)?);
         append_outbound_completion_event(
             self.store.clone(),
             session_id.to_string(),
             EVENT_OUTBOUND_STREAM_COMPLETED,
-            json!({
-                "id": completion.id,
-                "package_id": completion.package_id,
-                "capability_id": completion.capability_id,
-                "destination_host": completion.destination_host,
-                "method": completion.method,
-                "stream_format": completion.stream_format,
-                "status": completion.status,
-                "total_chunks": completion.total_chunks,
-                "total_bytes": completion.total_bytes,
-                "duration_ms": completion.duration_ms,
-                "final_termination": completion.final_termination,
-                "executor_kind": completion.executor_kind,
-                "network_performed": completion.network_performed,
-                "redaction_state": completion.redaction_state,
-                "secret_refs_used": completion.secret_refs_used,
-                "correlation_id": completion.correlation_id,
-            }),
+            payload,
         )
-        .await
+        .await?;
+        Ok(receipt)
     }
 
     pub async fn emit_outbound_websocket_completed(
         &self,
         session_id: &str,
         completion: OutboundWebSocketCompletion<'_>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let payload = websocket_completed_payload(&completion);
+        let receipt = self
+            .record_outbound_websocket_effect(&completion, &payload)
+            .await?;
+        let mut payload = payload;
+        payload
+            .as_object_mut()
+            .expect("outbound websocket completion payload is an object")
+            .insert("receipt".to_string(), serde_json::to_value(&receipt)?);
         append_outbound_completion_event(
             self.store.clone(),
             session_id.to_string(),
             EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
-            websocket_completed_payload(&completion),
+            payload,
         )
-        .await
+        .await?;
+        Ok(receipt)
     }
 
     /// List outbound audit events for a given package (both allowed and denied).
@@ -391,6 +426,268 @@ where
             .await?;
         Ok(request_events)
     }
+
+    async fn record_outbound_execute_effect(
+        &self,
+        completion: &OutboundExecuteCompletion<'_>,
+        payload: &Value,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let status = outbound_terminal_status(completion.status);
+        let mut request = EffectReceiptRequest::live(
+            "outbound.execute",
+            PrincipalIdentity::Package {
+                package_id: completion.package_id.to_string(),
+            },
+            json!({
+                "kind": "outbound_executor",
+                "executor_kind": completion.executor_kind,
+                "capability_id": completion.capability_id,
+            }),
+            status,
+            Utc::now() - chrono::Duration::milliseconds(completion.duration_ms as i64),
+            completion.duration_ms.max(1),
+            completion
+                .correlation_id
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| completion.id.to_string()),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        request.inputs = vec![json!({
+            "destination_host": completion.destination_host,
+            "method": completion.method,
+            "total_bytes_request": completion.total_bytes_request,
+            "secret_refs_used": completion.secret_refs_used,
+        })];
+        request.outputs = vec![payload.clone()];
+        request.external_effects = completion
+            .network_performed
+            .then(|| {
+                json!({
+                    "kind": "network_io",
+                    "destination_host": completion.destination_host,
+                    "status_code": completion.status_code,
+                    "bytes_sent": completion.total_bytes_request,
+                    "bytes_received": completion.total_bytes_response,
+                })
+            })
+            .into_iter()
+            .collect();
+        request.authority = Some(json!({
+            "package_id": completion.package_id,
+            "capability_id": completion.capability_id,
+            "secret_refs_used": completion.secret_refs_used,
+        }));
+        request.policy_decision = Some(json!({
+            "outcome": if status == EffectTerminalStatus::Denied { "denied" } else { "allowed" },
+            "network_performed": completion.network_performed,
+        }));
+        request.usage = completion.usage.clone();
+        request.cost = completion.cost.clone();
+        request.scope = EffectScope::default();
+        request.planned = json!({
+            "destination_host": completion.destination_host,
+            "method": completion.method,
+        });
+        request.actual = payload.clone();
+        self.record_effect_receipt(request).await
+    }
+
+    async fn record_outbound_policy_denial(
+        &self,
+        outbound: &OutboundRequest,
+        audit: &OutboundAuditRecord,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let mut request = EffectReceiptRequest::live(
+            "outbound.policy",
+            principal_identity(&outbound.principal),
+            json!({
+                "kind": "network_policy",
+                "capability_id": outbound.capability_id,
+            }),
+            EffectTerminalStatus::Denied,
+            Utc::now(),
+            1,
+            outbound
+                .correlation_id
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| audit.id.clone()),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        request.inputs = vec![json!({
+            "package_id": outbound.package_id,
+            "capability_id": outbound.capability_id,
+            "destination_host": outbound.destination_host,
+            "method": outbound.method,
+            "purpose_present": outbound.purpose.is_some(),
+            "secret_refs_used": outbound.secret_refs_used,
+        })];
+        request.outputs = vec![json!({
+            "status": "denied",
+            "network_performed": false,
+        })];
+        request.authority = Some(json!({
+            "package_id": outbound.package_id,
+            "capability_id": outbound.capability_id,
+        }));
+        request.policy_decision = Some(json!({
+            "outcome": "denied",
+            "matched_declaration": false,
+        }));
+        request.planned = json!({
+            "destination_host": outbound.destination_host,
+            "method": outbound.method,
+        });
+        request.actual = json!({
+            "status": "denied",
+            "network_performed": false,
+        });
+        self.record_effect_receipt(request).await
+    }
+
+    async fn record_outbound_stream_effect(
+        &self,
+        completion: &OutboundStreamCompletion<'_>,
+        payload: &Value,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let status = outbound_terminal_status(completion.status);
+        let mut request = EffectReceiptRequest::live(
+            "outbound.stream",
+            PrincipalIdentity::Package {
+                package_id: completion.package_id.to_string(),
+            },
+            json!({
+                "kind": "outbound_stream_executor",
+                "executor_kind": completion.executor_kind,
+                "capability_id": completion.capability_id,
+            }),
+            status,
+            Utc::now() - chrono::Duration::milliseconds(completion.duration_ms as i64),
+            completion.duration_ms.max(1),
+            completion
+                .correlation_id
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| completion.id.to_string()),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        request.inputs = vec![json!({
+            "destination_host": completion.destination_host,
+            "method": completion.method,
+            "stream_format": completion.stream_format,
+            "secret_refs_used": completion.secret_refs_used,
+        })];
+        request.outputs = vec![payload.clone()];
+        request.external_effects = completion
+            .network_performed
+            .then(|| {
+                json!({
+                    "kind": "network_stream",
+                    "destination_host": completion.destination_host,
+                    "chunks": completion.total_chunks,
+                    "bytes_received": completion.total_bytes,
+                    "termination": completion.final_termination,
+                })
+            })
+            .into_iter()
+            .collect();
+        request.authority = Some(json!({
+            "package_id": completion.package_id,
+            "capability_id": completion.capability_id,
+            "secret_refs_used": completion.secret_refs_used,
+        }));
+        request.policy_decision = Some(json!({
+            "outcome": if status == EffectTerminalStatus::Denied { "denied" } else { "allowed" },
+        }));
+        request.planned = json!({
+            "destination_host": completion.destination_host,
+            "method": completion.method,
+            "stream_format": completion.stream_format,
+        });
+        request.actual = payload.clone();
+        self.record_effect_receipt(request).await
+    }
+
+    async fn record_outbound_websocket_effect(
+        &self,
+        completion: &OutboundWebSocketCompletion<'_>,
+        payload: &Value,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let status = match completion.code {
+            1000 => EffectTerminalStatus::Succeeded,
+            1001 => EffectTerminalStatus::Cancelled,
+            1008 => EffectTerminalStatus::Denied,
+            1013 => EffectTerminalStatus::TimedOut,
+            _ => EffectTerminalStatus::Failed,
+        };
+        let mut request = EffectReceiptRequest::live(
+            "outbound.websocket",
+            PrincipalIdentity::Package {
+                package_id: completion.package_id.to_string(),
+            },
+            json!({
+                "kind": "outbound_websocket_executor",
+                "executor_kind": completion.executor_kind,
+                "capability_id": completion.capability_id,
+            }),
+            status,
+            Utc::now() - chrono::Duration::milliseconds(completion.duration_ms as i64),
+            completion.duration_ms.max(1),
+            completion
+                .correlation_id
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| completion.id.to_string()),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        request.inputs = vec![json!({
+            "destination_host": completion.destination_host,
+            "connection_id": completion.connection_id,
+            "secret_refs_used": completion.secret_refs_used,
+        })];
+        request.outputs = vec![payload.clone()];
+        request.external_effects = completion
+            .network_performed
+            .then(|| {
+                json!({
+                    "kind": "network_websocket",
+                    "destination_host": completion.destination_host,
+                    "frames_in": completion.total_frames_in,
+                    "frames_out": completion.total_frames_out,
+                    "bytes_in": completion.total_bytes_in,
+                    "bytes_out": completion.total_bytes_out,
+                })
+            })
+            .into_iter()
+            .collect();
+        request.authority = Some(json!({
+            "package_id": completion.package_id,
+            "capability_id": completion.capability_id,
+            "secret_refs_used": completion.secret_refs_used,
+        }));
+        request.policy_decision = Some(json!({
+            "outcome": if status == EffectTerminalStatus::Denied {
+                "denied"
+            } else {
+                "allowed"
+            },
+        }));
+        request.parent_receipts = completion.parent_receipts.to_vec();
+        request.planned = json!({
+            "destination_host": completion.destination_host,
+            "connection_id": completion.connection_id,
+        });
+        request.actual = payload.clone();
+        self.record_effect_receipt(request).await
+    }
+}
+
+fn outbound_terminal_status(status: &str) -> EffectTerminalStatus {
+    match status.to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "completed" => EffectTerminalStatus::Succeeded,
+        "denied" => EffectTerminalStatus::Denied,
+        "cancelled" | "canceled" => EffectTerminalStatus::Cancelled,
+        "timeout" | "timed_out" => EffectTerminalStatus::TimedOut,
+        "partial" => EffectTerminalStatus::Partial,
+        _ => EffectTerminalStatus::Failed,
+    }
 }
 
 pub(crate) fn websocket_completed_payload(completion: &OutboundWebSocketCompletion<'_>) -> Value {
@@ -401,7 +698,7 @@ pub(crate) fn websocket_completed_payload(completion: &OutboundWebSocketCompleti
         "destination_host": completion.destination_host,
         "connection_id": completion.connection_id,
         "code": completion.code,
-        "reason": completion.reason,
+        "reason": safe_websocket_reason(completion.reason),
         "total_frames_in": completion.total_frames_in,
         "total_frames_out": completion.total_frames_out,
         "total_bytes_in": completion.total_bytes_in,
@@ -413,6 +710,19 @@ pub(crate) fn websocket_completed_payload(completion: &OutboundWebSocketCompleti
         "secret_refs_used": completion.secret_refs_used,
         "correlation_id": completion.correlation_id,
     })
+}
+
+fn safe_websocket_reason(reason: &str) -> &'static str {
+    match reason {
+        "closed" => "closed",
+        "remote_closed" => "remote_closed",
+        "idle_timeout" => "idle_timeout",
+        "max_duration_ms" => "max_duration_ms",
+        "event_channel_ended" => "event_channel_ended",
+        "open_failed" => "open_failed",
+        "inbound_limit" => "inbound_limit",
+        _ => "redacted",
+    }
 }
 
 pub(crate) async fn append_outbound_completion_event<S: EventStore>(

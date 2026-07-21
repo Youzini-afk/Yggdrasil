@@ -1,7 +1,7 @@
 use serde_json::json;
 use ygg_core::{
-    CapHandle, CapHandleId, HandleLease, HandleProvenance, HandleScope, EVENT_CAPABILITY_COMPLETED,
-    EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
+    CapHandle, CapHandleId, EffectTerminalStatus, HandleLease, HandleProvenance, HandleScope,
+    EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
 };
 use ygg_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, OpenSessionRequest,
@@ -338,6 +338,21 @@ pub(crate) async fn capability_invoke_events_completed() -> anyhow::Result<()> {
                 .unwrap_or_default(),
         "result correlation mismatch"
     );
+    let receipt = result
+        .receipt
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("capability result receipt missing"))?;
+    anyhow::ensure!(
+        completed[0].payload["receipt"]["digest"] == json!(receipt.digest),
+        "capability event receipt mismatch"
+    );
+    let replay = runtime.replay_effect_receipt(&receipt.digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "capability.invoke"
+            && replay.receipt.status == EffectTerminalStatus::Succeeded
+            && replay.outputs == vec![json!({"events": true})],
+        "capability success receipt is incomplete"
+    );
     Ok(())
 }
 
@@ -363,6 +378,16 @@ pub(crate) async fn capability_invoke_events_failed() -> anyhow::Result<()> {
     anyhow::ensure!(
         (1..60_000).contains(&duration_ms),
         "failed duration should be non-zero and reasonable"
+    );
+    let receipt_digest = failed[0].payload["receipt"]["digest"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("failed capability receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    anyhow::ensure!(
+        replay.receipt.effect_kind == "capability.invoke"
+            && replay.receipt.status == EffectTerminalStatus::Failed
+            && replay.outputs.is_empty(),
+        "capability failed receipt is incomplete"
     );
     Ok(())
 }

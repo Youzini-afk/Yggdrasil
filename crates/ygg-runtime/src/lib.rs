@@ -51,16 +51,17 @@ pub use protocol::{
     KERNEL_PROTOCOL_VERSION,
 };
 pub use redaction::{
-    redact_secrets_in_value, scan_value_for_raw_secrets, SecretDetection, SecretFinding,
-    SecretScanResult,
+    redact_effect_value, redact_secrets_in_value, scan_effect_value_for_raw_secrets,
+    scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult,
 };
 pub use runtime::{
     check_network_policy, content_address, is_secret_header_name, is_static_header_allowed,
     legacy_content_address, standard_asset_metadata, AppendEventRequest, ArtifactCommitRequest,
     AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord, CancelSignal,
-    DeclaredAuthority, DenyAllLocalExecExecutor, DenyAllOutboundExecutor, DenyAllWebSocketExecutor,
-    DeploymentHealthEventPayload, DeploymentHealthProbe, DeploymentReconcileSource,
-    DeploymentReconcileSummary, EmptyReconcileSource, EventListRequest, ExecCommand, ExecId,
+    CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
+    DenyAllOutboundExecutor, DenyAllWebSocketExecutor, DeploymentHealthEventPayload,
+    DeploymentHealthProbe, DeploymentReconcileSource, DeploymentReconcileSummary,
+    EffectReplayResult, EmptyReconcileSource, EventListRequest, ExecCommand, ExecId,
     ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
     ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetReachability,
     ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind, FakeLocalExecExecutor,
@@ -84,8 +85,8 @@ pub use runtime::{
     RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
     SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter, StreamFormat, StreamRegistry,
     StreamStartStatus, TighteningSuggestion, UnusedAuthority, UsedAuthority, WebSocketEvent,
-    WebSocketExecutor, WebSocketFramePayload, ACTIVE_PROJECT_SCOPE, GENERIC_BLOB_ARTIFACT_TYPE_URI,
-    STATIC_HEADER_ALLOWLIST,
+    WebSocketExecutor, WebSocketFramePayload, ACTIVE_PROJECT_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE,
+    EFFECT_VALUE_MEDIA_TYPE, GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{

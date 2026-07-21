@@ -193,6 +193,8 @@ ContractMethod
 - denied/cancelled/timeout/partial/success 均有可区分 terminal receipt；
 - raw-secret 扫描覆盖 receipt 和 adapter 输出。
 
+实施结果（2026-07-21）：上述交付与验收已落地。公开细节见 [`EFFECT_RECEIPTS.md`](../spec/EFFECT_RECEIPTS.md) 与 [`CHANGE_WORKFLOW.md`](../spec/CHANGE_WORKFLOW.md)；schema 已扩展为 14 个 top-level / 153 个总文件，所有文档声明的 terminal event schema 都暴露 additive receipt descriptor，CI 会对 base schema 执行结构化 additive-only 校验。可执行证据覆盖 provider/executor-free replay、branch re-execute、change authority 与 CAS-guarded commit/reject/failure、outbound/stream/WebSocket timeout/cancellation 语义、主动监测且重启去重的 exec receipt、缺失对象与严格 raw-secret redaction。
+
 ### 6. 建立 Protocol Commons 脚手架
 
 交付 protocol descriptor，而不是先发明大量领域协议。

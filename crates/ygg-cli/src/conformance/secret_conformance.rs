@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use serde_json::json;
 use ygg_runtime::{
-    EnvSecretResolver, InMemoryEventStore, OpenSessionRequest, ProtocolContext, Runtime,
-    RuntimeConfig, SecretResolverConfig,
+    CapabilityInvocationRequest, EnvSecretResolver, InMemoryEventStore, OpenSessionRequest,
+    ProtocolContext, Runtime, RuntimeConfig, SecretResolverConfig,
 };
 
 use super::fixtures::*;
@@ -153,6 +153,53 @@ pub(crate) async fn raw_secret_blocked_in_proposal() -> anyhow::Result<()> {
         "proposal with secret_ref should be accepted"
     );
 
+    Ok(())
+}
+
+pub(crate) async fn effect_receipt_redacts_raw_secret_fields() -> anyhow::Result<()> {
+    let (_store, runtime) = runtime();
+    runtime
+        .load_package(echo_package(
+            "example/receipt-secret",
+            "example/receipt-secret/echo",
+        ))
+        .await?;
+    let raw_secret = "sk-abc123def456ghi789jkl012mno345";
+    let result = runtime
+        .invoke_capability(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("example/receipt-secret/echo".to_string()),
+            caller_package_id: None,
+            provider_package_id: None,
+            version: None,
+            session_id: None,
+            input: json!({"api_key": raw_secret, "content": raw_secret}),
+        })
+        .await?;
+    anyhow::ensure!(
+        result.output["api_key"] == json!(raw_secret)
+            && result.output["content"] == json!(raw_secret),
+        "capability output fixture changed unexpectedly"
+    );
+    let receipt_digest = result
+        .receipt
+        .as_ref()
+        .map(|item| item.digest.as_str())
+        .ok_or_else(|| anyhow::anyhow!("effect receipt missing"))?;
+    let replay = runtime.replay_effect_receipt(receipt_digest).await?;
+    let receipt_value = serde_json::to_value(&replay.receipt)?;
+    anyhow::ensure!(
+        !ygg_runtime::scan_value_for_raw_secrets(&receipt_value, "receipt").has_findings(),
+        "effect receipt contains raw secret material"
+    );
+    anyhow::ensure!(
+        replay.outputs
+            == vec![json!({
+                "api_key": "<secret:redacted>",
+                "content": "<secret:redacted>"
+            })],
+        "recorded effect output was not redacted"
+    );
     Ok(())
 }
 

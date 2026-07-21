@@ -1,6 +1,23 @@
 use super::*;
+use crate::runtime::effects::{principal_identity, EffectReceiptRequest};
+use crate::DEFAULT_CONTRACT_PROFILE;
+use ygg_core::{ArtifactDescriptor, EffectScope, EffectTerminalStatus, PrincipalIdentity};
 
 const WEBSOCKET_METHOD: &str = "WEBSOCKET";
+
+#[derive(Debug, Clone)]
+struct WebSocketEffectContext {
+    principal: PrincipalIdentity,
+    package_id: String,
+    capability_id: String,
+    destination_host: String,
+    connection_id: String,
+    executor_kind: String,
+    network_performed: bool,
+    session_id: Option<String>,
+    trace_id: String,
+    parent_receipts: Vec<String>,
+}
 
 impl<S> Runtime<S>
 where
@@ -487,6 +504,7 @@ where
         let session_id_for_end = session_id.clone();
         let streams_for_end = self.streams.clone();
         let store_for_end = self.store.clone();
+        let runtime_for_end = self.clone();
         let stream_id_for_end = stream_id.clone();
         let context_principal = context.principal.clone();
         let pkg_id_for_end = package_id.clone();
@@ -539,22 +557,86 @@ where
             // On stream end, write the terminal state and audit
             match result {
                 Ok(summary) => {
-                    // End the invocation in the registry
-                    let _ = streams_for_end.end_invocation(&invocation_id_for_end).await;
+                    let final_termination = match summary.status.as_str() {
+                        "cancelled" => "cancelled",
+                        "timeout" => "timeout",
+                        "error" => "error",
+                        _ => "ended",
+                    };
+                    let duration_ms = started_for_end.elapsed().as_millis() as u64;
+                    let receipt = runtime_for_end
+                        .emit_outbound_stream_completed(
+                            &session_id_for_end,
+                            crate::runtime::OutboundStreamCompletion {
+                                id: &completion_id_for_end,
+                                package_id: &pkg_id_for_end,
+                                capability_id: &cap_id_for_end,
+                                destination_host: &host_for_end,
+                                method: &method_for_end,
+                                stream_format: &format_str_for_end,
+                                status: &summary.status,
+                                total_chunks: summary.frame_count,
+                                total_bytes: summary.bytes_received,
+                                duration_ms,
+                                final_termination,
+                                executor_kind: crate::runtime::outbound::executor_kind_str(
+                                    summary.executor_kind,
+                                ),
+                                network_performed: summary.network_performed,
+                                redaction_state: summary.redaction_state,
+                                secret_refs_used: &secret_refs_for_end,
+                                correlation_id: correlation_id_for_end,
+                            },
+                        )
+                        .await
+                        .ok();
+                    let terminal_transition = if receipt.is_some() {
+                        match final_termination {
+                            "cancelled" => {
+                                streams_for_end
+                                    .cancel_invocation(&invocation_id_for_end)
+                                    .await
+                            }
+                            "timeout" => {
+                                streams_for_end
+                                    .timeout_invocation(&invocation_id_for_end)
+                                    .await
+                            }
+                            "error" => {
+                                streams_for_end
+                                    .error_invocation(
+                                        &invocation_id_for_end,
+                                        "outbound stream failed",
+                                    )
+                                    .await
+                            }
+                            _ => streams_for_end.end_invocation(&invocation_id_for_end).await,
+                        }
+                    } else {
+                        Err(anyhow::anyhow!("outbound stream receipt was not recorded"))
+                    };
 
-                    // Emit kernel/v1/stream.ended event
-                    append_event(
-                        ygg_core::EVENT_STREAM_ENDED,
-                        json!({
-                            "invocation_id": invocation_id_for_end,
-                            "stream_id": stream_id_for_end,
-                            "status": summary.status,
-                            "frame_count": summary.frame_count,
-                            "bytes_received": summary.bytes_received,
-                            "executor_kind": summary.executor_kind,
-                        }),
-                    )
-                    .await;
+                    if terminal_transition.is_ok() {
+                        let stream_event_kind = match final_termination {
+                            "cancelled" => ygg_core::EVENT_STREAM_CANCELLED,
+                            "timeout" => ygg_core::EVENT_STREAM_TIMEOUT,
+                            "error" => ygg_core::EVENT_STREAM_ERROR,
+                            _ => ygg_core::EVENT_STREAM_ENDED,
+                        };
+                        append_event(
+                            stream_event_kind,
+                            json!({
+                                "invocation_id": invocation_id_for_end,
+                                "stream_id": stream_id_for_end,
+                                "status": summary.status,
+                                "frame_count": summary.frame_count,
+                                "bytes_received": summary.bytes_received,
+                                "executor_kind": summary.executor_kind,
+                                "receipt": receipt,
+                            }),
+                        )
+                        .await;
+                    }
 
                     // Emit outbound audit record
                     append_event(ygg_core::EVENT_OUTBOUND_REQUEST, json!({
@@ -571,74 +653,59 @@ where
                         "executor_kind": summary.executor_kind,
                         "network_performed": summary.network_performed,
                     })).await;
-
-                    let final_termination = match summary.status.as_str() {
-                        "cancelled" => "cancelled",
-                        "timeout" => "timeout",
-                        "error" => "error",
-                        _ => "ended",
-                    };
-                    append_event(
-                        ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED,
-                        json!({
-                            "id": completion_id_for_end,
-                            "package_id": pkg_id_for_end,
-                            "capability_id": cap_id_for_end,
-                            "destination_host": host_for_end,
-                            "method": method_for_end,
-                            "stream_format": format_str_for_end,
-                            "status": summary.status,
-                            "total_chunks": summary.frame_count,
-                            "total_bytes": summary.bytes_received,
-                            "duration_ms": started_for_end.elapsed().as_millis() as u64,
-                            "final_termination": final_termination,
-                            "executor_kind": summary.executor_kind,
-                            "network_performed": summary.network_performed,
-                            "redaction_state": summary.redaction_state,
-                            "secret_refs_used": secret_refs_for_end,
-                            "correlation_id": correlation_id_for_end,
-                        }),
-                    )
-                    .await;
                 }
-                Err(e) => {
-                    // Error the invocation in the registry
-                    let _ = streams_for_end
-                        .error_invocation(&invocation_id_for_end, &e.to_string())
-                        .await;
+                Err(_error) => {
+                    let duration_ms = started_for_end.elapsed().as_millis() as u64;
+                    let receipt = runtime_for_end
+                        .emit_outbound_stream_completed(
+                            &session_id_for_end,
+                            crate::runtime::OutboundStreamCompletion {
+                                id: &completion_id_for_end,
+                                package_id: &pkg_id_for_end,
+                                capability_id: &cap_id_for_end,
+                                destination_host: &host_for_end,
+                                method: &method_for_end,
+                                stream_format: &format_str_for_end,
+                                status: "error",
+                                total_chunks: 0,
+                                total_bytes: 0,
+                                duration_ms,
+                                final_termination: "error",
+                                executor_kind: crate::runtime::outbound::executor_kind_str(
+                                    executor_kind_for_error,
+                                ),
+                                network_performed: network_performed_for_error,
+                                redaction_state: ygg_core::RedactionState::Redacted,
+                                secret_refs_used: &secret_refs_for_end,
+                                correlation_id: correlation_id_for_end,
+                            },
+                        )
+                        .await
+                        .ok();
+                    let terminal_transition = if receipt.is_some() {
+                        streams_for_end
+                            .error_invocation(
+                                &invocation_id_for_end,
+                                "outbound stream executor failed",
+                            )
+                            .await
+                    } else {
+                        Err(anyhow::anyhow!("outbound stream receipt was not recorded"))
+                    };
 
-                    // Emit kernel/v1/stream.error event
-                    append_event(
-                        ygg_core::EVENT_STREAM_ERROR,
-                        json!({
-                            "invocation_id": invocation_id_for_end,
-                            "stream_id": stream_id_for_end,
-                            "error": e.to_string(),
-                        }),
-                    )
-                    .await;
-                    append_event(
-                        ygg_core::EVENT_OUTBOUND_STREAM_COMPLETED,
-                        json!({
-                            "id": completion_id_for_end,
-                            "package_id": pkg_id_for_end,
-                            "capability_id": cap_id_for_end,
-                            "destination_host": host_for_end,
-                            "method": method_for_end,
-                            "stream_format": format_str_for_end,
-                            "status": "error",
-                            "total_chunks": 0,
-                            "total_bytes": 0,
-                            "duration_ms": started_for_end.elapsed().as_millis() as u64,
-                            "final_termination": "error",
-                            "executor_kind": executor_kind_for_error,
-                            "network_performed": network_performed_for_error,
-                            "redaction_state": ygg_core::RedactionState::Redacted,
-                            "secret_refs_used": secret_refs_for_end,
-                            "correlation_id": correlation_id_for_end,
-                        }),
-                    )
-                    .await;
+                    if terminal_transition.is_ok() {
+                        append_event(
+                            ygg_core::EVENT_STREAM_ERROR,
+                            json!({
+                                "invocation_id": invocation_id_for_end,
+                                "stream_id": stream_id_for_end,
+                                "error_code": "executor_failed",
+                                "error_present": true,
+                                "receipt": receipt,
+                            }),
+                        )
+                        .await;
+                    }
                 }
             }
         });
@@ -831,6 +898,7 @@ where
             other => json!({"connection_id": stream_record.stream_id, "request_metadata": other}),
         };
 
+        let subprotocol_count = subprotocols.len();
         let req = crate::runtime::OutboundWebSocketOpenRequest {
             capability_id: capability_id.clone(),
             package_id: package_id.clone(),
@@ -863,7 +931,123 @@ where
                 .and_then(Value::as_u64)
                 .unwrap_or(1_800_000),
         };
-        let session = self.outbound_websocket_executor().open(req).await?;
+        let open_started = Instant::now();
+        let open_started_at = chrono::Utc::now();
+        let session = match self.outbound_websocket_executor().open(req).await {
+            Ok(session) => session,
+            Err(error) => {
+                let denied = error.to_string().to_ascii_lowercase().contains("denied");
+                let code = if denied { 1008 } else { 1011 };
+                let reason = if denied { "open_denied" } else { "open_failed" };
+                let no_parents: Vec<String> = Vec::new();
+                let completion_id = ygg_core::new_id("obc");
+                let receipt = self
+                    .emit_outbound_websocket_completed(
+                        &session_id,
+                        crate::runtime::OutboundWebSocketCompletion {
+                            id: &completion_id,
+                            package_id: &package_id,
+                            capability_id: &capability_id,
+                            destination_host: &destination_host,
+                            connection_id: &stream_record.stream_id,
+                            code,
+                            reason,
+                            total_frames_in: 0,
+                            total_frames_out: 0,
+                            total_bytes_in: 0,
+                            total_bytes_out: 0,
+                            duration_ms: open_started.elapsed().as_millis() as u64,
+                            executor_kind: "configured",
+                            network_performed: false,
+                            redaction_state: RedactionState::NotCaptured,
+                            secret_refs_used: &all_secret_refs,
+                            correlation_id: context.correlation_id,
+                            parent_receipts: &no_parents,
+                        },
+                    )
+                    .await?;
+                let _ = self
+                    .streams
+                    .error_invocation(&stream_record.invocation_id, reason)
+                    .await;
+                self.append_kernel_event(
+                    &session_id,
+                    ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
+                    json!({
+                        "connection_id": stream_record.stream_id,
+                        "error_code": reason,
+                        "message_redacted": reason,
+                        "receipt": receipt.clone(),
+                    }),
+                )
+                .await?;
+                self.append_kernel_event(
+                    &session_id,
+                    ygg_core::EVENT_STREAM_ERROR,
+                    json!({
+                        "invocation_id": stream_record.invocation_id,
+                        "stream_id": stream_record.stream_id,
+                        "error": reason,
+                        "receipt": receipt,
+                    }),
+                )
+                .await?;
+                return Err(error);
+            }
+        };
+        let open_effect_context = WebSocketEffectContext {
+            principal: principal_identity(&context.principal),
+            package_id: package_id.clone(),
+            capability_id: capability_id.clone(),
+            destination_host: destination_host.clone(),
+            connection_id: session.connection_id.clone(),
+            executor_kind: format!("{:?}", session.executor_kind).to_ascii_lowercase(),
+            network_performed: session.network_performed,
+            session_id: context.session_id.clone(),
+            trace_id: context.effective_correlation_id().to_string(),
+            parent_receipts: Vec::new(),
+        };
+        let open_receipt = self
+            .record_websocket_operation_effect(
+                &open_effect_context,
+                "outbound.websocket.open",
+                EffectTerminalStatus::Succeeded,
+                open_started_at,
+                open_started.elapsed().as_millis() as u64,
+                json!({
+                    "operation": "open",
+                    "subprotocol_count": subprotocol_count,
+                    "secret_refs_used": all_secret_refs,
+                }),
+                json!({
+                    "connection_id": session.connection_id,
+                    "subprotocol_negotiated": session.subprotocol_negotiated,
+                    "network_performed": session.network_performed,
+                    "executor_kind": session.executor_kind,
+                }),
+            )
+            .await?;
+        self.streams
+            .set_metadata_field(
+                &stream_record.invocation_id,
+                "open_receipt",
+                Value::String(open_receipt.digest.clone()),
+            )
+            .await?;
+        self.streams
+            .set_metadata_field(
+                &stream_record.invocation_id,
+                "executor_kind",
+                Value::String(open_effect_context.executor_kind.clone()),
+            )
+            .await?;
+        self.streams
+            .set_metadata_field(
+                &stream_record.invocation_id,
+                "network_performed",
+                Value::Bool(session.network_performed),
+            )
+            .await?;
         let response = json!({
             "connection_id": session.connection_id,
             "status": "ok",
@@ -871,6 +1055,7 @@ where
             "redaction_state": session.redaction_state,
             "network_performed": session.network_performed,
             "executor_kind": session.executor_kind,
+            "receipt": open_receipt.clone(),
         });
         let store = self.store.clone();
         let streams = self.streams.clone();
@@ -886,71 +1071,173 @@ where
         let network_performed_for_task = session.network_performed;
         let redaction_state_for_task = session.redaction_state;
         let secret_refs_for_task = all_secret_refs.clone();
+        let open_receipt_for_task = open_receipt.clone();
+        let runtime_for_task = self.clone();
         let mut events = session.events;
         tokio::spawn(async move {
+            let append_event = |kind: &'static str, payload: Value| {
+                let store = store.clone();
+                let session_id = session_id_for_task.clone();
+                async move {
+                    use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
+                    let seq = store.next_sequence(&session_id).await.unwrap_or(0);
+                    let _ = store
+                        .append(EventEnvelope {
+                            id: new_id("evt"),
+                            session_id,
+                            sequence: seq,
+                            timestamp: chrono::Utc::now(),
+                            writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                            kind: kind.to_string(),
+                            schema_version: 1,
+                            payload,
+                            metadata: json!({}),
+                        })
+                        .await;
+                }
+            };
+            let parent_receipts = vec![open_receipt_for_task.digest.clone()];
+            let mut terminal_seen = false;
             while let Some(event) = events.recv().await {
-                let (kind, mut payload, terminal) = websocket_event_to_kernel_event(event);
-                if terminal {
-                    if let Value::Object(map) = &mut payload {
-                        map.insert(
-                            "id".to_string(),
-                            Value::String(completion_id_for_task.clone()),
-                        );
-                        map.insert(
-                            "package_id".to_string(),
-                            Value::String(pkg_id_for_task.clone()),
-                        );
-                        map.insert(
-                            "capability_id".to_string(),
-                            Value::String(cap_id_for_task.clone()),
-                        );
-                        map.insert(
-                            "destination_host".to_string(),
-                            Value::String(host_for_task.clone()),
-                        );
-                        map.insert("executor_kind".to_string(), json!(executor_kind_for_task));
-                        map.insert(
-                            "network_performed".to_string(),
-                            Value::Bool(network_performed_for_task),
-                        );
-                        map.insert(
-                            "redaction_state".to_string(),
-                            json!(redaction_state_for_task),
-                        );
-                        map.insert("secret_refs_used".to_string(), json!(secret_refs_for_task));
-                        map.insert("correlation_id".to_string(), json!(correlation_id_for_task));
+                match event {
+                    WebSocketEvent::Closed {
+                        connection_id,
+                        code,
+                        reason,
+                        total_frames_in,
+                        total_frames_out,
+                        total_bytes_in,
+                        total_bytes_out,
+                        duration_ms,
+                    } => {
+                        let receipt = runtime_for_task
+                            .emit_outbound_websocket_completed(
+                                &session_id_for_task,
+                                crate::runtime::OutboundWebSocketCompletion {
+                                    id: &completion_id_for_task,
+                                    package_id: &pkg_id_for_task,
+                                    capability_id: &cap_id_for_task,
+                                    destination_host: &host_for_task,
+                                    connection_id: &connection_id,
+                                    code,
+                                    reason: &reason,
+                                    total_frames_in,
+                                    total_frames_out,
+                                    total_bytes_in,
+                                    total_bytes_out,
+                                    duration_ms,
+                                    executor_kind: crate::runtime::outbound::executor_kind_str(
+                                        executor_kind_for_task,
+                                    ),
+                                    network_performed: network_performed_for_task,
+                                    redaction_state: redaction_state_for_task,
+                                    secret_refs_used: &secret_refs_for_task,
+                                    correlation_id: correlation_id_for_task,
+                                    parent_receipts: &parent_receipts,
+                                },
+                            )
+                            .await
+                            .ok();
+                        let terminal_transition = if receipt.is_some() {
+                            match code {
+                                1000 => streams.end_invocation(&invocation_id_for_task).await,
+                                1001 => streams.cancel_invocation(&invocation_id_for_task).await,
+                                1013 => streams.timeout_invocation(&invocation_id_for_task).await,
+                                _ => {
+                                    streams
+                                        .error_invocation(
+                                            &invocation_id_for_task,
+                                            "websocket terminated with an error",
+                                        )
+                                        .await
+                                }
+                            }
+                        } else {
+                            Err(anyhow::anyhow!("websocket receipt was not recorded"))
+                        };
+                        if terminal_transition.is_ok() {
+                            let stream_event_kind = match code {
+                                1000 => ygg_core::EVENT_STREAM_ENDED,
+                                1001 => ygg_core::EVENT_STREAM_CANCELLED,
+                                1013 => ygg_core::EVENT_STREAM_TIMEOUT,
+                                _ => ygg_core::EVENT_STREAM_ERROR,
+                            };
+                            append_event(
+                                stream_event_kind,
+                                json!({
+                                    "invocation_id": invocation_id_for_task,
+                                    "stream_id": stream_id_for_task,
+                                    "receipt": receipt,
+                                }),
+                            )
+                            .await;
+                        }
+                        terminal_seen = true;
+                        break;
+                    }
+                    other => {
+                        let (kind, mut payload, _) = websocket_event_to_kernel_event(other);
+                        if kind == ygg_core::EVENT_OUTBOUND_WEBSOCKET_OPENED {
+                            if let Value::Object(map) = &mut payload {
+                                map.insert(
+                                    "receipt".to_string(),
+                                    serde_json::to_value(&open_receipt_for_task)
+                                        .unwrap_or(Value::Null),
+                                );
+                            }
+                        }
+                        append_event(kind, payload).await;
                     }
                 }
-                use ygg_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
-                let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
-                let _ = store
-                    .append(EventEnvelope {
-                        id: new_id("evt"),
-                        session_id: session_id_for_task.clone(),
-                        sequence: seq,
-                        timestamp: chrono::Utc::now(),
-                        writer_package_id: KERNEL_PACKAGE_ID.to_string(),
-                        kind: kind.to_string(),
-                        schema_version: 1,
-                        payload,
-                        metadata: json!({}),
-                    })
+            }
+            if !terminal_seen {
+                let receipt = runtime_for_task
+                    .emit_outbound_websocket_completed(
+                        &session_id_for_task,
+                        crate::runtime::OutboundWebSocketCompletion {
+                            id: &completion_id_for_task,
+                            package_id: &pkg_id_for_task,
+                            capability_id: &cap_id_for_task,
+                            destination_host: &host_for_task,
+                            connection_id: &stream_id_for_task,
+                            code: 1011,
+                            reason: "event_channel_ended",
+                            total_frames_in: 0,
+                            total_frames_out: 0,
+                            total_bytes_in: 0,
+                            total_bytes_out: 0,
+                            duration_ms: 1,
+                            executor_kind: crate::runtime::outbound::executor_kind_str(
+                                executor_kind_for_task,
+                            ),
+                            network_performed: network_performed_for_task,
+                            redaction_state: redaction_state_for_task,
+                            secret_refs_used: &secret_refs_for_task,
+                            correlation_id: correlation_id_for_task,
+                            parent_receipts: &parent_receipts,
+                        },
+                    )
+                    .await
+                    .ok();
+                let terminal_transition = if receipt.is_some() {
+                    streams
+                        .error_invocation(&invocation_id_for_task, "websocket event channel ended")
+                        .await
+                } else {
+                    Err(anyhow::anyhow!("websocket receipt was not recorded"))
+                };
+                if terminal_transition.is_ok() {
+                    append_event(
+                        ygg_core::EVENT_STREAM_ERROR,
+                        json!({
+                            "invocation_id": invocation_id_for_task,
+                            "stream_id": stream_id_for_task,
+                            "error_code": "websocket_event_channel_ended",
+                            "error_present": true,
+                            "receipt": receipt,
+                        }),
+                    )
                     .await;
-                if terminal {
-                    let _ = streams.end_invocation(&invocation_id_for_task).await;
-                    let seq = store.next_sequence(&session_id_for_task).await.unwrap_or(0);
-                    let _ = store.append(EventEnvelope {
-                        id: new_id("evt"),
-                        session_id: session_id_for_task.clone(),
-                        sequence: seq,
-                        timestamp: chrono::Utc::now(),
-                        writer_package_id: KERNEL_PACKAGE_ID.to_string(),
-                        kind: ygg_core::EVENT_STREAM_ENDED.to_string(),
-                        schema_version: 1,
-                        payload: json!({"invocation_id": invocation_id_for_task, "stream_id": stream_id_for_task}),
-                        metadata: json!({}),
-                    }).await;
-                    break;
                 }
             }
         });
@@ -959,8 +1246,68 @@ where
         Ok(response_value)
     }
 
+    async fn record_websocket_operation_effect(
+        &self,
+        context: &WebSocketEffectContext,
+        effect_kind: &str,
+        status: EffectTerminalStatus,
+        started_at: chrono::DateTime<chrono::Utc>,
+        duration_ms: u64,
+        input: Value,
+        output: Value,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let mut request = EffectReceiptRequest::live(
+            effect_kind,
+            context.principal.clone(),
+            json!({
+                "kind": "outbound_websocket_executor",
+                "executor_kind": context.executor_kind,
+                "capability_id": context.capability_id,
+                "provider_package_id": context.package_id,
+            }),
+            status,
+            started_at,
+            duration_ms.max(1),
+            context.trace_id.clone(),
+        );
+        request.protocol_profiles = vec![DEFAULT_CONTRACT_PROFILE.to_string()];
+        request.inputs = vec![input.clone()];
+        request.outputs = vec![output.clone()];
+        request.external_effects = context
+            .network_performed
+            .then(|| {
+                json!({
+                    "kind": "network_websocket_operation",
+                    "destination_host": context.destination_host,
+                    "connection_id": context.connection_id,
+                })
+            })
+            .into_iter()
+            .collect();
+        request.authority = Some(json!({
+            "package_id": context.package_id,
+            "capability_id": context.capability_id,
+        }));
+        request.policy_decision = Some(json!({
+            "outcome": if status == EffectTerminalStatus::Denied {
+                "denied"
+            } else {
+                "allowed"
+            },
+        }));
+        request.parent_receipts = context.parent_receipts.clone();
+        request.scope = EffectScope {
+            session_id: context.session_id.clone(),
+            branch_id: None,
+        };
+        request.planned = input;
+        request.actual = output;
+        self.record_effect_receipt(request).await
+    }
+
     pub(crate) async fn dispatch_outbound_websocket_send(
         &self,
+        context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
         let connection_id = params
@@ -970,15 +1317,84 @@ where
                 anyhow::anyhow!("kernel.v1.outbound.websocket.send requires connection_id")
             })?;
         let frame = parse_websocket_frame(params)?;
-        let status = self
+        let (frame_kind, frame_bytes) = match &frame {
+            OutboundWebSocketFrame::Text(text) => ("text", text.len()),
+            OutboundWebSocketFrame::Binary(bytes) => ("binary", bytes.len()),
+        };
+        let effect_context = websocket_effect_context(self, context, connection_id).await;
+        let started = Instant::now();
+        let started_at = chrono::Utc::now();
+        let status = match self
             .outbound_websocket_executor()
             .send(connection_id, frame)
+            .await
+        {
+            Ok(status) => status,
+            Err(error) => {
+                let receipt = self
+                    .record_websocket_operation_effect(
+                        &effect_context,
+                        "outbound.websocket.send",
+                        EffectTerminalStatus::Failed,
+                        started_at,
+                        started.elapsed().as_millis() as u64,
+                        json!({
+                            "operation": "send",
+                            "connection_id": connection_id,
+                            "frame_kind": frame_kind,
+                            "frame_bytes": frame_bytes,
+                        }),
+                        json!({"status": "failed"}),
+                    )
+                    .await?;
+                if let Some(record) = self
+                    .streams
+                    .get_invocation_by_stream_id(connection_id)
+                    .await
+                {
+                    self.append_kernel_event(
+                        &record.session_id,
+                        ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
+                        json!({
+                            "connection_id": connection_id,
+                            "error_code": "send_failed",
+                            "message_redacted": "send_failed",
+                            "receipt": receipt,
+                        }),
+                    )
+                    .await?;
+                }
+                return Err(error);
+            }
+        };
+        let terminal_status = match status {
+            crate::runtime::SendStatus::Ok => EffectTerminalStatus::Succeeded,
+            crate::runtime::SendStatus::BufferFull => EffectTerminalStatus::Partial,
+            crate::runtime::SendStatus::ConnectionClosed => EffectTerminalStatus::Cancelled,
+            crate::runtime::SendStatus::ConnectionNotFound => EffectTerminalStatus::Failed,
+        };
+        let receipt = self
+            .record_websocket_operation_effect(
+                &effect_context,
+                "outbound.websocket.send",
+                terminal_status,
+                started_at,
+                started.elapsed().as_millis() as u64,
+                json!({
+                    "operation": "send",
+                    "connection_id": connection_id,
+                    "frame_kind": frame_kind,
+                    "frame_bytes": frame_bytes,
+                }),
+                json!({"status": status}),
+            )
             .await?;
-        Ok(json!({"status": status}))
+        Ok(json!({"status": status, "receipt": receipt}))
     }
 
     pub(crate) async fn dispatch_outbound_websocket_close(
         &self,
+        context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
         let connection_id = params
@@ -992,10 +1408,136 @@ where
             .get("reason")
             .and_then(Value::as_str)
             .map(str::to_string);
-        self.outbound_websocket_executor()
+        let reason_present = reason.is_some();
+        let effect_context = websocket_effect_context(self, context, connection_id).await;
+        let started = Instant::now();
+        let started_at = chrono::Utc::now();
+        match self
+            .outbound_websocket_executor()
             .close(connection_id, code, reason)
-            .await?;
-        Ok(json!({"status": "ok"}))
+            .await
+        {
+            Ok(()) => {
+                let receipt = self
+                    .record_websocket_operation_effect(
+                        &effect_context,
+                        "outbound.websocket.close",
+                        EffectTerminalStatus::Succeeded,
+                        started_at,
+                        started.elapsed().as_millis() as u64,
+                        json!({
+                            "operation": "close",
+                            "connection_id": connection_id,
+                            "code": code,
+                            "reason_present": reason_present,
+                        }),
+                        json!({"status": "accepted"}),
+                    )
+                    .await?;
+                Ok(json!({"status": "ok", "receipt": receipt}))
+            }
+            Err(error) => {
+                let receipt = self
+                    .record_websocket_operation_effect(
+                        &effect_context,
+                        "outbound.websocket.close",
+                        EffectTerminalStatus::Failed,
+                        started_at,
+                        started.elapsed().as_millis() as u64,
+                        json!({
+                            "operation": "close",
+                            "connection_id": connection_id,
+                            "code": code,
+                            "reason_present": reason_present,
+                        }),
+                        json!({"status": "failed"}),
+                    )
+                    .await?;
+                if let Some(record) = self
+                    .streams
+                    .get_invocation_by_stream_id(connection_id)
+                    .await
+                {
+                    self.append_kernel_event(
+                        &record.session_id,
+                        ygg_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
+                        json!({
+                            "connection_id": connection_id,
+                            "error_code": "close_failed",
+                            "message_redacted": "close_failed",
+                            "receipt": receipt,
+                        }),
+                    )
+                    .await?;
+                }
+                Err(error)
+            }
+        }
+    }
+}
+
+async fn websocket_effect_context<S: EventStore>(
+    runtime: &Runtime<S>,
+    context: &ProtocolContext,
+    connection_id: &str,
+) -> WebSocketEffectContext {
+    if let Some(record) = runtime
+        .streams
+        .get_invocation_by_stream_id(connection_id)
+        .await
+    {
+        let destination_host = record
+            .metadata
+            .get("destination_host")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_string();
+        let executor_kind = record
+            .metadata
+            .get("executor_kind")
+            .and_then(Value::as_str)
+            .unwrap_or("configured")
+            .to_string();
+        let network_performed = record
+            .metadata
+            .get("network_performed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let parent_receipts = record
+            .metadata
+            .get("open_receipt")
+            .and_then(Value::as_str)
+            .map(|digest| vec![digest.to_string()])
+            .unwrap_or_default();
+        return WebSocketEffectContext {
+            principal: principal_identity(&context.principal),
+            package_id: record.provider_package_id,
+            capability_id: record.capability_id,
+            destination_host,
+            connection_id: connection_id.to_string(),
+            executor_kind,
+            network_performed,
+            session_id: Some(record.session_id),
+            trace_id: context.effective_correlation_id().to_string(),
+            parent_receipts,
+        };
+    }
+
+    let package_id = match &context.principal {
+        ProtocolPrincipal::Package { package_id } => package_id.clone(),
+        _ => "host/unknown".to_string(),
+    };
+    WebSocketEffectContext {
+        principal: principal_identity(&context.principal),
+        package_id,
+        capability_id: "unknown".to_string(),
+        destination_host: "unknown".to_string(),
+        connection_id: connection_id.to_string(),
+        executor_kind: "configured".to_string(),
+        network_performed: false,
+        session_id: context.session_id.clone(),
+        trace_id: context.effective_correlation_id().to_string(),
+        parent_receipts: Vec::new(),
     }
 }
 

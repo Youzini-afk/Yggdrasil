@@ -37,61 +37,78 @@
       ],
       "type": "object"
     },
-    "EffectReplayMode": {
+    "ChangeCommitStatus": {
       "enum": [
-        "live",
-        "historical",
-        "reexecute"
+        "committed",
+        "failed",
+        "partial"
       ],
       "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "capability_id": {
-      "type": "string"
-    },
-    "correlation_id": {
-      "format": "uuid",
-      "type": "string"
-    },
-    "duration_ms": {
-      "format": "uint64",
-      "minimum": 0.0,
-      "type": "integer"
-    },
-    "output": true,
-    "provider_package_id": {
-      "type": "string"
-    },
-    "receipt": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/ArtifactDescriptor"
-        },
-        {
-          "type": "null"
-        }
+    "branch_id": {
+      "type": [
+        "string",
+        "null"
       ]
     },
-    "replay_mode": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/EffectReplayMode"
-        },
-        {
-          "type": "null"
-        }
+    "change_set_id": {
+      "type": "string"
+    },
+    "commit_type_uri": {
+      "default": "urn:yggdrasil:change-commit:v1",
+      "type": "string"
+    },
+    "completed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
       ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "idempotency_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "operation_receipts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "result_refs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "started_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ChangeCommitStatus"
     }
   },
   "required": [
-    "capability_id",
-    "correlation_id",
-    "duration_ms",
-    "output",
-    "provider_package_id"
+    "change_set_id",
+    "completed_at",
+    "id",
+    "started_at",
+    "status"
   ],
-  "title": "CapabilityInvocationResult",
+  "title": "ChangeCommit",
   "type": "object"
 }

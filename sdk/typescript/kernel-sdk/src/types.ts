@@ -136,7 +136,16 @@ export type CapabilityDiscoverResult = Array<{
   "provider_package_id": string;
 }>;
 
-export type CapabilityFailedPayload = Record<string, unknown>;
+export interface CapabilityFailedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
 export interface CapabilityInvocationRequest {
   "caller_package_id"?: null | string;
@@ -163,6 +172,8 @@ export interface CapabilityInvocationResult {
   "duration_ms": number;
   "output": unknown;
   "provider_package_id": string;
+  "receipt"?: ArtifactDescriptor | null;
+  "replay_mode"?: EffectReplayMode | null;
 }
 
 export type CapabilityInvokedPayload = Record<string, unknown>;
@@ -183,6 +194,47 @@ export interface CapabilityStreamParams {
 }
 
 export type CapabilityStreamResult = Record<string, unknown>;
+
+export interface ChangeCommit {
+  "branch_id"?: null | string;
+  "change_set_id": string;
+  "commit_type_uri"?: string;
+  "completed_at": string;
+  "error"?: null | string;
+  "id": string;
+  "idempotency_key"?: null | string;
+  "operation_receipts"?: Array<ArtifactDescriptor>;
+  "result_refs"?: Array<ArtifactDescriptor>;
+  "started_at": string;
+  "status": ChangeCommitStatus;
+}
+
+export type ChangeCommitStatus = "committed" | "failed" | "partial";
+
+export interface ChangeOperation {
+  "input_refs"?: Array<ArtifactDescriptor>;
+  "op": string;
+  "payload"?: unknown;
+  "target"?: null | string;
+}
+
+export interface ChangePrecondition {
+  "expected"?: unknown;
+  "kind": string;
+  "target"?: null | string;
+}
+
+export interface ChangeSet {
+  "change_set_type_uri"?: string;
+  "created_at": string;
+  "expected_effects"?: unknown;
+  "id": string;
+  "idempotency_key"?: null | string;
+  "intent_id": string;
+  "operations"?: Array<ChangeOperation>;
+  "preconditions"?: Array<ChangePrecondition>;
+  "required_authority"?: Array<string>;
+}
 
 export type ContractAdapter = "identity";
 
@@ -294,6 +346,44 @@ export interface DeploymentReconcileSummary {
   "routes_removed": number;
 }
 
+export interface EffectReceipt {
+  "actual"?: unknown;
+  "annotations"?: Record<string, unknown>;
+  "approval_ref"?: ArtifactDescriptor | null;
+  "authority_ref"?: ArtifactDescriptor | null;
+  "completed_at": string;
+  "component_ref": ArtifactDescriptor;
+  "cost"?: unknown;
+  "effect_kind": string;
+  "external_effect_refs"?: Array<ArtifactDescriptor>;
+  "input_refs"?: Array<ArtifactDescriptor>;
+  "latency_ms": number;
+  "output_refs"?: Array<ArtifactDescriptor>;
+  "parent_receipts"?: Array<string>;
+  "planned"?: unknown;
+  "policy_decision_ref"?: ArtifactDescriptor | null;
+  "principal": PrincipalIdentity;
+  "protocol_profiles"?: Array<string>;
+  "receipt_id": string;
+  "receipt_type_uri": string;
+  "replay_mode": EffectReplayMode;
+  "schema_version": number;
+  "scope"?: EffectScope;
+  "started_at": string;
+  "status": EffectTerminalStatus;
+  "trace_id": string;
+  "usage"?: unknown;
+}
+
+export type EffectReplayMode = "live" | "historical" | "reexecute";
+
+export interface EffectScope {
+  "branch_id"?: null | string;
+  "session_id"?: null | string;
+}
+
+export type EffectTerminalStatus = "succeeded" | "denied" | "failed" | "cancelled" | "timed_out" | "partial";
+
 export type EmptyParams = Record<string, unknown>;
 
 export type EntryDescriptor = {
@@ -369,11 +459,38 @@ export interface ExecCommand {
   "program": string;
 }
 
-export type ExecCompletedPayload = Record<string, unknown>;
+export interface ExecCompletedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
-export type ExecDeniedPayload = Record<string, unknown>;
+export interface ExecDeniedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
-export type ExecFailedPayload = Record<string, unknown>;
+export interface ExecFailedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
 export interface ExecIdParams {
   "exec_id": string;
@@ -403,7 +520,16 @@ export interface ExecStatus {
 
 export type ExecStatusKind = "pending" | "running" | "stopped" | "exited" | "failed" | "denied" | "unknown";
 
-export type ExecStoppedPayload = Record<string, unknown>;
+export interface ExecStoppedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
 export interface ExecutionTarget {
   "capabilities"?: Array<ExecutionTargetCapability>;
@@ -522,9 +648,20 @@ export interface HostPingResult {
 
 export type HostPrincipalResult = null;
 
+export interface Intent {
+  "annotations"?: Record<string, unknown>;
+  "created_at": string;
+  "goal"?: unknown;
+  "id": string;
+  "intent_type_uri"?: string;
+  "principal": PrincipalIdentity;
+  "target_branch_id"?: null | string;
+  "target_session_id"?: null | string;
+}
+
 /**
  * Response returned by `kernel.v1.outbound.stream` on the initial call.
- * 
+ *
  * Contains the stream_id for subscribing to events, the start status, and metadata about the executor that will handle the stream.
  */
 export interface KernelOutboundStreamResponse {
@@ -640,7 +777,7 @@ export type MethodStatus = "implemented" | "partial" | "planned";
 
 /**
  * A single network access declaration in a package manifest.
- * 
+ *
  * Each entry describes an allowed outbound destination with host, permitted HTTP methods, and a human-readable purpose. The runtime / host policy checker matches outbound requests against declared entries. Packages with no `network` declarations must not make any outbound network requests.
  */
 export interface NetworkDeclaration {
@@ -681,10 +818,78 @@ export interface OutboundAuditParams {
 
 /**
  * Generic outbound audit record / envelope.
- * 
+ *
  * Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
  */
 export interface OutboundAuditRecord {
+  /**
+   * Capability through which the request was made.
+   */
+  "capability_id": string;
+  /**
+   * Cost placeholder.
+   */
+  "cost"?: unknown;
+  /**
+   * Destination host.
+   */
+  "destination_host": string;
+  /**
+   * Error message if status is not "allowed".
+   */
+  "error"?: null | string;
+  /**
+   * Unique record id.
+   */
+  "id": string;
+  /**
+   * HTTP method (GET, POST, etc).
+   */
+  "method": string;
+  /**
+   * Package that owns the outbound request.
+   */
+  "package_id": string;
+  /**
+   * The principal that initiated the request.
+   */
+  "principal": string;
+  /**
+   * Declared purpose from the manifest or request context.
+   */
+  "purpose"?: null | string;
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+  /**
+   * Redaction state — what data, if any, was recorded.
+   */
+  "redaction_state"?: RedactionState;
+  /**
+   * Secret references used (not raw secrets).
+   */
+  "secret_refs_used"?: Array<string>;
+  /**
+   * Request status: "allowed", "denied", "error", etc.
+   */
+  "status": string;
+  /**
+   * Usage placeholder (e.g. token count).
+   */
+  "usage"?: unknown;
+}
+
+/**
+ * Generic outbound audit record / envelope.
+ *
+ * Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+ */
+export interface OutboundAuditRecord2 {
   /**
    * Capability through which the request was made.
    */
@@ -794,7 +999,16 @@ export type OutboundAuditResult = Array<{
   "usage"?: unknown;
 }>;
 
-export type OutboundExecuteCompletedPayload = Record<string, unknown>;
+export interface OutboundExecuteCompletedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
 export interface OutboundExecuteParams {
   "body_shape": unknown;
@@ -813,7 +1027,7 @@ export interface OutboundExecuteParams {
 
 /**
  * Response returned by an outbound executor.
- * 
+ *
  * Like the request, this is content-free. It carries status, the *shape* of headers/body, usage/cost placeholders, and metadata identifying what kind of executor produced the response.
  */
 export interface OutboundExecutorResponse {
@@ -861,7 +1075,7 @@ export interface OutboundExecutorResponse {
 
 /**
  * Specification for a secret-derived HTTP header to be injected by the host during outbound execution. Packages declare these in `kernel.v1.outbound.execute` params as `secret_headers`; the host resolves the `secret_ref` at execution time and injects the resulting header value into the live HTTP request.
- * 
+ *
  * Raw secret values never appear in audit, response, or Debug output.
  */
 export interface OutboundSecretHeaderSpec {
@@ -872,7 +1086,7 @@ export interface OutboundSecretHeaderSpec {
 
 /**
  * A safe non-secret static header for outbound requests (L5).
- * 
+ *
  * Only header names on the `STATIC_HEADER_ALLOWLIST` are permitted. Secret-bearing header names (Authorization, x-api-key, Cookie, etc.) are rejected at parse time. Values must be plain strings that do not look like raw secrets.
  */
 export interface OutboundStaticHeader {
@@ -931,6 +1145,14 @@ export interface OutboundStreamSummary {
    * Provider-assigned request id if available.
    */
   "provider_request_id"?: null | string;
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
   /**
    * Redaction state applied to the stream.
    */
@@ -980,7 +1202,16 @@ export interface OutboundWebSocketSendParams {
 
 export type OutboundWebsocketCloseResult = Record<string, unknown>;
 
-export type OutboundWebsocketCompletedPayload = Record<string, unknown>;
+export interface OutboundWebsocketCompletedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
 
 export type OutboundWebsocketErrorPayload = Record<string, unknown>;
 
@@ -1188,13 +1419,27 @@ export interface PermissionSet {
   "proxy"?: ProxyPermissions;
   /**
    * Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
-   * 
+   *
    * The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
-   * 
+   *
    * Default: empty vec (no secret refs allowed; backward compatible).
    */
   "secret_refs"?: Array<string>;
 }
+
+export interface PolicyDecision {
+  "change_set_id": string;
+  "decided_at": string;
+  "decision_type_uri"?: string;
+  "evaluated_authority"?: Array<string>;
+  "id": string;
+  "outcome": PolicyDecisionOutcome;
+  "policy_ref"?: ArtifactDescriptor | null;
+  "principal": PrincipalIdentity;
+  "reason"?: null | string;
+}
+
+export type PolicyDecisionOutcome = "allowed" | "denied" | "requires_approval";
 
 export type PortBindScope = "loopback_only";
 
@@ -1255,6 +1500,26 @@ export interface PortPermissions {
 export type PortProtocol = "tcp" | "udp";
 
 export type PortReleasedPayload = Record<string, unknown>;
+
+export type PrincipalIdentity = {
+  "assistant_id": string;
+  "delegated_user_id"?: null | string;
+  "kind": "assistant";
+} | {
+  "kind": "anonymous";
+} | {
+  "kind": "host_admin";
+} | {
+  "kind": "host_dev";
+} | {
+  "kind": "human";
+  "user_id": string;
+} | {
+  "kind": "kernel";
+} | {
+  "kind": "package";
+  "package_id": string;
+};
 
 export type ProjectGetResult = {
   /**
@@ -1430,11 +1695,16 @@ export interface ProposalIdParams {
 
 export type ProposalListResult = Array<{
   "approval"?: ProposalApproval | null;
+  "change_set"?: ChangeSet | null;
+  "commit"?: ChangeCommit | null;
   "created_at"?: string;
   "created_by"?: ProtocolPrincipal;
   "expected_effects"?: unknown;
   "id"?: string;
+  "intent"?: Intent | null;
   "operations"?: Array<ProposalOperation>;
+  "policy_decision"?: PolicyDecision | null;
+  "receipt"?: ArtifactDescriptor | null;
   "required_permissions"?: Array<string>;
   "result"?: unknown;
   "status"?: ProposalStatus;
@@ -1450,11 +1720,16 @@ export interface ProposalOperation {
 
 export interface ProposalRecord {
   "approval"?: ProposalApproval | null;
+  "change_set"?: ChangeSet | null;
+  "commit"?: ChangeCommit | null;
   "created_at"?: string;
   "created_by"?: ProtocolPrincipal;
   "expected_effects"?: unknown;
   "id"?: string;
+  "intent"?: Intent | null;
   "operations"?: Array<ProposalOperation>;
+  "policy_decision"?: PolicyDecision | null;
+  "receipt"?: ArtifactDescriptor | null;
   "required_permissions"?: Array<string>;
   "result"?: unknown;
   "status"?: ProposalStatus;
@@ -1462,7 +1737,7 @@ export interface ProposalRecord {
   "target_session_id"?: null | string;
 }
 
-export type ProposalStatus = "created" | "approved" | "rejected" | "applied" | "failed";
+export type ProposalStatus = "created" | "approved" | "applying" | "rejected" | "applied" | "partial" | "failed";
 
 export interface ProtocolContext {
   "correlation_id"?: null | string;
@@ -1570,7 +1845,7 @@ export type ReadinessProbeKind = "none" | "tcp_port" | "http_get";
 
 /**
  * Redaction state for an outbound audit record.
- * 
+ *
  * Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.
  */
 export type RedactionState = "explicitly_approved" | "not_captured" | "policy_ref" | "redacted" | "unsafe_blocked";
@@ -1646,7 +1921,7 @@ export type StreamFormat = "ndjson" | "raw" | "sse";
 
 /**
  * Generic stream frame envelope — the unit of streaming capability output.
- * 
+ *
  * This is a content-free protocol shape. It carries invocation/stream identifiers, sequencing, and redaction state, but no model, prompt, agent, or message semantics. The `payload` field is opaque JSON controlled by the capability provider.
  */
 export interface StreamFrameEnvelope {
@@ -1666,6 +1941,54 @@ export interface StreamFrameEnvelope {
    * Opaque payload — capability-provider-defined; no kernel content semantics. May be `Null` for progress/end/cancelled/timeout frames.
    */
   "payload"?: unknown;
+  /**
+   * Redaction state applied to the payload.
+   */
+  "redaction_state"?: RedactionState;
+  /**
+   * Monotonically increasing sequence within this stream.
+   */
+  "sequence": number;
+  /**
+   * Unique stream id (may differ from invocation_id if a capability produces multiple concurrent streams).
+   */
+  "stream_id": string;
+  /**
+   * Timestamp of frame emission.
+   */
+  "timestamp"?: string;
+}
+
+/**
+ * Generic stream frame envelope — the unit of streaming capability output.
+ *
+ * This is a content-free protocol shape. It carries invocation/stream identifiers, sequencing, and redaction state, but no model, prompt, agent, or message semantics. The `payload` field is opaque JSON controlled by the capability provider.
+ */
+export interface StreamFrameEnvelope2 {
+  /**
+   * Frame type discriminant.
+   */
+  "frame_type": StreamFrameType;
+  /**
+   * The invocation this frame belongs to.
+   */
+  "invocation_id": string;
+  /**
+   * Opaque metadata — capability-provider-defined.
+   */
+  "metadata"?: unknown;
+  /**
+   * Opaque payload — capability-provider-defined; no kernel content semantics. May be `Null` for progress/end/cancelled/timeout frames.
+   */
+  "payload"?: unknown;
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
   /**
    * Redaction state applied to the payload.
    */

@@ -11,11 +11,13 @@ use std::time::Duration;
 
 use anyhow::Context;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::{Mutex, RwLock};
+use ygg_core::{ArtifactDescriptor, PrincipalIdentity};
 
 pub type ExecutionTargetId = String;
 pub type ExecId = String;
@@ -228,12 +230,34 @@ impl DeploymentReconcileSource for EmptyReconcileSource {
 #[derive(Default)]
 pub struct ExecRegistry {
     executions: RwLock<HashMap<ExecId, ExecStatus>>,
+    effect_contexts: RwLock<HashMap<ExecId, ExecEffectContext>>,
+    terminal_receipts: RwLock<HashMap<ExecId, ArtifactDescriptor>>,
+    terminal_receipt_claims: Mutex<HashSet<ExecId>>,
+    operation_receipts: RwLock<HashMap<String, ArtifactDescriptor>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ExecEffectContext {
+    pub principal: PrincipalIdentity,
+    pub target_id: ExecutionTargetId,
+    pub program: String,
+    pub arg_count: usize,
+    pub port_names: Vec<String>,
+    pub lifecycle: ExecLifecyclePolicy,
+    pub resource_limits: ExecResourceLimits,
+    pub session_id: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub trace_id: String,
 }
 
 impl ExecRegistry {
     pub fn new() -> Self {
         Self {
             executions: RwLock::new(HashMap::new()),
+            effect_contexts: RwLock::new(HashMap::new()),
+            terminal_receipts: RwLock::new(HashMap::new()),
+            terminal_receipt_claims: Mutex::new(HashSet::new()),
+            operation_receipts: RwLock::new(HashMap::new()),
         }
     }
 
@@ -259,6 +283,51 @@ impl ExecRegistry {
         self.executions.read().await.get(exec_id).cloned()
     }
 
+    pub(crate) async fn record_effect_context(&self, exec_id: ExecId, context: ExecEffectContext) {
+        self.effect_contexts.write().await.insert(exec_id, context);
+    }
+
+    pub(crate) async fn effect_context(&self, exec_id: &str) -> Option<ExecEffectContext> {
+        self.effect_contexts.read().await.get(exec_id).cloned()
+    }
+
+    pub(crate) async fn terminal_receipt(&self, exec_id: &str) -> Option<ArtifactDescriptor> {
+        self.terminal_receipts.read().await.get(exec_id).cloned()
+    }
+
+    pub(crate) async fn claim_terminal_receipt(&self, exec_id: &str) -> bool {
+        let mut claims = self.terminal_receipt_claims.lock().await;
+        if self.terminal_receipts.read().await.contains_key(exec_id) {
+            return false;
+        }
+        claims.insert(exec_id.to_string())
+    }
+
+    pub(crate) async fn release_terminal_receipt_claim(&self, exec_id: &str) {
+        self.terminal_receipt_claims.lock().await.remove(exec_id);
+    }
+
+    pub(crate) async fn record_terminal_receipt(
+        &self,
+        exec_id: ExecId,
+        receipt: ArtifactDescriptor,
+    ) {
+        let mut claims = self.terminal_receipt_claims.lock().await;
+        self.terminal_receipts
+            .write()
+            .await
+            .insert(exec_id.clone(), receipt);
+        claims.remove(&exec_id);
+    }
+
+    pub(crate) async fn operation_receipt(&self, key: &str) -> Option<ArtifactDescriptor> {
+        self.operation_receipts.read().await.get(key).cloned()
+    }
+
+    pub(crate) async fn record_operation_receipt(&self, key: String, receipt: ArtifactDescriptor) {
+        self.operation_receipts.write().await.insert(key, receipt);
+    }
+
     pub async fn list(&self) -> Vec<ExecStatus> {
         self.executions.read().await.values().cloned().collect()
     }
@@ -280,6 +349,10 @@ impl ExecRegistry {
 
 #[async_trait]
 pub trait LocalExecExecutor: Send + Sync + 'static {
+    fn supports_terminal_monitoring(&self) -> bool {
+        false
+    }
+
     async fn start(&self, request: LocalExecStartRequest)
         -> anyhow::Result<LocalExecStartResponse>;
     async fn stop(&self, request: LocalExecStopRequest) -> anyhow::Result<LocalExecStopResponse>;
@@ -518,6 +591,10 @@ struct ValidatedLiveExecStart {
 
 #[async_trait]
 impl LocalExecExecutor for LiveLocalExecExecutor {
+    fn supports_terminal_monitoring(&self) -> bool {
+        true
+    }
+
     async fn start(
         &self,
         request: LocalExecStartRequest,
@@ -578,7 +655,7 @@ impl LocalExecExecutor for LiveLocalExecExecutor {
         let redaction_values: Vec<String> = request
             .env
             .values()
-            .filter(|value| value.len() >= 3)
+            .filter(|value| !value.is_empty())
             .cloned()
             .collect();
         if let Some(stdout) = stdout {
@@ -664,6 +741,20 @@ impl LocalExecExecutor for LiveLocalExecExecutor {
             });
         };
 
+        self.update_status_from_child(&request.exec_id, &state)
+            .await;
+        let observed = state.status.read().await.clone();
+        if matches!(
+            observed.kind,
+            ExecStatusKind::Stopped | ExecStatusKind::Exited | ExecStatusKind::Failed
+        ) {
+            return Ok(LocalExecStopResponse {
+                exec_id: request.exec_id,
+                status: observed,
+                error: None,
+            });
+        }
+
         let mut child_guard = state.child.lock().await;
         if let Some(child) = child_guard.as_mut() {
             // Phase 3b uses tokio Child::start_kill for test-friendly behavior.
@@ -676,10 +767,23 @@ impl LocalExecExecutor for LiveLocalExecExecutor {
         drop(child_guard);
 
         let mut status_guard = state.status.write().await;
+        if matches!(
+            status_guard.kind,
+            ExecStatusKind::Stopped | ExecStatusKind::Exited | ExecStatusKind::Failed
+        ) {
+            let status = status_guard.clone();
+            drop(status_guard);
+            return Ok(LocalExecStopResponse {
+                exec_id: request.exec_id,
+                status,
+                error: None,
+            });
+        }
         status_guard.kind = ExecStatusKind::Stopped;
         status_guard.exit_code = None;
         status_guard.message = Some("local exec stopped".to_string());
         status_guard.ready = false;
+        let status = status_guard.clone();
         drop(status_guard);
         append_live_log(
             &state,
@@ -688,8 +792,6 @@ impl LocalExecExecutor for LiveLocalExecExecutor {
             &[],
         )
         .await;
-        let status = state.status.read().await.clone();
-
         Ok(LocalExecStopResponse {
             exec_id: request.exec_id,
             status,
@@ -1017,6 +1119,36 @@ mod tests {
             .lines
             .iter()
             .any(|line| line.message_redacted.contains("hello-local-exec")));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn live_local_exec_stop_preserves_natural_exit() -> anyhow::Result<()> {
+        let Some(echo) = first_existing(&["/bin/echo", "/usr/bin/echo"]) else {
+            eprintln!("skipping: echo binary not found");
+            return Ok(());
+        };
+        let tmp = tempfile::tempdir()?;
+        let executor = LiveLocalExecExecutor::new(LiveLocalExecExecutorConfig::new(
+            vec![echo.display().to_string()],
+            vec![tmp.path().to_path_buf()],
+            Vec::new(),
+            5_000,
+            4_096,
+        )?)?;
+        let response = executor
+            .start(request(&echo, tmp.path(), vec!["done".to_string()]))
+            .await?;
+        let exec_id = response.exec_id.expect("exec id");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let stopped = executor
+            .stop(LocalExecStopRequest {
+                exec_id,
+                reason: Some("after natural exit".to_string()),
+            })
+            .await?;
+        assert_eq!(stopped.status.kind, ExecStatusKind::Exited);
+        assert_eq!(stopped.status.exit_code, Some(0));
         Ok(())
     }
 

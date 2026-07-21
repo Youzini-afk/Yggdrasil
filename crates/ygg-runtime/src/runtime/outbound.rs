@@ -1658,8 +1658,6 @@ where
         policy_request: super::OutboundRequest,
         executor_request: OutboundExecutorRequest,
     ) -> anyhow::Result<OutboundExecutorResponse> {
-        validate_policy_executor_consistency(&policy_request, &executor_request)?;
-
         let started = Instant::now();
         let completion_id = new_id("obc");
         let total_bytes_request = json_size(&executor_request.body_shape);
@@ -1670,6 +1668,30 @@ where
         let method = policy_request.method.clone();
         let secret_refs_used = policy_request.secret_refs_used.clone();
         let correlation_id = policy_request.correlation_id;
+        if let Err(error) = validate_policy_executor_consistency(&policy_request, &executor_request)
+        {
+            self.emit_outbound_execute_completed(super::OutboundExecuteCompletion {
+                id: &completion_id,
+                package_id: &package_id,
+                capability_id: &capability_id,
+                destination_host: &destination_host,
+                method: &method,
+                status: "invalid_request",
+                executor_kind: executor_kind_str(configured_executor_kind),
+                status_code: None,
+                total_bytes_request,
+                total_bytes_response: 0,
+                duration_ms: started.elapsed().as_millis() as u64,
+                network_performed: false,
+                redaction_state: RedactionState::NotCaptured,
+                secret_refs_used: &secret_refs_used,
+                correlation_id,
+                usage: serde_json::json!({}),
+                cost: serde_json::json!({}),
+            })
+            .await?;
+            return Err(error);
+        }
 
         // Step 1: Policy check + audit. If denied, this returns an
         // error and the executor is never called.
@@ -1690,6 +1712,8 @@ where
                 redaction_state: RedactionState::NotCaptured,
                 secret_refs_used: &secret_refs_used,
                 correlation_id,
+                usage: serde_json::json!({}),
+                cost: serde_json::json!({}),
             })
             .await?;
             return Err(err);
@@ -1716,6 +1740,8 @@ where
                     redaction_state: RedactionState::Redacted,
                     secret_refs_used: &secret_refs_used,
                     correlation_id,
+                    usage: serde_json::json!({}),
+                    cost: serde_json::json!({}),
                 })
                 .await?;
                 return Err(err);
@@ -1738,6 +1764,8 @@ where
             redaction_state: response.redaction_state,
             secret_refs_used: &secret_refs_used,
             correlation_id,
+            usage: response.usage.clone(),
+            cost: response.cost.clone(),
         })
         .await?;
 
