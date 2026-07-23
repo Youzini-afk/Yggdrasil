@@ -5307,6 +5307,10 @@ components:
       items:
         $schema: https://json-schema.org/draft/2020-12/schema
         properties:
+          access:
+            allOf:
+            - $ref: '#/components/schemas/ProxyRouteAccess'
+            default: host_authenticated
           id:
             type: string
           iframe_url:
@@ -5354,6 +5358,11 @@ components:
       type: string
     ProxyRegisteredPayload:
       type: object
+    ProxyRouteAccess:
+      enum:
+      - host_authenticated
+      - public
+      type: string
     ProxyRouteIdParams:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -5365,6 +5374,10 @@ components:
       type: object
     ProxyRouteRecord:
       properties:
+        access:
+          allOf:
+          - $ref: '#/components/schemas/ProxyRouteAccess'
+          default: host_authenticated
         id:
           type: string
         iframe_url:
@@ -5393,6 +5406,10 @@ components:
     ProxyRouteRegisterRequest:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
+        access:
+          allOf:
+          - $ref: '#/components/schemas/ProxyRouteAccess'
+          default: host_authenticated
         protocol:
           allOf:
           - $ref: '#/components/schemas/ProxyProtocol'
@@ -8754,6 +8771,10 @@ paths:
                     items:
                       $schema: https://json-schema.org/draft/2020-12/schema
                       properties:
+                        access:
+                          allOf:
+                          - $ref: '#/components/schemas/ProxyRouteAccess'
+                          default: host_authenticated
                         id:
                           type: string
                         iframe_url:
@@ -8808,6 +8829,10 @@ paths:
                 params:
                   $schema: https://json-schema.org/draft/2020-12/schema
                   properties:
+                    access:
+                      allOf:
+                      - $ref: '#/components/schemas/ProxyRouteAccess'
+                      default: host_authenticated
                     protocol:
                       allOf:
                       - $ref: '#/components/schemas/ProxyProtocol'
@@ -8933,6 +8958,10 @@ paths:
                   result:
                     $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
+                      access:
+                        allOf:
+                        - $ref: '#/components/schemas/ProxyRouteAccess'
+                        default: host_authenticated
                       id:
                         type: string
                       iframe_url:
@@ -9027,6 +9056,10 @@ paths:
                   result:
                     $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
+                      access:
+                        allOf:
+                        - $ref: '#/components/schemas/ProxyRouteAccess'
+                        default: host_authenticated
                       id:
                         type: string
                       iframe_url:
@@ -16355,6 +16388,10 @@ paths:
                     items:
                       $schema: https://json-schema.org/draft/2020-12/schema
                       properties:
+                        access:
+                          allOf:
+                          - $ref: '#/components/schemas/ProxyRouteAccess'
+                          default: host_authenticated
                         id:
                           type: string
                         iframe_url:
@@ -16411,6 +16448,10 @@ paths:
                 params:
                   $schema: https://json-schema.org/draft/2020-12/schema
                   properties:
+                    access:
+                      allOf:
+                      - $ref: '#/components/schemas/ProxyRouteAccess'
+                      default: host_authenticated
                     protocol:
                       allOf:
                       - $ref: '#/components/schemas/ProxyProtocol'
@@ -16538,6 +16579,10 @@ paths:
                   result:
                     $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
+                      access:
+                        allOf:
+                        - $ref: '#/components/schemas/ProxyRouteAccess'
+                        default: host_authenticated
                       id:
                         type: string
                       iframe_url:
@@ -16634,6 +16679,10 @@ paths:
                   result:
                     $schema: https://json-schema.org/draft/2020-12/schema
                     properties:
+                      access:
+                        allOf:
+                        - $ref: '#/components/schemas/ProxyRouteAccess'
+                        default: host_authenticated
                       id:
                         type: string
                       iframe_url:

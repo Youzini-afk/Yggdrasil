@@ -16872,6 +16872,14 @@ for ProxyDeniedPayload {
 ///      "upstream"
 ///    ],
 ///    "properties": {
+///      "access": {
+///        "default": "host_authenticated",
+///        "allOf": [
+///          {
+///            "$ref": "#/definitions/ProxyRouteAccess"
+///          }
+///        ]
+///      },
 ///      "id": {
 ///        "type": "string"
 ///      },
@@ -16935,6 +16943,14 @@ impl ::std::convert::From<::std::vec::Vec<ProxyListResultItem>> for ProxyListRes
 ///    "upstream"
 ///  ],
 ///  "properties": {
+///    "access": {
+///      "default": "host_authenticated",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyRouteAccess"
+///        }
+///      ]
+///    },
 ///    "id": {
 ///      "type": "string"
 ///    },
@@ -16963,6 +16979,8 @@ impl ::std::convert::From<::std::vec::Vec<ProxyListResultItem>> for ProxyListRes
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ProxyListResultItem {
+    #[serde(default = "defaults::proxy_list_result_item_access")]
+    pub access: ProxyRouteAccess,
     pub id: ::std::string::String,
     pub iframe_url: ::std::string::String,
     pub protocol: ProxyProtocol,
@@ -17131,6 +17149,84 @@ for ProxyRegisteredPayload {
         Self(value)
     }
 }
+///`ProxyRouteAccess`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProxyRouteAccess",
+///  "type": "string",
+///  "enum": [
+///    "host_authenticated",
+///    "public"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProxyRouteAccess {
+    #[serde(rename = "host_authenticated")]
+    HostAuthenticated,
+    #[serde(rename = "public")]
+    Public,
+}
+impl ::std::fmt::Display for ProxyRouteAccess {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::HostAuthenticated => f.write_str("host_authenticated"),
+            Self::Public => f.write_str("public"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProxyRouteAccess {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "host_authenticated" => Ok(Self::HostAuthenticated),
+            "public" => Ok(Self::Public),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProxyRouteAccess {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ProxyRouteAccess {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProxyRouteAccess {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`ProxyRouteIdParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -17174,6 +17270,14 @@ pub struct ProxyRouteIdParams {
 ///    "upstream"
 ///  ],
 ///  "properties": {
+///    "access": {
+///      "default": "host_authenticated",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyRouteAccess"
+///        }
+///      ]
+///    },
 ///    "id": {
 ///      "type": "string"
 ///    },
@@ -17202,6 +17306,8 @@ pub struct ProxyRouteIdParams {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ProxyRouteRecord {
+    #[serde(default = "defaults::proxy_route_record_access")]
+    pub access: ProxyRouteAccess,
     pub id: ::std::string::String,
     pub iframe_url: ::std::string::String,
     pub protocol: ProxyProtocol,
@@ -17222,6 +17328,14 @@ pub struct ProxyRouteRecord {
 ///    "upstream"
 ///  ],
 ///  "properties": {
+///    "access": {
+///      "default": "host_authenticated",
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ProxyRouteAccess"
+///        }
+///      ]
+///    },
 ///    "protocol": {
 ///      "default": "http",
 ///      "allOf": [
@@ -17247,6 +17361,8 @@ pub struct ProxyRouteRecord {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ProxyRouteRegisterRequest {
+    #[serde(default = "defaults::proxy_route_register_request_access")]
+    pub access: ProxyRouteAccess,
     #[serde(default = "defaults::proxy_route_register_request_protocol")]
     pub protocol: ProxyProtocol,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
@@ -21056,6 +21172,15 @@ pub mod defaults {
     }
     pub(super) fn protocol_error_details() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn proxy_list_result_item_access() -> super::ProxyRouteAccess {
+        super::ProxyRouteAccess::HostAuthenticated
+    }
+    pub(super) fn proxy_route_record_access() -> super::ProxyRouteAccess {
+        super::ProxyRouteAccess::HostAuthenticated
+    }
+    pub(super) fn proxy_route_register_request_access() -> super::ProxyRouteAccess {
+        super::ProxyRouteAccess::HostAuthenticated
     }
     pub(super) fn proxy_route_register_request_protocol() -> super::ProxyProtocol {
         super::ProxyProtocol::Http

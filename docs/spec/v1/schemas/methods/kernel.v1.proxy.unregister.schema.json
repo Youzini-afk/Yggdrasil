@@ -42,6 +42,13 @@
       ],
       "type": "string"
     },
+    "ProxyRouteAccess": {
+      "enum": [
+        "host_authenticated",
+        "public"
+      ],
+      "type": "string"
+    },
     "ProxyRouteStatusKind": {
       "enum": [
         "active",
@@ -68,6 +75,14 @@
     "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "access": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProxyRouteAccess"
+            }
+          ],
+          "default": "host_authenticated"
+        },
         "id": {
           "type": "string"
         },

@@ -25,6 +25,14 @@
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "access": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProxyRouteAccess"
+            }
+          ],
+          "default": "host_authenticated"
+        },
         "protocol": {
           "allOf": [
             {
@@ -56,8 +64,23 @@
       ],
       "type": "string"
     },
+    "ProxyRouteAccess": {
+      "enum": [
+        "host_authenticated",
+        "public"
+      ],
+      "type": "string"
+    },
     "ProxyRouteRecord": {
       "properties": {
+        "access": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProxyRouteAccess"
+            }
+          ],
+          "default": "host_authenticated"
+        },
         "id": {
           "type": "string"
         },

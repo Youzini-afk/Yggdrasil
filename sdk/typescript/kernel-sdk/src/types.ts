@@ -2027,6 +2027,7 @@ export interface ProxyDeclaration {
 export type ProxyDeniedPayload = Record<string, unknown>;
 
 export type ProxyListResult = Array<{
+  "access"?: ProxyRouteAccess;
   "id": string;
   "iframe_url": string;
   "protocol": ProxyProtocol;
@@ -2045,11 +2046,14 @@ export type ProxyProtocol = "http" | "websocket";
 
 export type ProxyRegisteredPayload = Record<string, unknown>;
 
+export type ProxyRouteAccess = "host_authenticated" | "public";
+
 export interface ProxyRouteIdParams {
   "route_id": string;
 }
 
 export interface ProxyRouteRecord {
+  "access"?: ProxyRouteAccess;
   "id": string;
   "iframe_url": string;
   "protocol": ProxyProtocol;
@@ -2060,6 +2064,7 @@ export interface ProxyRouteRecord {
 }
 
 export interface ProxyRouteRegisterRequest {
+  "access"?: ProxyRouteAccess;
   "protocol"?: ProxyProtocol;
   "route_id"?: null | string;
   "upstream": ProxyRouteUpstream;
