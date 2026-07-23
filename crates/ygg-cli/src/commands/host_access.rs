@@ -2,7 +2,7 @@ use anyhow::Context;
 use reqwest::redirect::Policy;
 use reqwest::{Client, Method, StatusCode};
 use serde_json::{json, Value};
-use std::net::IpAddr;
+use url::Host;
 
 const VALID_SCOPES: &[&str] = &[
     "observe",
@@ -160,11 +160,12 @@ fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
         "Host endpoint must use http or https"
     );
     if url.scheme() == "http" {
-        let host = url.host_str().unwrap_or_default();
-        let loopback = host.eq_ignore_ascii_case("localhost")
-            || host
-                .parse::<IpAddr>()
-                .is_ok_and(|address| address.is_loopback());
+        let loopback = match url.host() {
+            Some(Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+            Some(Host::Ipv4(address)) => address.is_loopback(),
+            Some(Host::Ipv6(address)) => address.is_loopback(),
+            None => false,
+        };
         anyhow::ensure!(
             loopback,
             "remote Host access requires https; http is allowed only for loopback"
