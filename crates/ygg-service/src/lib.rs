@@ -7766,7 +7766,7 @@ mod tests {
                                 {"kind": "target"}
                             ],
                             "pairing_ttl_secs": 60,
-                            "grant_ttl_secs": 3600
+                            "grant_ttl_secs": 7200
                         })
                         .to_string(),
                     ))?,
@@ -7817,7 +7817,7 @@ mod tests {
                             "scopes": ["observe"],
                             "resources": [{"kind": "project", "id": project_b}],
                             "pairing_ttl_secs": 60,
-                            "grant_ttl_secs": 3500
+                            "grant_ttl_secs": 3600
                         })
                         .to_string(),
                     ))?,
@@ -7839,7 +7839,7 @@ mod tests {
                             "scopes": ["observe"],
                             "resources": [{"kind": "project", "id": project_a}],
                             "pairing_ttl_secs": 60,
-                            "grant_ttl_secs": 3500
+                            "grant_ttl_secs": 3600
                         })
                         .to_string(),
                     ))?,
