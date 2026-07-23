@@ -8,7 +8,7 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 
 - The kernel is content-free. Official packages have no privileges. Public protocol is the only entry.
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
-- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, explicit Docker Deploy broker, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
+- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, the explicit Docker Deploy broker, durable deployment jobs, controlled Host development ChangeSets, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
 - Contract V1 is the public platform spec; all 161 schemas (80 methods + 59 events + 22 top-level) validate, and 474 conformance cases pass.
 - All nine Contract v2 layering-migration phases are complete: on top of the first eight substrate milestones, clients now use canonical APIs and Contract Registry `0.5.0` completes the real Deprecated → Legacy Adapter transition for `kernel.v1.host.info` and `kernel.v1.target.list`. See [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md) for the implementation record.
@@ -68,8 +68,11 @@ These are known to-dos. Priority follows real friction.
 - Project archive auto-cleanup beyond 30 days.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
+- Project/action scopes, remote identity, delegation, and revocation for the Host development control plane; the current access token remains a Host-wide gate.
+- Remote CLI and mobile control over projects, deployments, and ChangeSets through the same Host API, with no local side-channel write interface.
+- Development-artifact read authority, encryption/retention policy, reachability GC, and more declarative verifier / sandbox backends.
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
-- Deployment descriptor polish: Docker pull progress, long-term log archival, Build & Deploy job persistence, and external-project wizard generation.
+- Deployment descriptor polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and external-project wizard generation.
 - Remote targets and multi-client public exposure: ports currently bind to loopback only.
 
 ### Models and outbound

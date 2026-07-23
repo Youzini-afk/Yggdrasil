@@ -2,7 +2,7 @@ schema_version: 1
 id: official/workspace-lab
 version: 0.1.0
 display_name: Official Workspace Lab
-description: Workspace action policy boundary for external project workspaces — describe contract, draft creation, explain permissions, request actions (deny-by-default fake executor), and summarize audit. No real execution, no shell, no clone, no install, no run. Deterministic, no-execution, ordinary package capability with no privileged platform access.
+description: Deterministic planning and policy boundary for external project workspaces — describe contracts, explain permissions, and produce auditable action and patch proposals. This ordinary package never executes, reads, or writes a workspace; an approved proposal may be submitted separately to the access-token-protected Host development API.
 entry:
   kind: rust_inproc
   crate_ref: official-foundation
@@ -90,18 +90,18 @@ contributes:
     - id: official/workspace-lab/forge-panel
       slot: forge_panel
       title: Workspace Lab
-      description: Workspace action policy boundary — request, audit, and review workspace actions with deny-by-default enforcement.
+      description: Plan, audit, and review workspace actions. Execution, when available, remains a separate Host-controlled ChangeSet workflow.
       capability_id: official/workspace-lab/describe_workspace_contract
     - id: official/workspace-lab/assistant-action
       slot: assistant_action
       title: Request Workspace Action
-      description: Draft a workspace action request with policy/audit/proposal gating. Deny-by-default; no real execution in Alpha.
+      description: Draft a workspace action request with policy/audit/proposal gating. This capability never executes the request.
       capability_id: official/workspace-lab/request_workspace_action
       approval_policy: user_approval
     - id: official/workspace-lab/home-card
       slot: home_card
       title: Workspace Lab
-      description: Workspace action policy boundary — no real execution, no shell, no clone, no install, no run.
+      description: Deterministic workspace planning with no filesystem or execution authority; approved changes use the separate Host API.
       capability_id: official/workspace-lab/describe_workspace_contract
 permissions:
   capabilities:

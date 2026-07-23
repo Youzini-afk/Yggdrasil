@@ -30,6 +30,7 @@ uuid.workspace = true
 ygg-core.workspace = true
 reqwest.workspace = true
 schemars.workspace = true
+same-file.workspace = true
 sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 

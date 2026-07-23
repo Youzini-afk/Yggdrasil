@@ -439,9 +439,12 @@ export interface DockerStartContainerOutput {
 }
 
 export interface DockerStopContainerInput {
+  approved: true;
   container_id?: string;
   container_name?: string;
   container?: string;
+  route_id: string;
+  port_lease_id: string;
   timeout_secs?: number;
   force?: boolean;
 }
@@ -627,6 +630,104 @@ export interface DeploymentActionResponse {
   previous_revision_id?: string | null;
   revision: DeploymentRevision;
   warnings: string[];
+}
+
+export type DevelopmentNetworkMode = "none" | "bridge";
+export type DevelopmentWorkspaceOwnership = "managed_external" | "linked_local" | "native_managed";
+export type DevelopmentChangeStatus = "drafted" | "approved" | "rejected" | "staging" | "verifying" | "promoting" | "verified" | "committed" | "recovery_required" | "failed";
+
+export type DevelopmentVerificationPlan =
+  | { kind: "static_validation" }
+  | { kind: "docker_build"; dockerfile?: string; network_mode?: DevelopmentNetworkMode; timeout_secs?: number };
+
+export type DevelopmentFileOperationRequest =
+  | { op: "file_write"; path: string; content: string; executable?: boolean }
+  | { op: "file_delete"; path: string };
+
+export interface DevelopmentDraftRequest {
+  goal: string;
+  operations: DevelopmentFileOperationRequest[];
+  verification?: DevelopmentVerificationPlan;
+  expected_tree_digest?: string;
+  idempotency_key?: string;
+}
+
+export interface DevelopmentVerificationResult {
+  kind: string;
+  succeeded: boolean;
+  network_mode: DevelopmentNetworkMode;
+  image?: string | null;
+  log_tail?: string | null;
+  artifact_ref: ArtifactDescriptor;
+}
+
+export interface DevelopmentApprovalDecision {
+  id: string;
+  decision_type_uri: string;
+  change_set_id: string;
+  outcome: "allowed" | "denied" | "requires_approval";
+  principal: { kind: string } & Record<string, unknown>;
+  reason?: string | null;
+  evaluated_authority: string[];
+  decided_at: string;
+  policy_ref?: ArtifactDescriptor | null;
+}
+
+export interface DevelopmentChangeRecord {
+  schema_version: number;
+  revision: number;
+  project_id: string;
+  workspace_ownership: DevelopmentWorkspaceOwnership;
+  intent: { id: string; goal: unknown; created_at: string } & Record<string, unknown>;
+  intent_ref: ArtifactDescriptor;
+  change_set: {
+    id: string;
+    operations: Array<{ op: string; target?: string | null; input_refs?: ArtifactDescriptor[]; payload?: unknown }>;
+    required_authority: string[];
+    expected_effects: unknown;
+    created_at: string;
+  } & Record<string, unknown>;
+  change_set_ref: ArtifactDescriptor;
+  policy_decision: Record<string, unknown>;
+  policy_decision_ref: ArtifactDescriptor;
+  approval_decision?: DevelopmentApprovalDecision | null;
+  approval_ref?: ArtifactDescriptor | null;
+  status: DevelopmentChangeStatus;
+  base_tree_digest: string;
+  proposed_tree_digest?: string | null;
+  verification_plan: DevelopmentVerificationPlan;
+  verification_result?: DevelopmentVerificationResult | null;
+  managed_promotion?: {
+    previous_tree_digest: string;
+    proposed_tree_digest: string;
+    destination_preexisting: boolean;
+  } | null;
+  recovery_kind?: "docker_verification" | "managed_promotion" | null;
+  commit?: Record<string, unknown> | null;
+  error?: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+  idempotency_key?: string | null;
+}
+
+export interface DevelopmentChangeListResponse {
+  changes: DevelopmentChangeRecord[];
+}
+
+export interface DevelopmentExecuteResponse {
+  accepted: boolean;
+  change: DevelopmentChangeRecord;
+}
+
+export interface DevelopmentPatchBundle {
+  schema_version: number;
+  project_id: string;
+  change_set_id: string;
+  base_tree_digest: string;
+  operations: Array<
+    | { op: "file_write"; path: string; content: string; executable: boolean; content_digest: string }
+    | { op: "file_delete"; path: string }
+  >;
 }
 
 export interface ExecutionTarget {
@@ -1016,6 +1117,37 @@ export class YggProtocolClient {
     return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments/rollback`, {
       revision_id: revisionId,
     });
+  }
+
+  listProjectChanges(projectId: string): Promise<DevelopmentChangeListResponse> {
+    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes`);
+  }
+
+  getProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}`);
+  }
+
+  getProjectChangeBundle(projectId: string, changeSetId: string): Promise<DevelopmentPatchBundle> {
+    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/bundle`);
+  }
+
+  draftProjectChange(projectId: string, input: DevelopmentDraftRequest): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes`, input);
+  }
+
+  approveProjectChange(projectId: string, changeSetId: string, approved: boolean, reason?: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/approve`, {
+      approved,
+      ...(reason ? { reason } : {}),
+    });
+  }
+
+  executeProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentExecuteResponse> {
+    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/execute`, {});
+  }
+
+  recoverProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/recover`, {});
   }
 
   subscribeBuildDeployJob(jobId: string, onEvent: (event: BuildDeployJobEvent) => void, onError?: (error: Event) => void) {

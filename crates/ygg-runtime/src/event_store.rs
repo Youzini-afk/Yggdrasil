@@ -164,6 +164,27 @@ pub trait EventStore: Send + Sync + 'static {
         Ok(event)
     }
 
+    /// Atomically append only when the session's next sequence still equals
+    /// `expected_next_sequence`.
+    ///
+    /// This is the event-spine compare-and-append primitive used by durable
+    /// control planes. `Ok(None)` means another writer advanced the session;
+    /// no event was appended. Backends must override this method with a real
+    /// lock or transaction. The default fails closed rather than emulating a
+    /// racy `next_sequence` followed by `append`.
+    async fn append_with_sequence_if_next(
+        &self,
+        _session_id: SessionId,
+        _expected_next_sequence: EventSequence,
+        _writer_package_id: PackageId,
+        _kind: EventKind,
+        _schema_version: u16,
+        _payload_json: serde_json::Value,
+        _metadata_json: serde_json::Value,
+    ) -> anyhow::Result<Option<EventEnvelope>> {
+        anyhow::bail!("event store does not support atomic compare-and-append")
+    }
+
     /// **Event-semantic kind-prefix query.** List events whose `kind`
     /// starts with `prefix`, across all sessions. Results are ordered
     /// by `(timestamp, session_id, sequence)`.
@@ -429,6 +450,60 @@ impl EventStore for SqliteEventStore {
         Ok(event)
     }
 
+    async fn append_with_sequence_if_next(
+        &self,
+        session_id: SessionId,
+        expected_next_sequence: EventSequence,
+        writer_package_id: PackageId,
+        kind: EventKind,
+        schema_version: u16,
+        payload_json: serde_json::Value,
+        metadata_json: serde_json::Value,
+    ) -> anyhow::Result<Option<EventEnvelope>> {
+        let expected_next_sequence = i64::try_from(expected_next_sequence)
+            .map_err(|_| anyhow::anyhow!("expected event sequence exceeds backend range"))?;
+        let mut conn = self.conn.lock().await;
+        let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let next_seq: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence) + 1, 0) FROM events WHERE session_id = ?1",
+            params![session_id],
+            |row| row.get(0),
+        )?;
+        if next_seq != expected_next_sequence {
+            return Ok(None);
+        }
+        let event = EventEnvelope {
+            id: ygg_core::new_id("evt"),
+            session_id,
+            sequence: next_seq as EventSequence,
+            timestamp: chrono::Utc::now(),
+            writer_package_id,
+            kind,
+            schema_version,
+            payload: payload_json,
+            metadata: metadata_json,
+        };
+        let payload = serde_json::to_string(&event.payload)?;
+        let metadata = serde_json::to_string(&event.metadata)?;
+        transaction.execute(
+            "INSERT INTO events (id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                event.id,
+                event.session_id,
+                event.sequence as i64,
+                event.timestamp.to_rfc3339(),
+                event.writer_package_id,
+                event.kind,
+                event.schema_version as i64,
+                payload,
+                metadata,
+            ],
+        )?;
+        transaction.commit()?;
+        let _ = self.tx.send(event.clone());
+        Ok(Some(event))
+    }
+
     /// SQLite pushdown: uses `LIKE` with an upper bound to avoid a
     /// full-table scan when filtering by kind prefix.
     async fn list_kind_prefix(&self, prefix: &str) -> anyhow::Result<Vec<EventEnvelope>> {
@@ -645,6 +720,43 @@ mod sqlite_tests {
     }
 
     #[tokio::test]
+    async fn sqlite_compare_and_append_rejects_stale_tail() -> anyhow::Result<()> {
+        let path =
+            std::env::temp_dir().join(format!("ygg-test-compare-append-{}.db", new_id("sqlite")));
+        let store = SqliteEventStore::open(&path)?;
+        let session_id = "ses_compare_append".to_string();
+
+        let first = store
+            .append_with_sequence_if_next(
+                session_id.clone(),
+                0,
+                KERNEL_PACKAGE_ID.to_string(),
+                "kernel/v1/test.compare".to_string(),
+                1,
+                json!({"writer": 1}),
+                json!({}),
+            )
+            .await?;
+        assert_eq!(first.as_ref().map(|event| event.sequence), Some(0));
+        assert!(store
+            .append_with_sequence_if_next(
+                session_id.clone(),
+                0,
+                KERNEL_PACKAGE_ID.to_string(),
+                "kernel/v1/test.stale".to_string(),
+                1,
+                json!({"writer": 2}),
+                json!({}),
+            )
+            .await?
+            .is_none());
+        assert_eq!(store.list_session(&session_id).await?.len(), 1);
+
+        let _ = std::fs::remove_file(path);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn sqlite_kind_prefix_query_uses_pushdown() -> anyhow::Result<()> {
         let path = std::env::temp_dir().join(format!("ygg-test-prefix-{}.db", new_id("sqlite")));
         let store = SqliteEventStore::open(&path)?;
@@ -710,15 +822,41 @@ impl Default for InMemoryEventStore {
     }
 }
 
+fn in_memory_next_sequence(events: Option<&Vec<EventEnvelope>>) -> anyhow::Result<EventSequence> {
+    events
+        .and_then(|items| items.iter().map(|event| event.sequence).max())
+        .map(|sequence| {
+            sequence
+                .checked_add(1)
+                .ok_or_else(|| anyhow::anyhow!("event sequence overflow"))
+        })
+        .transpose()
+        .map(|sequence| sequence.unwrap_or(0))
+}
+
 #[async_trait]
 impl EventStore for InMemoryEventStore {
     async fn append(&self, event: EventEnvelope) -> anyhow::Result<()> {
-        self.events
-            .write()
-            .await
-            .entry(event.session_id.clone())
-            .or_default()
-            .push(event.clone());
+        let mut map = self.events.write().await;
+        anyhow::ensure!(
+            !map.values()
+                .flatten()
+                .any(|existing| existing.id == event.id),
+            "duplicate event id '{}'",
+            event.id
+        );
+        let session = map.entry(event.session_id.clone()).or_default();
+        anyhow::ensure!(
+            !session
+                .iter()
+                .any(|existing| existing.sequence == event.sequence),
+            "duplicate event position '{}:{}'",
+            event.session_id,
+            event.sequence
+        );
+        session.push(event.clone());
+        session.sort_by_key(|item| item.sequence);
+        drop(map);
         let _ = self.tx.send(event);
         Ok(())
     }
@@ -823,6 +961,7 @@ impl EventStore for InMemoryEventStore {
                     .unwrap_or(true)
             })
             .collect();
+        events.sort_by_key(|event| event.sequence);
         if let Some(limit) = limit {
             events.truncate(limit);
         }
@@ -830,13 +969,8 @@ impl EventStore for InMemoryEventStore {
     }
 
     async fn next_sequence(&self, session_id: &SessionId) -> anyhow::Result<EventSequence> {
-        Ok(self
-            .events
-            .read()
-            .await
-            .get(session_id)
-            .map(|events| events.len() as EventSequence)
-            .unwrap_or(0))
+        let map = self.events.read().await;
+        in_memory_next_sequence(map.get(session_id))
     }
 
     fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {
@@ -856,10 +990,7 @@ impl EventStore for InMemoryEventStore {
         metadata_json: serde_json::Value,
     ) -> anyhow::Result<EventEnvelope> {
         let mut map = self.events.write().await;
-        let seq = map
-            .get(&session_id)
-            .map(|v| v.len() as EventSequence)
-            .unwrap_or(0);
+        let seq = in_memory_next_sequence(map.get(&session_id))?;
         let event = EventEnvelope {
             id: ygg_core::new_id("evt"),
             session_id,
@@ -876,6 +1007,40 @@ impl EventStore for InMemoryEventStore {
             .push(event.clone());
         let _ = self.tx.send(event.clone());
         Ok(event)
+    }
+
+    async fn append_with_sequence_if_next(
+        &self,
+        session_id: SessionId,
+        expected_next_sequence: EventSequence,
+        writer_package_id: PackageId,
+        kind: EventKind,
+        schema_version: u16,
+        payload_json: serde_json::Value,
+        metadata_json: serde_json::Value,
+    ) -> anyhow::Result<Option<EventEnvelope>> {
+        let mut map = self.events.write().await;
+        let next_sequence = in_memory_next_sequence(map.get(&session_id))?;
+        if next_sequence != expected_next_sequence {
+            return Ok(None);
+        }
+        let event = EventEnvelope {
+            id: ygg_core::new_id("evt"),
+            session_id,
+            sequence: next_sequence,
+            timestamp: chrono::Utc::now(),
+            writer_package_id,
+            kind,
+            schema_version,
+            payload: payload_json,
+            metadata: metadata_json,
+        };
+        map.entry(event.session_id.clone())
+            .or_default()
+            .push(event.clone());
+        drop(map);
+        let _ = self.tx.send(event.clone());
+        Ok(Some(event))
     }
 
     /// In-memory pushdown: filter by kind prefix within a single
@@ -896,6 +1061,111 @@ impl EventStore for InMemoryEventStore {
             .filter(|e| e.kind.starts_with(prefix))
             .collect();
         Ok(events)
+    }
+}
+
+#[cfg(test)]
+mod in_memory_compare_append_tests {
+    use serde_json::json;
+    use ygg_core::KERNEL_PACKAGE_ID;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn in_memory_compare_and_append_has_single_winner() -> anyhow::Result<()> {
+        let store = InMemoryEventStore::default();
+        let session_id = "ses_compare_append".to_string();
+        let first = store
+            .append_with_sequence_if_next(
+                session_id.clone(),
+                0,
+                KERNEL_PACKAGE_ID.to_string(),
+                "kernel/v1/test.compare".to_string(),
+                1,
+                json!({}),
+                json!({}),
+            )
+            .await?;
+        let stale = store
+            .append_with_sequence_if_next(
+                session_id.clone(),
+                0,
+                KERNEL_PACKAGE_ID.to_string(),
+                "kernel/v1/test.stale".to_string(),
+                1,
+                json!({}),
+                json!({}),
+            )
+            .await?;
+        assert!(first.is_some());
+        assert!(stale.is_none());
+        assert_eq!(store.list_session(&session_id).await?.len(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn in_memory_compare_and_append_is_atomic_for_concurrent_contenders() -> anyhow::Result<()>
+    {
+        let store = InMemoryEventStore::default();
+        let session_id = "ses_concurrent_compare_append".to_string();
+        let append = |kind: &'static str| {
+            let store = store.clone();
+            let session_id = session_id.clone();
+            async move {
+                store
+                    .append_with_sequence_if_next(
+                        session_id,
+                        0,
+                        KERNEL_PACKAGE_ID.to_string(),
+                        kind.to_string(),
+                        1,
+                        json!({}),
+                        json!({}),
+                    )
+                    .await
+            }
+        };
+        let (left, right) = tokio::join!(
+            append("kernel/v1/test.left"),
+            append("kernel/v1/test.right")
+        );
+        let winners = [left?, right?].into_iter().filter(Option::is_some).count();
+        assert_eq!(winners, 1);
+        assert_eq!(store.list_session(&session_id).await?.len(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn in_memory_compare_and_append_uses_maximum_sequence_tail() -> anyhow::Result<()> {
+        let store = InMemoryEventStore::default();
+        let session_id = "ses_sparse_compare_append".to_string();
+        store
+            .append(EventEnvelope {
+                id: "evt-sparse-tail".to_string(),
+                session_id: session_id.clone(),
+                sequence: 10,
+                timestamp: chrono::Utc::now(),
+                writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                kind: "kernel/v1/test.sparse".to_string(),
+                schema_version: 1,
+                payload: json!({}),
+                metadata: json!({}),
+            })
+            .await?;
+        assert_eq!(store.next_sequence(&session_id).await?, 11);
+        assert!(store
+            .append_with_sequence_if_next(
+                session_id,
+                1,
+                KERNEL_PACKAGE_ID.to_string(),
+                "kernel/v1/test.stale".to_string(),
+                1,
+                json!({}),
+                json!({}),
+            )
+            .await?
+            .is_none());
+        Ok(())
     }
 }
 
@@ -1018,10 +1288,17 @@ mod postgres_backend {
     #[async_trait]
     impl EventStore for PostgresEventStore {
         async fn append(&self, event: EventEnvelope) -> anyhow::Result<()> {
-            let conn = self.pool.get().await.map_err(redact_pg)?;
+            let mut conn = self.pool.get().await.map_err(redact_pg)?;
+            let tx = conn.transaction().await.map_err(redact_pg)?;
+            tx.execute(
+                "SELECT pg_advisory_xact_lock(hashtext($1))",
+                &[&event.session_id],
+            )
+            .await
+            .map_err(redact_pg)?;
             let payload = serde_json::to_string(&event.payload)?;
             let metadata = serde_json::to_string(&event.metadata)?;
-            conn.execute(
+            tx.execute(
                 "INSERT INTO events (id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)",
                 &[
@@ -1038,6 +1315,7 @@ mod postgres_backend {
             )
             .await
             .map_err(redact_pg)?;
+            tx.commit().await.map_err(redact_pg)?;
             let _ = self.tx.send(event);
             Ok(())
         }
@@ -1163,6 +1441,68 @@ mod postgres_backend {
 
             let _ = self.tx.send(event.clone());
             Ok(event)
+        }
+
+        async fn append_with_sequence_if_next(
+            &self,
+            session_id: SessionId,
+            expected_next_sequence: EventSequence,
+            writer_package_id: PackageId,
+            kind: EventKind,
+            schema_version: u16,
+            payload_json: serde_json::Value,
+            metadata_json: serde_json::Value,
+        ) -> anyhow::Result<Option<EventEnvelope>> {
+            let expected_next_sequence = i64::try_from(expected_next_sequence)
+                .map_err(|_| anyhow::anyhow!("expected event sequence exceeds backend range"))?;
+            let mut conn = self.pool.get().await.map_err(redact_pg)?;
+            let tx = conn.transaction().await.map_err(redact_pg)?;
+            tx.execute("SELECT pg_advisory_xact_lock(hashtext($1))", &[&session_id])
+                .await
+                .map_err(redact_pg)?;
+            let row = tx
+                .query_one(
+                    "SELECT COALESCE(MAX(sequence) + 1, 0) FROM events WHERE session_id = $1",
+                    &[&session_id],
+                )
+                .await
+                .map_err(redact_pg)?;
+            let next_seq: i64 = row.try_get(0)?;
+            if next_seq != expected_next_sequence {
+                return Ok(None);
+            }
+            let event = EventEnvelope {
+                id: ygg_core::new_id("evt"),
+                session_id,
+                sequence: next_seq as EventSequence,
+                timestamp: chrono::Utc::now(),
+                writer_package_id,
+                kind,
+                schema_version,
+                payload: payload_json,
+                metadata: metadata_json,
+            };
+            let payload = serde_json::to_string(&event.payload)?;
+            let metadata = serde_json::to_string(&event.metadata)?;
+            tx.execute(
+                "INSERT INTO events (id, session_id, sequence, timestamp, writer_package_id, kind, schema_version, payload_json, metadata_json)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)",
+                &[
+                    &event.id as &(dyn ToSql + Sync),
+                    &event.session_id,
+                    &(event.sequence as i64),
+                    &event.timestamp.to_rfc3339(),
+                    &event.writer_package_id,
+                    &event.kind,
+                    &(event.schema_version as i32),
+                    &payload,
+                    &metadata,
+                ],
+            )
+            .await
+            .map_err(redact_pg)?;
+            tx.commit().await.map_err(redact_pg)?;
+            let _ = self.tx.send(event.clone());
+            Ok(Some(event))
         }
 
         /// PostgreSQL pushdown: range scan on `kind` with optional upper
@@ -1319,6 +1659,40 @@ mod postgres_backend {
             for (i, seq) in sequences.iter().enumerate() {
                 assert_eq!(*seq, i as u64, "non-contiguous at index {}: {}", i, seq);
             }
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn postgres_compare_and_append_rejects_stale_tail() -> anyhow::Result<()> {
+            let Some(store) = connect_or_skip().await else {
+                return Ok(());
+            };
+            let session_id = format!("ses_pg_compare_{}", ygg_core::new_id("pg"));
+            let first = store
+                .append_with_sequence_if_next(
+                    session_id.clone(),
+                    0,
+                    KERNEL_PACKAGE_ID.to_string(),
+                    "test/compare.first".to_string(),
+                    1,
+                    json!({}),
+                    json!({}),
+                )
+                .await?;
+            let stale = store
+                .append_with_sequence_if_next(
+                    session_id.clone(),
+                    0,
+                    KERNEL_PACKAGE_ID.to_string(),
+                    "test/compare.stale".to_string(),
+                    1,
+                    json!({}),
+                    json!({}),
+                )
+                .await?;
+            assert!(first.is_some());
+            assert!(stale.is_none());
+            assert_eq!(store.list_session(&session_id).await?.len(), 1);
             Ok(())
         }
     }

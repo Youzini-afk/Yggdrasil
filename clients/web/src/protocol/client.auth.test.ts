@@ -147,6 +147,19 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return Response.json({ job_id: "job-1", status_url: "/host/v1/build-deploy/job-1", events_url: "/host/v1/build-deploy/job-1/events", state: "queued" });
   }
 
+  if (inputString.includes("/host/v1/projects/") && inputString.includes("/changes")) {
+    if (init?.method === "GET" && inputString.endsWith("/changes")) {
+      return Response.json({ changes: [] });
+    }
+    if (inputString.endsWith("/execute")) {
+      return Response.json({ accepted: true, change: {} });
+    }
+    if (inputString.endsWith("/bundle")) {
+      return Response.json({ schema_version: 1, project_id: "project-1", change_set_id: "chg-1", base_tree_digest: "sha256:test", operations: [] });
+    }
+    return Response.json({});
+  }
+
   capturedRequests.push(body);
 
   if (body?.method === "host.info") {
@@ -393,7 +406,13 @@ await protocolClient.startDockerContainer({
   route_id: "route-1",
   approved: true,
 });
-await protocolClient.stopDockerContainer({ container_id: "container-1", timeout_secs: 5 });
+await protocolClient.stopDockerContainer({
+  approved: true,
+  container_id: "container-1",
+  route_id: "route-1",
+  port_lease_id: "lease-1",
+  timeout_secs: 5,
+});
 const dockerSessionOpen = capturedRequests.filter((request) => (request as { method?: string }).method === "kernel.v1.session.open") as Array<{ params?: Record<string, unknown> }>;
 const dockerInvokes = capturedRequests.filter((request) => (request as { method?: string }).method === "kernel.v1.capability.invoke") as Array<{ params?: Record<string, unknown> }>;
 assertDeepEqual(dockerSessionOpen[0].params?.active_package_set, ["official/docker-runtime-lab"]);
@@ -427,6 +446,45 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
   undefined,
   {},
 ]);
+
+capturedFetches.length = 0;
+await protocolClient.listProjectChanges("project-1");
+await protocolClient.getProjectChange("project-1", "chg-1");
+await protocolClient.draftProjectChange("project-1", {
+  goal: "update source",
+  operations: [{ op: "file_write", path: "src/app.ts", content: "export {};\n" }],
+  verification: { kind: "static_validation" },
+});
+await protocolClient.approveProjectChange("project-1", "chg-1", true, "reviewed");
+await protocolClient.executeProjectChange("project-1", "chg-1");
+await protocolClient.recoverProjectChange("project-1", "chg-1");
+await protocolClient.getProjectChangeBundle("project-1", "chg-1");
+assertDeepEqual(capturedFetches.map((request) => request.input), [
+  "http://host.test/host/v1/projects/project-1/changes",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1",
+  "http://host.test/host/v1/projects/project-1/changes",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/approve",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/execute",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/recover",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/bundle",
+]);
+assertDeepEqual(capturedFetches.map((request) => request.body), [
+  undefined,
+  undefined,
+  {
+    goal: "update source",
+    operations: [{ op: "file_write", path: "src/app.ts", content: "export {};\n" }],
+    verification: { kind: "static_validation" },
+  },
+  { approved: true, reason: "reviewed" },
+  {},
+  {},
+  undefined,
+]);
+assertDeepEqual(
+  capturedFetches.map((request) => new Headers(request.headers).get("authorization")),
+  ["Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token"],
+);
 
 capturedRequests.length = 0;
 await protocolClient.startProject("project-1");

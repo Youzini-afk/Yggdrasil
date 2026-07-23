@@ -54,6 +54,13 @@ const EXTERNAL_WORKSPACE_MAX_FILES: u64 = 25_000;
 const EXTERNAL_WORKSPACE_MAX_DIRECTORIES: u64 = 25_000;
 const EXTERNAL_WORKSPACE_MAX_BYTES: u64 = 256 * 1024 * 1024;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceTreeHash {
+    pub sha256: String,
+    pub files_hashed: u64,
+    pub total_bytes: u64,
+}
+
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
         return None;
@@ -101,19 +108,41 @@ fn to_hex(bytes: &[u8]) -> String {
 
 fn compute_tree_hash(request: &InprocInvocation) -> Result<Value> {
     let dir = PathBuf::from(input_str(&request.input, "dir")?);
-    anyhow::ensure!(dir.is_absolute(), "dir must be an absolute path");
-    anyhow::ensure!(dir.is_dir(), "dir must exist and be a directory");
     let external_workspace = request
         .input
         .get("profile")
         .and_then(Value::as_str)
         .is_some_and(|profile| profile == EXTERNAL_WORKSPACE_PROFILE);
-    let excluded_names = if external_workspace {
-        EXTERNAL_WORKSPACE_EXCLUDED_NAMES
+    let summary = if external_workspace {
+        compute_external_workspace_tree_hash(&dir)?
     } else {
-        EXCLUDED_NAMES
+        compute_workspace_tree_hash(&dir, EXCLUDED_NAMES, false)?
     };
-    let root = fs::canonicalize(&dir)
+
+    Ok(serde_json::json!({
+        "sha256": summary.sha256,
+        "files_hashed": summary.files_hashed,
+        "total_bytes": summary.total_bytes,
+    }))
+}
+
+pub fn compute_external_workspace_tree_hash(dir: &Path) -> Result<WorkspaceTreeHash> {
+    compute_workspace_tree_hash(dir, EXTERNAL_WORKSPACE_EXCLUDED_NAMES, true)
+}
+
+fn compute_workspace_tree_hash(
+    dir: &Path,
+    excluded_names: &[&str],
+    external_workspace: bool,
+) -> Result<WorkspaceTreeHash> {
+    anyhow::ensure!(dir.is_absolute(), "dir must be an absolute path");
+    let metadata = fs::symlink_metadata(dir)
+        .with_context(|| format!("failed to inspect tree root {}", dir.display()))?;
+    anyhow::ensure!(
+        metadata.is_dir() && !metadata.file_type().is_symlink(),
+        "dir must be a real directory, not a symlink"
+    );
+    let root = fs::canonicalize(dir)
         .with_context(|| format!("failed to canonicalize tree root {}", dir.display()))?;
 
     let mut entries = Vec::new();
@@ -136,23 +165,54 @@ fn compute_tree_hash(request: &InprocInvocation) -> Result<Value> {
         hasher.update(entry.relative.as_bytes());
         hasher.update(b"\0");
         match entry.kind {
-            TreeEntryKind::File { path, size } => {
+            TreeEntryKind::File {
+                path,
+                size,
+                identity,
+                handle,
+            } => {
                 hasher.update(b"file\0");
                 hasher.update(size.to_string().as_bytes());
                 hasher.update(b"\0");
                 let mut file = fs::File::open(&path)
                     .with_context(|| format!("failed to open file {}", path.display()))?;
+                let opened_handle = same_file::Handle::from_file(file.try_clone()?)?;
+                let opened = file.metadata()?;
+                anyhow::ensure!(
+                    opened.is_file()
+                        && file_identity(&opened) == identity
+                        && opened_handle == handle,
+                    "workspace file changed while tree hashing: {}",
+                    path.display()
+                );
                 let mut buffer = [0u8; 16 * 1024];
+                let mut actual_size = 0u64;
                 loop {
                     let read = file.read(&mut buffer)?;
                     if read == 0 {
                         break;
                     }
+                    actual_size = actual_size.saturating_add(read as u64);
+                    if external_workspace {
+                        anyhow::ensure!(
+                            total_bytes.saturating_add(actual_size) <= EXTERNAL_WORKSPACE_MAX_BYTES,
+                            "external workspace byte limit exceeded while hashing"
+                        );
+                    }
                     hasher.update(&buffer[..read]);
                 }
+                let after = fs::symlink_metadata(&path)?;
+                anyhow::ensure!(
+                    !after.file_type().is_symlink()
+                        && file_identity(&after) == identity
+                        && same_file::Handle::from_path(&path)? == handle
+                        && actual_size == size,
+                    "workspace file changed during tree hashing: {}",
+                    path.display()
+                );
                 hasher.update(b"\0");
                 files_hashed += 1;
-                total_bytes += size;
+                total_bytes = total_bytes.saturating_add(actual_size);
             }
             TreeEntryKind::Symlink { target } => {
                 hasher.update(b"symlink\0");
@@ -164,11 +224,11 @@ fn compute_tree_hash(request: &InprocInvocation) -> Result<Value> {
     }
 
     let digest = hasher.finalize();
-    Ok(serde_json::json!({
-        "sha256": format!("sha256:{}", to_hex(&digest)),
-        "files_hashed": files_hashed,
-        "total_bytes": total_bytes,
-    }))
+    Ok(WorkspaceTreeHash {
+        sha256: format!("sha256:{}", to_hex(&digest)),
+        files_hashed,
+        total_bytes,
+    })
 }
 
 struct TreeEntry {
@@ -177,8 +237,41 @@ struct TreeEntry {
 }
 
 enum TreeEntryKind {
-    File { path: PathBuf, size: u64 },
-    Symlink { target: PathBuf },
+    File {
+        path: PathBuf,
+        size: u64,
+        identity: FileIdentity,
+        handle: same_file::Handle,
+    },
+    Symlink {
+        target: PathBuf,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FileIdentity {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+    created: Option<std::time::SystemTime>,
+    #[cfg(unix)]
+    device: u64,
+    #[cfg(unix)]
+    inode: u64,
+}
+
+fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
+    #[cfg(unix)]
+    use std::os::unix::fs::MetadataExt;
+
+    FileIdentity {
+        len: metadata.len(),
+        modified: metadata.modified().ok(),
+        created: metadata.created().ok(),
+        #[cfg(unix)]
+        device: metadata.dev(),
+        #[cfg(unix)]
+        inode: metadata.ino(),
+    }
 }
 
 #[derive(Default)]
@@ -196,6 +289,7 @@ fn collect_tree_entries(
     require_contained_symlinks: bool,
     external_stats: &mut Option<ExternalTreeStats>,
 ) -> Result<()> {
+    let directory_handle = validated_tree_directory_handle(root, dir)?;
     for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
         let entry = entry?;
         let path = entry.path();
@@ -248,19 +342,55 @@ fn collect_tree_entries(
                 external_stats,
             )?;
         } else if metadata.is_file() {
+            let file = fs::File::open(&path)?;
+            let handle = same_file::Handle::from_file(file.try_clone()?)?;
+            let opened = file.metadata()?;
+            let current = fs::symlink_metadata(&path)?;
+            anyhow::ensure!(
+                opened.is_file()
+                    && current.is_file()
+                    && !current.file_type().is_symlink()
+                    && file_identity(&opened) == file_identity(&metadata)
+                    && same_file::Handle::from_path(&path)? == handle,
+                "workspace file changed while tree entries were collected: {}",
+                path.display()
+            );
             if let Some(stats) = external_stats.as_mut() {
-                add_external_tree_file(stats, metadata.len())?;
+                add_external_tree_file(stats, opened.len())?;
             }
             out.push(TreeEntry {
                 relative: relative_path(root, &path)?,
                 kind: TreeEntryKind::File {
                     path,
-                    size: metadata.len(),
+                    size: opened.len(),
+                    identity: file_identity(&opened),
+                    handle,
                 },
             });
         }
     }
+    anyhow::ensure!(
+        validated_tree_directory_handle(root, dir)? == directory_handle,
+        "workspace directory changed during tree traversal: {}",
+        dir.display()
+    );
     Ok(())
+}
+
+fn validated_tree_directory_handle(root: &Path, dir: &Path) -> Result<same_file::Handle> {
+    let metadata = fs::symlink_metadata(dir)?;
+    anyhow::ensure!(
+        metadata.is_dir() && !metadata.file_type().is_symlink(),
+        "workspace tree contains a directory symlink: {}",
+        dir.display()
+    );
+    let canonical = fs::canonicalize(dir)?;
+    anyhow::ensure!(
+        canonical.starts_with(root),
+        "workspace directory escaped its root: {}",
+        dir.display()
+    );
+    Ok(same_file::Handle::from_path(dir)?)
 }
 
 fn add_external_tree_directory(stats: &mut ExternalTreeStats) -> Result<()> {

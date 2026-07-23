@@ -809,6 +809,13 @@ async fn serve_runtime<S>(
 where
     S: EventStore,
 {
+    anyhow::ensure!(
+        http.ip().is_loopback()
+            || access_token
+                .as_deref()
+                .is_some_and(|token| !token.trim().is_empty()),
+        "host serve requires a non-empty access token when binding a non-loopback address"
+    );
     let projects_dir = ygg_core::paths::projects_dir()?;
     fs::create_dir_all(&projects_dir).with_context(|| {
         format!(
@@ -828,7 +835,39 @@ where
             .await
             .context("failed to hydrate durable deployment control plane")?;
     println!("  deployment journal events loaded: {deployment_events}");
-    let listener = tokio::net::TcpListener::bind(http).await?;
+    let development = ygg_service::development_registry();
+    let development_lease =
+        ygg_service::acquire_development_host_lease(runtime.store(), development.clone())
+            .await
+            .context("failed to acquire the durable development Host lease")?;
+    let development_heartbeat = ygg_service::spawn_development_host_lease_heartbeat(
+        runtime.store(),
+        development_lease.clone(),
+    );
+    let development_events =
+        match ygg_service::hydrate_development_control_plane(runtime.store(), development.clone())
+            .await
+        {
+            Ok(events) => events,
+            Err(error) => {
+                development_heartbeat.abort();
+                ygg_service::release_development_host_lease(runtime.store(), &development_lease)
+                    .await
+                    .ok();
+                return Err(error).context("failed to hydrate durable development control plane");
+            }
+        };
+    println!("  development journal events loaded: {development_events}");
+    let listener = match tokio::net::TcpListener::bind(http).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            development_heartbeat.abort();
+            ygg_service::release_development_host_lease(runtime.store(), &development_lease)
+                .await
+                .ok();
+            return Err(error.into());
+        }
+    };
     let bound_http = listener.local_addr()?;
     println!("{}", managed_host_listen_line(bound_http));
     println!("Yggdrasil host serving http://{bound_http}");
@@ -856,18 +895,26 @@ where
         println!("  app vhost base domain: {domain}");
     }
     let state = ygg_service::AppState {
-        runtime,
+        runtime: runtime.clone(),
         static_dir,
         access_token,
         app_base_domain,
         build_jobs,
+        development,
     };
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
     let bootstrap_token = std::env::var("YGG_HTTP_BOOTSTRAP_TOKEN")
         .ok()
         .filter(|token| !token.is_empty());
     let app = ygg_service::app_with_state_and_bootstrap_token(state, bootstrap_token);
-    axum::serve(listener, app).await?;
+    let serve_result = axum::serve(listener, app).await;
+    development_heartbeat.abort();
+    if let Err(error) =
+        ygg_service::release_development_host_lease(runtime.store(), &development_lease).await
+    {
+        eprintln!("warning: failed to release development Host lease: {error}");
+    }
+    serve_result?;
     Ok(())
 }
 

@@ -14,13 +14,13 @@ use std::time::Duration;
 use bollard::body_full;
 use bollard::container::LogOutput;
 use bollard::models::{
-    ContainerCreateBody, ContainerSummary, ContainerSummaryStateEnum, HostConfig, PortBinding,
-    PortMap,
+    ContainerCreateBody, ContainerInspectResponse, ContainerSummary, ContainerSummaryStateEnum,
+    HostConfig, PortBinding, PortMap,
 };
 use bollard::query_parameters::{
     BuildImageOptionsBuilder, CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
     InspectContainerOptionsBuilder, ListContainersOptionsBuilder, LogsOptionsBuilder,
-    RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
+    RemoveContainerOptionsBuilder, RemoveImageOptionsBuilder, StopContainerOptionsBuilder,
 };
 use bollard::Docker;
 use bytes::Bytes;
@@ -51,6 +51,27 @@ enum BuildStrategy {
     Nixpacks,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuildNetworkMode {
+    None,
+    Bridge,
+}
+
+impl BuildNetworkMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Bridge => "bridge",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum BuildContextScope {
+    ProjectWorkspace,
+    DevelopmentScratch { change_set_id: String },
+}
+
 impl BuildStrategy {
     fn as_str(self) -> &'static str {
         match self {
@@ -74,6 +95,8 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
         Some(plan_container(request))
     } else if id.ends_with("/build_image") {
         Some(build_image(request))
+    } else if id.ends_with("/remove_image") {
+        Some(remove_image(request))
     } else if id.ends_with("/start_container") {
         Some(start_container(request))
     } else if id.ends_with("/status") {
@@ -98,11 +121,12 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"id": "official/docker-runtime-lab/describe_contract", "docker_performed": false},
             {"id": "official/docker-runtime-lab/validate_spec", "docker_performed": false},
             {"id": "official/docker-runtime-lab/plan_container", "docker_performed": false},
-            {"id": "official/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile", "nixpacks"], "experimental_strategies": ["nixpacks"]},
+            {"id": "official/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile", "nixpacks"], "experimental_strategies": ["nixpacks"], "network_modes": ["none", "bridge"], "development_scratch_default_network": "none"},
+            {"id": "official/docker-runtime-lab/remove_image", "docker_performed": true, "requires_approved_true": true, "label_guarded": true},
             {"id": "official/docker-runtime-lab/start_container", "docker_performed": true, "requires_approved_true": true},
-            {"id": "official/docker-runtime-lab/status", "docker_performed": true},
-            {"id": "official/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true},
-            {"id": "official/docker-runtime-lab/stop_container", "docker_performed": true},
+            {"id": "official/docker-runtime-lab/status", "docker_performed": true, "ownership_label_guarded": true},
+            {"id": "official/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true, "ownership_label_guarded": true},
+            {"id": "official/docker-runtime-lab/stop_container", "docker_performed": true, "requires_approved_true": true, "ownership_label_guarded": true},
             {"id": "official/docker-runtime-lab/list_managed", "docker_performed": true, "label_filter": "managed-by=yggdrasil"}
         ],
         "host_owned_resources": {
@@ -213,6 +237,57 @@ fn build_image(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 }
 
+fn remove_image(request: &InprocInvocation) -> anyhow::Result<Value> {
+    let parsed = (|| -> Result<(String, String, String), String> {
+        if !request
+            .input
+            .get("approved")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return Err("remove_image requires approved: true; fail-closed".to_string());
+        }
+        let project_id = string_field(&request.input, "project_id")
+            .ok_or_else(|| "project_id is required".to_string())?;
+        ygg_core::ProjectId::new(&project_id)
+            .map_err(|_| "project_id must be a valid project id".to_string())?;
+        let build_id = string_field(&request.input, "build_id")
+            .ok_or_else(|| "build_id is required".to_string())?;
+        if !valid_build_id(&build_id) {
+            return Err("build_id must be label-safe".to_string());
+        }
+        let change_set_id = string_field(&request.input, "development_change_id")
+            .ok_or_else(|| "development_change_id is required".to_string())?;
+        if !valid_development_change_id(&change_set_id) {
+            return Err("development_change_id must be a valid Host change id".to_string());
+        }
+        Ok((project_id, build_id, change_set_id))
+    })();
+    let (project_id, build_id, change_set_id) = match parsed {
+        Ok(parsed) => parsed,
+        Err(reason) => {
+            return Ok(serde_json::json!({
+                "kind": "docker_runtime_lab_rejected",
+                "reason": reason,
+                "docker_performed": false,
+                "image_removed": false,
+                "provenance": provenance(request)
+            }))
+        }
+    };
+    let result = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current()
+            .block_on(async move { remove_image_async(project_id, build_id, change_set_id).await })
+    });
+    match result {
+        Ok(value) => Ok(with_provenance(value, request)),
+        Err(error) => Ok(with_provenance(
+            docker_error_output("remove_image", error),
+            request,
+        )),
+    }
+}
+
 fn start_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
@@ -296,8 +371,13 @@ fn status(request: &InprocInvocation) -> anyhow::Result<Value> {
     let Some(container) = container_ref(&request.input) else {
         return Ok(missing_container_ref_output(request));
     };
+    let (route_id, port_lease_id) = match managed_container_scope(&request.input) {
+        Ok(scope) => scope,
+        Err(reason) => return Ok(operation_rejected_output(request, "status", &reason)),
+    };
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async move { status_async(container).await })
+        tokio::runtime::Handle::current()
+            .block_on(async move { status_async(container, route_id, port_lease_id).await })
     });
     match result {
         Ok(value) => Ok(with_provenance(value, request)),
@@ -315,6 +395,10 @@ fn logs(request: &InprocInvocation) -> anyhow::Result<Value> {
     let Some(container) = container_ref(&request.input) else {
         return Ok(missing_container_ref_output(request));
     };
+    let (route_id, port_lease_id) = match managed_container_scope(&request.input) {
+        Ok(scope) => scope,
+        Err(reason) => return Ok(operation_rejected_output(request, "logs", &reason)),
+    };
     let tail = request
         .input
         .get("tail")
@@ -328,8 +412,9 @@ fn logs(request: &InprocInvocation) -> anyhow::Result<Value> {
         .map(|n| n.min(DEFAULT_MAX_BYTES as u64) as usize)
         .unwrap_or(DEFAULT_MAX_BYTES);
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(async move { logs_async(container, tail, max_bytes).await })
+        tokio::runtime::Handle::current().block_on(async move {
+            logs_async(container, route_id, port_lease_id, tail, max_bytes).await
+        })
     });
     match result {
         Ok(value) => Ok(with_provenance(value, request)),
@@ -341,8 +426,30 @@ fn stop_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
+    if !request
+        .input
+        .get("approved")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return Ok(operation_rejected_output(
+            request,
+            "stop_container",
+            "stop_container requires approved: true; fail-closed",
+        ));
+    }
     let Some(container) = container_ref(&request.input) else {
         return Ok(missing_container_ref_output(request));
+    };
+    let (route_id, port_lease_id) = match managed_container_scope(&request.input) {
+        Ok(scope) => scope,
+        Err(reason) => {
+            return Ok(operation_rejected_output(
+                request,
+                "stop_container",
+                &reason,
+            ))
+        }
     };
     let timeout_secs = request
         .input
@@ -356,8 +463,9 @@ fn stop_container(request: &InprocInvocation) -> anyhow::Result<Value> {
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(async move { stop_container_async(container, timeout_secs, force).await })
+        tokio::runtime::Handle::current().block_on(async move {
+            stop_container_async(container, route_id, port_lease_id, timeout_secs, force).await
+        })
     });
     match result {
         Ok(value) => Ok(with_provenance(value, request)),
@@ -483,6 +591,8 @@ struct BuildImageSpec {
     project_id: String,
     build_id: String,
     context_dir: PathBuf,
+    context_scope: BuildContextScope,
+    network_mode: BuildNetworkMode,
     dockerfile: String,
     source_commit: Option<String>,
     build_descriptor_hash: Option<String>,
@@ -535,7 +645,7 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
         .forcerm(true)
         .memory(DEFAULT_BUILD_MEMORY_BYTES)
         .cpuquota(DEFAULT_BUILD_CPU_QUOTA)
-        .networkmode("bridge")
+        .networkmode(spec.network_mode.as_str())
         .labels(&labels)
         .buildargs(&spec.build_args)
         .build();
@@ -568,6 +678,7 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
         "image": tag,
         "build_id": spec.build_id,
         "strategy": spec.strategy.as_str(),
+        "network_mode": spec.network_mode.as_str(),
         "buildpack": if spec.strategy == BuildStrategy::Nixpacks { Some("nixpacks") } else { None::<&str> },
         "buildpack_version": prepared.buildpack_version,
         "generated_dockerfile": prepared.generated_dockerfile,
@@ -585,15 +696,115 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
     }))
 }
 
-async fn status_async(container: String) -> Result<Value, String> {
+async fn remove_image_async(
+    project_id: String,
+    build_id: String,
+    change_set_id: String,
+) -> Result<Value, String> {
+    let image = image_tag(&project_id, &build_id);
     let docker = docker().await?;
+    let inspected = match docker.inspect_image(&image).await {
+        Ok(inspected) => inspected,
+        Err(error) if docker_not_found_error(&error.to_string()) => {
+            return Ok(serde_json::json!({
+                "kind": "docker_runtime_lab_image_absent",
+                "image": image,
+                "build_id": build_id,
+                "development_change_id": change_set_id,
+                "image_removed": true,
+                "image_was_present": false,
+                "docker_performed": true
+            }));
+        }
+        Err(error) => return Err(format!("docker image inspect failed: {error}")),
+    };
+    let labels = inspected
+        .config
+        .and_then(|config| config.labels)
+        .ok_or_else(|| "docker image is missing Yggdrasil ownership labels".to_string())?;
+    let expected = [
+        ("managed-by", "yggdrasil"),
+        ("yggdrasil.package_id", PACKAGE_ID),
+        ("yggdrasil.project_id", project_id.as_str()),
+        ("yggdrasil.build_id", build_id.as_str()),
+        ("yggdrasil.development_change_id", change_set_id.as_str()),
+    ];
+    if expected
+        .iter()
+        .any(|(key, value)| labels.get(*key).map(String::as_str) != Some(*value))
+    {
+        return Err(
+            "docker image ownership labels did not match the requested development build"
+                .to_string(),
+        );
+    }
+    let options = RemoveImageOptionsBuilder::default()
+        .force(false)
+        .noprune(false)
+        .build();
+    docker
+        .remove_image(&image, Some(options), None)
+        .await
+        .map_err(|e| format!("docker image removal failed: {e}"))?;
+    Ok(serde_json::json!({
+        "kind": "docker_runtime_lab_image_removed",
+        "image": image,
+        "build_id": build_id,
+        "development_change_id": change_set_id,
+        "image_removed": true,
+        "image_was_present": true,
+        "docker_performed": true
+    }))
+}
+
+fn docker_not_found_error(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("404") || lower.contains("no such image")
+}
+
+async fn inspect_managed_container(
+    docker: &Docker,
+    container: &str,
+    route_id: &str,
+    port_lease_id: &str,
+) -> Result<ContainerInspectResponse, String> {
     let options = InspectContainerOptionsBuilder::default()
         .size(false)
         .build();
     let inspected = docker
-        .inspect_container(&container, Some(options))
+        .inspect_container(container, Some(options))
         .await
         .map_err(|e| format!("docker inspect failed: {e}"))?;
+    let labels = inspected
+        .config
+        .as_ref()
+        .and_then(|config| config.labels.as_ref())
+        .ok_or_else(|| "Docker container is missing Yggdrasil ownership labels".to_string())?;
+    let expected = [
+        ("managed-by", "yggdrasil"),
+        ("yggdrasil.package_id", PACKAGE_ID),
+        ("yggdrasil.route_id", route_id),
+        ("yggdrasil.port_lease_id", port_lease_id),
+    ];
+    if expected
+        .iter()
+        .any(|(key, value)| labels.get(*key).map(String::as_str) != Some(*value))
+    {
+        return Err(
+            "Docker container ownership labels do not match the requested Host route".to_string(),
+        );
+    }
+    Ok(inspected)
+}
+
+async fn status_async(
+    container: String,
+    route_id: String,
+    port_lease_id: String,
+) -> Result<Value, String> {
+    let docker = docker().await?;
+    let inspected =
+        inspect_managed_container(&docker, &container, &route_id, &port_lease_id).await?;
     let state = inspected.state;
     let running = state.as_ref().and_then(|s| s.running).unwrap_or(false);
     let status = state
@@ -613,8 +824,15 @@ async fn status_async(container: String) -> Result<Value, String> {
     }))
 }
 
-async fn logs_async(container: String, tail: u32, max_bytes: usize) -> Result<Value, String> {
+async fn logs_async(
+    container: String,
+    route_id: String,
+    port_lease_id: String,
+    tail: u32,
+    max_bytes: usize,
+) -> Result<Value, String> {
     let docker = docker().await?;
+    inspect_managed_container(&docker, &container, &route_id, &port_lease_id).await?;
     let options = LogsOptionsBuilder::default()
         .stdout(true)
         .stderr(true)
@@ -660,10 +878,13 @@ async fn logs_async(container: String, tail: u32, max_bytes: usize) -> Result<Va
 
 async fn stop_container_async(
     container: String,
+    route_id: String,
+    port_lease_id: String,
     timeout_secs: i32,
     force: bool,
 ) -> Result<Value, String> {
     let docker = docker().await?;
+    inspect_managed_container(&docker, &container, &route_id, &port_lease_id).await?;
     let stop_options = StopContainerOptionsBuilder::default()
         .t(timeout_secs)
         .build();
@@ -883,11 +1104,43 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
     {
         return Err("context_dir must not contain parent components".to_string());
     }
-    let expected_workspace = ygg_core::paths::project_workspace_dir(&project)
-        .map_err(|_| "failed to resolve project workspace".to_string())?;
-    if context_dir != expected_workspace {
-        return Err("context_dir must be the project's managed workspace".to_string());
-    }
+    let context_scope = if let Some(change_set_id) = string_field(input, "development_change_id") {
+        if !valid_development_change_id(&change_set_id) {
+            return Err("development_change_id must be a valid Host change id".to_string());
+        }
+        if strategy != BuildStrategy::Dockerfile {
+            return Err(
+                "development scratch verification only supports dockerfile strategy".to_string(),
+            );
+        }
+        let expected = ygg_core::paths::project_dir(&project)
+            .map_err(|_| "failed to resolve project directory".to_string())?
+            .join("development")
+            .join(&change_set_id)
+            .join("workspace");
+        if context_dir != expected {
+            return Err(
+                "context_dir must match the Host-owned development scratch workspace".to_string(),
+            );
+        }
+        BuildContextScope::DevelopmentScratch { change_set_id }
+    } else {
+        let expected_workspace = ygg_core::paths::project_workspace_dir(&project)
+            .map_err(|_| "failed to resolve project workspace".to_string())?;
+        if context_dir != expected_workspace {
+            return Err("context_dir must be the project's managed workspace".to_string());
+        }
+        BuildContextScope::ProjectWorkspace
+    };
+    let network_mode = match input.get("network_mode").and_then(Value::as_str) {
+        Some("none") => BuildNetworkMode::None,
+        Some("bridge") => BuildNetworkMode::Bridge,
+        Some(_) => return Err("network_mode must be 'none' or 'bridge'".to_string()),
+        None if matches!(context_scope, BuildContextScope::DevelopmentScratch { .. }) => {
+            BuildNetworkMode::None
+        }
+        None => BuildNetworkMode::Bridge,
+    };
     let dockerfile = string_field(input, "dockerfile").unwrap_or_else(|| "Dockerfile".to_string());
     validate_dockerfile_path(&dockerfile)?;
     let source_commit = optional_labelish(input, "source_commit")?;
@@ -914,6 +1167,8 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         project_id,
         build_id,
         context_dir,
+        context_scope,
+        network_mode,
         dockerfile,
         source_commit,
         build_descriptor_hash,
@@ -922,6 +1177,16 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         max_context_files,
         build_timeout_secs,
     })
+}
+
+fn valid_development_change_id(value: &str) -> bool {
+    value.len() >= 12
+        && value.len() <= 64
+        && value.starts_with("chg-")
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && !value.contains("..")
 }
 
 fn contains_raw_build_secret(value: &Value) -> bool {
@@ -1085,7 +1350,17 @@ fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
             "yggdrasil.dockerfile_path".to_string(),
             spec.dockerfile.clone(),
         ),
+        (
+            "yggdrasil.build_network_mode".to_string(),
+            spec.network_mode.as_str().to_string(),
+        ),
     ]);
+    if let BuildContextScope::DevelopmentScratch { change_set_id } = &spec.context_scope {
+        labels.insert(
+            "yggdrasil.development_change_id".to_string(),
+            change_set_id.clone(),
+        );
+    }
     if spec.strategy == BuildStrategy::Nixpacks {
         labels.insert("yggdrasil.buildpack".to_string(), "nixpacks".to_string());
     }
@@ -1099,23 +1374,72 @@ fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
 }
 
 fn prepare_build_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, String> {
+    let validated_root = validate_build_context_scope(spec)?;
     match spec.strategy {
         BuildStrategy::Dockerfile => Ok(PreparedBuildContext {
-            context: create_context_tar(spec)?,
+            context: create_context_tar_at(spec, &validated_root)?,
             dockerfile: spec.dockerfile.clone(),
             buildpack_version: None,
             generated_dockerfile: None,
         }),
-        BuildStrategy::Nixpacks => prepare_nixpacks_context(spec),
+        BuildStrategy::Nixpacks => prepare_nixpacks_context(spec, &validated_root),
     }
 }
 
-fn prepare_nixpacks_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, String> {
-    prepare_nixpacks_context_with_binary(spec, NIXPACKS_BINARY)
+fn validate_build_context_scope(spec: &BuildImageSpec) -> Result<PathBuf, String> {
+    let data_dir = ygg_core::paths::data_dir()
+        .map_err(|_| "failed to resolve Yggdrasil data directory".to_string())?;
+    let data_dir = canonical_real_directory(&data_dir, "data directory")?;
+    let projects = canonical_owned_directory(&data_dir, "projects", "projects root")?;
+    let project = canonical_owned_directory(&projects, &spec.project_id, "project root")?;
+    let expected = match &spec.context_scope {
+        BuildContextScope::ProjectWorkspace => {
+            canonical_owned_directory(&project, "workspace", "project workspace")?
+        }
+        BuildContextScope::DevelopmentScratch { change_set_id } => {
+            let development =
+                canonical_owned_directory(&project, "development", "development root")?;
+            let change =
+                canonical_owned_directory(&development, change_set_id, "development change root")?;
+            canonical_owned_directory(&change, "workspace", "development scratch workspace")?
+        }
+    };
+    let actual = std::fs::canonicalize(&spec.context_dir)
+        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
+    if actual != expected {
+        return Err("context_dir escaped its Host-owned workspace boundary".to_string());
+    }
+    Ok(expected)
+}
+
+fn canonical_real_directory(path: &Path, label: &str) -> Result<PathBuf, String> {
+    let metadata =
+        std::fs::symlink_metadata(path).map_err(|e| format!("failed to inspect {label}: {e}"))?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(format!("{label} must be a real directory, not a symlink"));
+    }
+    std::fs::canonicalize(path).map_err(|e| format!("failed to canonicalize {label}: {e}"))
+}
+
+fn canonical_owned_directory(parent: &Path, name: &str, label: &str) -> Result<PathBuf, String> {
+    let path = parent.join(name);
+    let canonical = canonical_real_directory(&path, label)?;
+    if canonical.parent() != Some(parent) {
+        return Err(format!("{label} escaped its Host-owned parent"));
+    }
+    Ok(canonical)
+}
+
+fn prepare_nixpacks_context(
+    spec: &BuildImageSpec,
+    validated_root: &Path,
+) -> Result<PreparedBuildContext, String> {
+    prepare_nixpacks_context_with_binary(spec, validated_root, NIXPACKS_BINARY)
 }
 
 fn prepare_nixpacks_context_with_binary(
     spec: &BuildImageSpec,
+    validated_root: &Path,
     binary: &str,
 ) -> Result<PreparedBuildContext, String> {
     validate_nixpacks_binary(binary)?;
@@ -1123,6 +1447,9 @@ fn prepare_nixpacks_context_with_binary(
         .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
     if !root.is_dir() {
         return Err("context_dir must be a directory".to_string());
+    }
+    if root != validated_root {
+        return Err("context_dir changed after Host ownership validation".to_string());
     }
     let out_dir = root.join(".yggdrasil-nixpacks").join(&spec.build_id);
     if out_dir.exists() {
@@ -1151,8 +1478,10 @@ fn prepare_nixpacks_context_with_binary(
     let mut generated = spec.clone();
     generated.context_dir = out_dir;
     generated.dockerfile = NIXPACKS_GENERATED_DOCKERFILE.to_string();
+    let generated_root = std::fs::canonicalize(&generated.context_dir)
+        .map_err(|e| format!("failed to canonicalize generated context: {e}"))?;
     Ok(PreparedBuildContext {
-        context: create_context_tar(&generated)?,
+        context: create_context_tar_at(&generated, &generated_root)?,
         dockerfile: NIXPACKS_GENERATED_DOCKERFILE.to_string(),
         buildpack_version: version,
         generated_dockerfile: Some(NIXPACKS_GENERATED_DOCKERFILE.to_string()),
@@ -1192,11 +1521,24 @@ fn nixpacks_version(binary: &str) -> Option<String> {
     (!raw.is_empty()).then_some(raw)
 }
 
+#[cfg(test)]
 fn create_context_tar(spec: &BuildImageSpec) -> Result<ContextTar, String> {
+    let root = std::fs::canonicalize(&spec.context_dir)
+        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
+    create_context_tar_at(spec, &root)
+}
+
+fn create_context_tar_at(
+    spec: &BuildImageSpec,
+    validated_root: &Path,
+) -> Result<ContextTar, String> {
     let root = std::fs::canonicalize(&spec.context_dir)
         .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
     if !root.is_dir() {
         return Err("context_dir must be a directory".to_string());
+    }
+    if root != validated_root {
+        return Err("context_dir changed after Host ownership validation".to_string());
     }
     let dockerfile = root.join(&spec.dockerfile);
     let dockerfile = std::fs::canonicalize(&dockerfile)
@@ -1234,10 +1576,47 @@ struct DockerIgnore {
 impl DockerIgnore {
     fn load(root: &Path) -> std::io::Result<Self> {
         let path = root.join(".dockerignore");
-        if !path.exists() {
-            return Ok(Self::default());
+        let metadata = match std::fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::default())
+            }
+            Err(error) => return Err(error),
+        };
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                ".dockerignore must be a regular file",
+            ));
         }
-        let raw = std::fs::read_to_string(path)?;
+        let mut file = std::fs::File::open(&path)?;
+        let opened = same_file::Handle::from_file(file.try_clone()?)?;
+        let current = std::fs::symlink_metadata(&path)?;
+        if !current.is_file()
+            || current.file_type().is_symlink()
+            || same_file::Handle::from_path(&path)? != opened
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                ".dockerignore changed while it was being opened",
+            ));
+        }
+        let mut bytes = Vec::new();
+        file.by_ref()
+            .take(1024 * 1024 + 1)
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > 1024 * 1024 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                ".dockerignore exceeds the 1 MiB limit",
+            ));
+        }
+        let raw = String::from_utf8(bytes).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                ".dockerignore must be UTF-8",
+            )
+        })?;
         let patterns = raw
             .lines()
             .map(str::trim)
@@ -1272,6 +1651,7 @@ fn add_context_dir(
     stats: &mut ContextStats,
     tar: &mut tar::Builder<Vec<u8>>,
 ) -> Result<(), String> {
+    let directory_handle = validated_context_directory_handle(root, dir)?;
     let mut entries = std::fs::read_dir(dir)
         .map_err(|e| format!("failed to read context dir {}: {e}", dir.display()))?
         .collect::<Result<Vec<_>, _>>()
@@ -1292,33 +1672,126 @@ fn add_context_dir(
             ));
         }
         if metadata.is_dir() {
-            let canonical = std::fs::canonicalize(&path)
-                .map_err(|e| format!("failed to canonicalize context dir {rel}: {e}"))?;
-            if !canonical.starts_with(root) {
-                return Err(format!("context directory escaped root: {rel}"));
-            }
+            validated_context_directory_handle(root, &path)?;
             add_context_dir(root, &path, ignore, spec, stats, tar)?;
         } else if metadata.is_file() {
             stats.files += 1;
-            stats.total_bytes = stats.total_bytes.saturating_add(metadata.len());
             if stats.files > spec.max_context_files {
                 return Err("build context file count limit exceeded".to_string());
             }
-            if stats.total_bytes > spec.max_context_bytes {
-                return Err("build context byte limit exceeded".to_string());
-            }
             let mut file = std::fs::File::open(&path)
                 .map_err(|e| format!("failed to open context file {rel}: {e}"))?;
-            let mut data = Vec::with_capacity(metadata.len().min(1024 * 1024) as usize);
-            file.read_to_end(&mut data)
+            let opened_handle = same_file::Handle::from_file(
+                file.try_clone()
+                    .map_err(|e| format!("failed to clone context file {rel}: {e}"))?,
+            )
+            .map_err(|e| format!("failed to identify context file {rel}: {e}"))?;
+            let opened_metadata = file
+                .metadata()
+                .map_err(|e| format!("failed to inspect opened context file {rel}: {e}"))?;
+            let current_metadata = std::fs::symlink_metadata(&path)
+                .map_err(|e| format!("failed to restat context file {rel}: {e}"))?;
+            let canonical = std::fs::canonicalize(&path)
+                .map_err(|e| format!("failed to canonicalize context file {rel}: {e}"))?;
+            if !opened_metadata.is_file()
+                || !current_metadata.is_file()
+                || current_metadata.file_type().is_symlink()
+                || !canonical.starts_with(root)
+                || same_file::Handle::from_path(&path)
+                    .map_err(|e| format!("failed to re-identify context file {rel}: {e}"))?
+                    != opened_handle
+            {
+                return Err(format!(
+                    "context file changed while it was being opened: {rel}"
+                ));
+            }
+            ensure_single_link_context_file(&opened_metadata)?;
+            let remaining = spec
+                .max_context_bytes
+                .checked_sub(stats.total_bytes)
+                .ok_or_else(|| "build context byte limit exceeded".to_string())?;
+            let mut data =
+                Vec::with_capacity(opened_metadata.len().min(remaining).min(1024 * 1024) as usize);
+            file.by_ref()
+                .take(remaining.saturating_add(1))
+                .read_to_end(&mut data)
                 .map_err(|e| format!("failed to read context file {rel}: {e}"))?;
-            tar_append_file(tar, &rel, &data, metadata.len())?;
+            if data.len() as u64 > remaining {
+                return Err("build context byte limit exceeded".to_string());
+            }
+            let after = std::fs::symlink_metadata(&path)
+                .map_err(|e| format!("failed to restat context file {rel}: {e}"))?;
+            let after_canonical = std::fs::canonicalize(&path)
+                .map_err(|e| format!("failed to recanonicalize context file {rel}: {e}"))?;
+            if after.file_type().is_symlink()
+                || !after.is_file()
+                || !after_canonical.starts_with(root)
+                || same_file::Handle::from_path(&path)
+                    .map_err(|e| format!("failed to re-identify context file {rel}: {e}"))?
+                    != opened_handle
+                || data.len() as u64 != opened_metadata.len()
+            {
+                return Err(format!(
+                    "context file changed while it was being read: {rel}"
+                ));
+            }
+            stats.total_bytes = stats.total_bytes.saturating_add(data.len() as u64);
+            tar_append_file(tar, &rel, &data, data.len() as u64)?;
         } else {
             return Err(format!(
                 "special files are not supported in build context: {rel}"
             ));
         }
     }
+    if validated_context_directory_handle(root, dir)? != directory_handle {
+        return Err(format!(
+            "context directory changed during traversal: {}",
+            dir.display()
+        ));
+    }
+    Ok(())
+}
+
+fn validated_context_directory_handle(
+    root: &Path,
+    dir: &Path,
+) -> Result<same_file::Handle, String> {
+    let metadata = std::fs::symlink_metadata(dir)
+        .map_err(|e| format!("failed to inspect context directory {}: {e}", dir.display()))?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(format!(
+            "build context contains a directory symlink: {}",
+            dir.display()
+        ));
+    }
+    let canonical = std::fs::canonicalize(dir).map_err(|e| {
+        format!(
+            "failed to canonicalize context directory {}: {e}",
+            dir.display()
+        )
+    })?;
+    if !canonical.starts_with(root) {
+        return Err(format!("context directory escaped root: {}", dir.display()));
+    }
+    same_file::Handle::from_path(dir).map_err(|e| {
+        format!(
+            "failed to identify context directory {}: {e}",
+            dir.display()
+        )
+    })
+}
+
+#[cfg(unix)]
+fn ensure_single_link_context_file(metadata: &std::fs::Metadata) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt;
+    if metadata.nlink() != 1 {
+        return Err("hard-linked files are not supported in build context".to_string());
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn ensure_single_link_context_file(_metadata: &std::fs::Metadata) -> Result<(), String> {
     Ok(())
 }
 
@@ -1443,6 +1916,16 @@ fn container_ref(input: &Value) -> Option<String> {
         .or_else(|| string_field(input, "container"))
 }
 
+fn managed_container_scope(input: &Value) -> Result<(String, String), String> {
+    let route_id = string_field(input, "route_id")
+        .filter(|value| valid_label_value(value))
+        .ok_or_else(|| "route_id is required and must be label-safe".to_string())?;
+    let port_lease_id = string_field(input, "port_lease_id")
+        .filter(|value| valid_label_value(value))
+        .ok_or_else(|| "port_lease_id is required and must be label-safe".to_string())?;
+    Ok((route_id, port_lease_id))
+}
+
 fn provenance(request: &InprocInvocation) -> Value {
     serde_json::json!({
         "package_id": request.provider_package_id,
@@ -1461,6 +1944,16 @@ fn rejected_output(request: &InprocInvocation) -> Value {
     serde_json::json!({
         "kind": "docker_runtime_lab_rejected",
         "reason": "input contains raw-secret-like content; pass only host-owned metadata and secret_ref references",
+        "docker_performed": false,
+        "provenance": provenance(request)
+    })
+}
+
+fn operation_rejected_output(request: &InprocInvocation, operation: &str, reason: &str) -> Value {
+    serde_json::json!({
+        "kind": "docker_runtime_lab_rejected",
+        "operation": operation,
+        "reason": reason,
         "docker_performed": false,
         "provenance": provenance(request)
     })
@@ -1574,6 +2067,29 @@ mod tests {
         assert!(diagnostics
             .iter()
             .any(|d| d["code"] == "env_or_secret_blocked"));
+    }
+
+    #[test]
+    fn docker_runtime_lab_container_effects_require_approval_and_ownership_scope() {
+        let unapproved = stop_container(&request(
+            "stop_container",
+            serde_json::json!({
+                "container_id": "container-1",
+                "route_id": "route-1",
+                "port_lease_id": "lease-1"
+            }),
+        ))
+        .unwrap();
+        assert_eq!(unapproved["kind"], "docker_runtime_lab_rejected");
+        assert_eq!(unapproved["docker_performed"], false);
+
+        let unscoped = status(&request(
+            "status",
+            serde_json::json!({ "container_id": "container-1" }),
+        ))
+        .unwrap();
+        assert_eq!(unscoped["kind"], "docker_runtime_lab_rejected");
+        assert_eq!(unscoped["docker_performed"], false);
     }
 
     #[test]
@@ -1735,6 +2251,67 @@ mod tests {
     }
 
     #[test]
+    fn docker_runtime_lab_development_scratch_defaults_to_no_network() {
+        let temp = tempfile::tempdir().unwrap();
+        let data_dir = temp.path().to_path_buf();
+        let previous_data_dir = std::env::var_os("YGG_DATA_DIR");
+        std::env::set_var("YGG_DATA_DIR", &data_dir);
+        let change_set_id = "chg-0123456789abcdef";
+        let context_dir = data_dir
+            .join("projects/project-1/development")
+            .join(change_set_id)
+            .join("workspace");
+        let result = parse_build_image_request(&serde_json::json!({
+            "approved": true,
+            "strategy": "dockerfile",
+            "project_id": "project-1",
+            "build_id": "build-1",
+            "development_change_id": change_set_id,
+            "context_dir": context_dir.to_string_lossy()
+        }));
+        match previous_data_dir {
+            Some(value) => std::env::set_var("YGG_DATA_DIR", value),
+            None => std::env::remove_var("YGG_DATA_DIR"),
+        }
+        let spec = result.unwrap();
+        assert_eq!(spec.network_mode, BuildNetworkMode::None);
+        assert_eq!(
+            spec.context_scope,
+            BuildContextScope::DevelopmentScratch {
+                change_set_id: change_set_id.to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn docker_runtime_lab_development_scratch_rejects_nixpacks() {
+        let temp = tempfile::tempdir().unwrap();
+        let data_dir = temp.path().to_path_buf();
+        let previous_data_dir = std::env::var_os("YGG_DATA_DIR");
+        std::env::set_var("YGG_DATA_DIR", &data_dir);
+        let change_set_id = "chg-0123456789abcdef";
+        let context_dir = data_dir
+            .join("projects/project-1/development")
+            .join(change_set_id)
+            .join("workspace");
+        let result = parse_build_image_request(&serde_json::json!({
+            "approved": true,
+            "strategy": "nixpacks",
+            "project_id": "project-1",
+            "build_id": "build-1",
+            "development_change_id": change_set_id,
+            "context_dir": context_dir.to_string_lossy()
+        }));
+        match previous_data_dir {
+            Some(value) => std::env::set_var("YGG_DATA_DIR", value),
+            None => std::env::remove_var("YGG_DATA_DIR"),
+        }
+        assert!(result
+            .unwrap_err()
+            .contains("only supports dockerfile strategy"));
+    }
+
+    #[test]
     fn docker_runtime_lab_nixpacks_command_shape_is_fixed_argv() {
         let context = PathBuf::from("/tmp/ygg/context");
         let out = PathBuf::from("/tmp/ygg/context/.yggdrasil-nixpacks/build-1");
@@ -1766,6 +2343,8 @@ mod tests {
             project_id: "project-1".to_string(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
+            context_scope: BuildContextScope::ProjectWorkspace,
+            network_mode: BuildNetworkMode::Bridge,
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
             build_descriptor_hash: None,
@@ -1774,8 +2353,13 @@ mod tests {
             max_context_files: 10,
             build_timeout_secs: 1,
         };
-        let error =
-            prepare_nixpacks_context_with_binary(&spec, "definitely-not-ygg-nixpacks").unwrap_err();
+        let validated_root = std::fs::canonicalize(&spec.context_dir).unwrap();
+        let error = prepare_nixpacks_context_with_binary(
+            &spec,
+            &validated_root,
+            "definitely-not-ygg-nixpacks",
+        )
+        .unwrap_err();
         assert!(error.contains("nixpacks unavailable") || error.contains("failed to start"));
     }
 
@@ -1831,6 +2415,8 @@ mod tests {
             project_id: "project-1".to_string(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
+            context_scope: BuildContextScope::ProjectWorkspace,
+            network_mode: BuildNetworkMode::Bridge,
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
             build_descriptor_hash: None,
@@ -1866,6 +2452,8 @@ mod tests {
             project_id: "project-1".to_string(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
+            context_scope: BuildContextScope::ProjectWorkspace,
+            network_mode: BuildNetworkMode::Bridge,
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
             build_descriptor_hash: None,

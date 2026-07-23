@@ -85,6 +85,18 @@ Capability boundaries:
 - Deterministic fixture workspace capabilities prove workspace descriptors, entrypoints, run plans, fixture results, and patch proposal shapes without creating directories, spawning processes, or reading files.
 - Patch output is proposal-only with `file_write_performed=false`.
 
+### Host development control plane
+
+Planning packages and real change execution now follow separate authority paths. `official/workspace-lab` continues to emit deterministic plans and patch proposals only. Approved source changes enter through the access-token-protected `/host/v1/projects/:project_id/changes` API and leave a durable `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` causal chain. Approval and execution are separate requests. Approval covers exact operations, verification, required authority, and expected effects; content cannot be replaced afterward.
+
+The first version accepts bounded `file_write` / `file_delete` operations only, copies into Host-owned scratch, and performs static validation or a constrained Dockerfile build. Docker defaults to no network and provides no arbitrary host command, scratch Nixpacks build, build secret, or host mount. See [`../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.en.md`](../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.en.md) for the complete boundary.
+
+Ownership determines delivery:
+
+- `managed_external`: after verification, create a new immutable content-digest tree and atomically update the descriptor; the old tree is never edited in place.
+- `native_managed`: return a verified bundle only, without automatic in-place write-back.
+- `linked_local`: reject the workflow until a managed copy is imported; the Host never mutates the user's directory automatically.
+
 ## Web aggregation entry
 
 `clients/web/src/projects/external-projects.ts` aggregates no-execution outputs from `project-intake-lab` and `workspace-lab` through public protocol/capability invoke.
@@ -92,6 +104,7 @@ Capability boundaries:
 - Home/Play displays an External Project Operating Plane rail.
 - Forge displays an External Projects / Managed Workspaces panel.
 - Assistant drawer displays lightweight inspect / draft patch / generate adapter plan entries.
+- The project console Development area uses the public Host API to draft, review, approve, execute, export, and recover ChangeSets; it never reads or writes a workspace directly.
 - UI does not read SQLite, runtime internals, local project directories, or process state.
 
 ## Security red lines
@@ -102,7 +115,7 @@ Capability boundaries:
 - Dangerous actions must be plan-first, policy-checked, proposal/approval-gated, audited, and redacted.
 - Do not execute `npm install`, `pip install`, `cargo build`, `make`, or arbitrary project scripts by default.
 - Do not inherit host `.env`, SSH keys, browser profiles, home directories, or raw secrets.
-- Agents may draft plans/proposals/patches only; execution must go through host executor/policy.
+- Agents and ordinary packages may draft plans/proposals/patches only; real effects must cross an authenticated Host policy, approval, scratch, verification, and audit chain.
 - Web shell remains public-protocol-only.
 
 ## Example
@@ -121,12 +134,13 @@ cargo run -p ygg-cli -- conformance --tag workspace_lab
 
 ## Next directions
 
-External intake can now establish real managed/linked workspaces with explicit ownership, while dangerous actions still deliberately stop at plans and previews. Real development, deployment, and maintenance need more boundaries:
+External intake, durable deployment, and controlled source ChangeSets now form the first Host loop. The next step is not arbitrary command execution; it is to tighten and extend the same boundary:
 
-- Host-controlled sandbox/workspace executor.
-- Real clone/install/run/test/stop/log execution boundaries.
-- Per-action approval, resource limits, egress policy, env allowlists, process lifecycle, artifact cleanup.
-- Patch apply / test rerun / deployment preview through branch/proposal flows.
-- Deeper project graph and dependency risk analysis.
+- project/action-scoped Host authority, remote identity, delegation, and revocation in place of today's Host-wide token granularity;
+- fine-grained artifact read permissions, encryption/retention policy, and reachability GC;
+- more explicit verifiers and sandbox backends, each declaring network, secret, resource, and effect needs instead of collapsing into a generic shell runner;
+- human/tool-assisted application of verified bundles and deployment previews connected to the existing durable deployment workflow;
+- deeper project graphs, dependency risk analysis, and controlled adapter authoring;
+- remote CLI, desktop, and mobile clients reusing the same Host API without a side-channel write path.
 
-These should still proceed as ordinary package and host-executor substrate, not as kernel product ontology.
+These should still proceed as ordinary package and Host-executor substrate, not as kernel product ontology.

@@ -13,6 +13,7 @@ import { shouldReturnToShellHistory } from "@/client-core/platform-adapter";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle, type ResolvedSurfaceBundle } from "@/surfaces/bundle-resolver";
 import { formatBytes } from "@/lib/format";
+import { DevelopmentWorkflowCard } from "@/components/development/change-workflow-card";
 import { parseBuildDeployDescriptor, parseDockerDeploymentDescriptor, type BuildDeployDescriptor, type DockerDeploymentDescriptor } from "@/lib/project-deployment";
 import type {
   BuildDeployJobEvent,
@@ -804,6 +805,10 @@ function ProjectConsole({
           </div>
         </ConsoleSection>
       </div>
+
+      <ConsoleSection title={t("projectFrameDevelopmentSection")} description={t("projectFrameDevelopmentDescription")}>
+        <DevelopmentWorkflowCard key={projectId} projectId={projectId} />
+      </ConsoleSection>
 
       <ConsoleSection title={t("projectFrameDeploymentSection")} description={t("projectFrameDeploymentDescription")}>
         {deploymentParse.descriptor || deploymentParse.error ? (

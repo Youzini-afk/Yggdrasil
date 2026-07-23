@@ -85,6 +85,18 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 - Fixture workspace 能力证明 workspace descriptor、entrypoint、run plan、fixture result 和 patch proposal 的形状。它不创建目录、不启动进程、不读取文件。
 - Patch 只生成提案形状，`file_write_performed=false`。
 
+### Host 开发控制平面
+
+规划包与真实变更执行现在是两条不同的权限路径。`official/workspace-lab` 继续只生成确定性的计划和 patch proposal；获批的源码变更由 access-token 保护的 `/host/v1/projects/:project_id/changes` API 接收，并沿 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` 留下 durable 因果链。审批和执行是两个请求，批准对象包含精确 operations、验证方式、所需 authority 和预期效果，批准后不能替换内容。
+
+首版只支持有界 `file_write` / `file_delete`，先复制到 Host-owned scratch，再做静态验证或受限 Dockerfile build。Docker 默认无网络，不支持任意 host command、Nixpacks scratch build、build secret 或 host mount。完整设计见 [`../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md`](../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md)。
+
+所有权决定结果如何交付：
+
+- `managed_external`：验证通过后创建新的不可变 content-digest tree，并原子更新 descriptor；旧 tree 不会被原地修改。
+- `native_managed`：只返回 verified bundle，不自动原地写回。
+- `linked_local`：拒绝进入该流程；必须先导入 managed 副本，Host 永不自动修改用户目录。
+
 ## Web 聚合入口
 
 `clients/web/src/projects/external-projects.ts` 通过公开协议和能力调用聚合 `project-intake-lab` 与 `workspace-lab` 的计划输出。
@@ -92,6 +104,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 - Home/Play 显示 External Project Operating Plane rail。
 - Forge 显示 External Projects / Managed Workspaces panel。
 - Assistant drawer 显示 inspect / draft patch / generate adapter plan 的轻量入口。
+- 项目控制台的 Development 区域通过公开 Host API 草拟、审阅、批准、执行、导出和恢复 ChangeSet；它不直接读写 workspace。
 - UI 不读 SQLite、runtime internals、本地项目目录或进程状态。
 
 ## 安全红线
@@ -102,7 +115,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 - 危险动作必须先计划，再通过策略、提案、审批、审计和脱敏边界。
 - 默认不执行 `npm install`、`pip install`、`cargo build`、`make` 或任意 project script。
 - 不继承宿主 `.env`、SSH key、browser profile、home directory 或 raw secrets。
-- Agent 只能草拟计划、提案和 patch；执行必须由 host executor/policy 完成。
+- Agent 和普通包只能草拟计划、提案和 patch；真实效果必须由已认证 Host 的策略、审批、scratch、验证与审计链完成。
 - Web shell 只走公开协议。
 
 ## 示例
@@ -121,12 +134,13 @@ cargo run -p ygg-cli -- conformance --tag workspace_lab
 
 ## 后续方向
 
-external intake 已能建立真实、所有权清晰的 managed/linked workspace，但危险动作仍刻意停在计划和预览。后续若要进入真实开发、部署与维护，需要补上：
+external intake、durable 部署和受控源码 ChangeSet 已形成第一条 Host 闭环。下一步不是加入任意命令执行，而是在相同边界上继续收紧和扩展：
 
-- host 控制的沙箱和 workspace executor。
-- clone/install/run/test/stop/logs 的真实执行边界。
-- 单动作审批、资源限制、egress policy、env allowlist、进程生命周期和 artifact cleanup。
-- patch apply / test rerun / deployment preview 的分支和提案流程。
-- 更深入的 project graph 和 dependency risk analysis。
+- 项目/动作级 Host authority、远端身份、delegation 与撤销，替代当前 Host 级 token 粒度。
+- artifact 的细粒度读取权限、加密/保留策略和 reachability GC。
+- 更多显式 verifier 与沙箱后端；每一种都必须声明网络、secret、资源和效果，不能退化成通用 shell runner。
+- verified bundle 的人工/工具化应用，以及部署预览与已有 durable deployment workflow 的衔接。
+- 更深入的 project graph、dependency risk analysis 和受控 adapter authoring。
+- 远程 CLI、桌面与移动端复用同一 Host API，不建立旁路写入路径。
 
-这些仍应作为普通包和 host executor 底座推进，不应进入内核 product ontology。
+这些仍应作为普通包和 Host executor 底座推进，不应进入内核 product ontology。

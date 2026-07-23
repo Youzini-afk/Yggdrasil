@@ -41,6 +41,17 @@ use ygg_runtime::{
 };
 use ygg_runtime::{PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteStatusKind};
 
+mod development;
+
+pub use development::{
+    acquire_development_host_lease, development_registry, hydrate_development_control_plane,
+    release_development_host_lease, spawn_development_host_lease_heartbeat,
+    DevelopmentChangeRecord, DevelopmentChangeStatus, DevelopmentDraftRequest,
+    DevelopmentFileOperationRequest, DevelopmentHostLease, DevelopmentManagedPromotion,
+    DevelopmentNetworkMode, DevelopmentRecoveryKind, DevelopmentRegistry,
+    DevelopmentVerificationPlan, DevelopmentVerificationResult, DevelopmentWorkspaceOwnership,
+};
+
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const PROXY_RESPONSE_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const PROXY_WEBSOCKET_FRAME_LIMIT_BYTES: usize = 16 * 1024 * 1024;
@@ -107,6 +118,7 @@ where
     pub access_token: Option<String>,
     pub app_base_domain: Option<String>,
     pub build_jobs: Arc<BuildDeployJobRegistry>,
+    pub development: Arc<DevelopmentRegistry>,
 }
 
 impl<S> Clone for AppState<S>
@@ -120,6 +132,7 @@ where
             access_token: self.access_token.clone(),
             app_base_domain: self.app_base_domain.clone(),
             build_jobs: self.build_jobs.clone(),
+            development: self.development.clone(),
         }
     }
 }
@@ -165,6 +178,7 @@ pub fn app() -> Router {
         access_token: None,
         app_base_domain: None,
         build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+        development: development_registry(),
     })
 }
 
@@ -237,6 +251,7 @@ where
             "/host/v1/projects/:project_id/deployments/rollback",
             post(rollback_project_deployment::<S>),
         )
+        .merge(development::routes::<S>())
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
@@ -2974,7 +2989,13 @@ where
             state,
             &context,
             "official/docker-runtime-lab/stop_container",
-            serde_json::json!({ "container_id": container, "timeout_secs": 10 }),
+            serde_json::json!({
+                "approved": true,
+                "container_id": container.container,
+                "route_id": route_id,
+                "port_lease_id": container.port_lease_id,
+                "timeout_secs": 10
+            }),
         )
         .await
         {
@@ -3995,12 +4016,18 @@ async fn rollback_deploy<S>(
         )
         .await;
     }
-    if let Some(container_id) = container_id {
+    if let (Some(container_id), Some(port_lease_id)) = (container_id, lease_id) {
         let _ = invoke_docker_runtime_lab(
             state,
             context,
             "official/docker-runtime-lab/stop_container",
-            serde_json::json!({ "container_id": container_id, "timeout_secs": 5 }),
+            serde_json::json!({
+                "approved": true,
+                "container_id": container_id,
+                "route_id": route_id,
+                "port_lease_id": port_lease_id,
+                "timeout_secs": 5
+            }),
         )
         .await;
     }
@@ -4590,15 +4617,24 @@ fn require_started_container(output: &Value) -> anyhow::Result<String> {
     required_string(output, "container_id", "docker-runtime-lab start_container")
 }
 
-fn find_managed_container_for_route(output: &Value, route_id: &str) -> Option<String> {
+struct ManagedContainerRef {
+    container: String,
+    port_lease_id: String,
+}
+
+fn find_managed_container_for_route(output: &Value, route_id: &str) -> Option<ManagedContainerRef> {
     let managed = output.get("managed")?.as_array()?;
     for container in managed {
         if container.get("route_id").and_then(Value::as_str) != Some(route_id) {
             continue;
         }
+        let port_lease_id = optional_string(container, "port_lease_id")?;
         for field in ["container_id", "id", "container_name", "name"] {
             if let Some(value) = optional_string(container, field) {
-                return Some(value);
+                return Some(ManagedContainerRef {
+                    container: value,
+                    port_lease_id,
+                });
             }
         }
     }
@@ -6454,6 +6490,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -6532,6 +6569,7 @@ mod tests {
             access_token: Some("secret-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let health = app
@@ -6588,6 +6626,7 @@ mod tests {
                 access_token: Some("long-lived-host-token".to_string()),
                 app_base_domain: None,
                 build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+                development: development_registry(),
             },
             Some("single-use-bootstrap-nonce".to_string()),
         );
@@ -6670,6 +6709,7 @@ mod tests {
             access_token: Some("deploy-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let denied = app
@@ -6704,6 +6744,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -6759,6 +6800,7 @@ mod tests {
             access_token: Some("event-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let denied = app
@@ -6792,6 +6834,7 @@ mod tests {
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let denied = app
@@ -6816,6 +6859,7 @@ mod tests {
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -6872,6 +6916,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let not_ready = app
@@ -6998,6 +7043,7 @@ mod tests {
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7135,6 +7181,7 @@ mod tests {
             access_token: Some("proxy-token".to_string()),
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7180,6 +7227,7 @@ mod tests {
             access_token: Some("proxy-token".to_string()),
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let evil_suffix = app
@@ -7215,6 +7263,7 @@ mod tests {
             access_token: None,
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         };
         let route_id = "My_App/Main";
         let url = service_public_url_for_route(&state, route_id, "/p/My_App/Main/");
@@ -7293,6 +7342,7 @@ mod tests {
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7331,6 +7381,7 @@ mod tests {
             access_token: Some("ws-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let denied = app
@@ -7390,6 +7441,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7487,6 +7539,7 @@ mod tests {
             access_token: Some("ws-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let proxy_addr = listener.local_addr()?;
@@ -7545,6 +7598,7 @@ mod tests {
             access_token: Some("bundle-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7595,6 +7649,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7624,6 +7679,7 @@ mod tests {
             access_token: Some("static-token".to_string()),
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app
@@ -7658,6 +7714,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         for path in [
@@ -7705,6 +7762,7 @@ mod tests {
             access_token: None,
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
         });
 
         let response = app

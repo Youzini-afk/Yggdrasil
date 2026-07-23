@@ -333,6 +333,62 @@ export interface LocaleDictionary {
   projectFrameNoEvents: string;
   projectFrameNoSession: string;
   projectFrameDiagnosticsWarnings: string;
+  projectFrameDevelopmentSection: string;
+  projectFrameDevelopmentDescription: string;
+  projectFrameDevelopmentLoadFailed: string;
+  projectFrameDevelopmentGoal: string;
+  projectFrameDevelopmentGoalPlaceholder: string;
+  projectFrameDevelopmentTarget: string;
+  projectFrameDevelopmentOperation: string;
+  projectFrameDevelopmentWrite: string;
+  projectFrameDevelopmentDelete: string;
+  projectFrameDevelopmentExecutable: string;
+  projectFrameDevelopmentDockerBuild: string;
+  projectFrameDevelopmentAllowNetwork: string;
+  projectFrameDevelopmentDockerfile: string;
+  projectFrameDevelopmentContent: string;
+  projectFrameDevelopmentSafetyHint: string;
+  projectFrameDevelopmentDrafting: string;
+  projectFrameDevelopmentDraft: string;
+  projectFrameDevelopmentHistory: string;
+  projectFrameDevelopmentHistoryDescription: string;
+  projectFrameDevelopmentRefresh: string;
+  projectFrameDevelopmentEmpty: string;
+  projectFrameDevelopmentDrafted: string;
+  projectFrameDevelopmentDraftFailed: string;
+  projectFrameDevelopmentApproveConfirm: string;
+  projectFrameDevelopmentDecisionFailed: string;
+  projectFrameDevelopmentExecuteConfirm: string;
+  projectFrameDevelopmentExecutionStarted: string;
+  projectFrameDevelopmentExecutionAlreadyActive: string;
+  projectFrameDevelopmentExecutionFailed: string;
+  projectFrameDevelopmentRecovered: string;
+  projectFrameDevelopmentRecoveryFailed: string;
+  projectFrameDevelopmentExportFailed: string;
+  projectFrameDevelopmentLinkedHint: string;
+  projectFrameDevelopmentReviewOperations: string;
+  projectFrameDevelopmentReviewVerification: string;
+  projectFrameDevelopmentReviewAuthority: string;
+  projectFrameDevelopmentReviewEffects: string;
+  projectFrameDevelopmentApprovalRecord: string;
+  projectFrameDevelopmentRecoveryTarget: string;
+  projectFrameDevelopmentVerificationStatic: string;
+  projectFrameDevelopmentVerificationDocker: string;
+  projectFrameDevelopmentStatusDrafted: string;
+  projectFrameDevelopmentStatusApproved: string;
+  projectFrameDevelopmentStatusRejected: string;
+  projectFrameDevelopmentStatusStaging: string;
+  projectFrameDevelopmentStatusVerifying: string;
+  projectFrameDevelopmentStatusPromoting: string;
+  projectFrameDevelopmentStatusVerified: string;
+  projectFrameDevelopmentStatusCommitted: string;
+  projectFrameDevelopmentStatusRecoveryRequired: string;
+  projectFrameDevelopmentStatusFailed: string;
+  projectFrameDevelopmentExport: string;
+  projectFrameDevelopmentReject: string;
+  projectFrameDevelopmentApprove: string;
+  projectFrameDevelopmentExecute: string;
+  projectFrameDevelopmentRecover: string;
   projectFrameDeploymentSection: string;
   projectFrameDeploymentDescription: string;
   projectFrameDeploymentExecutions: string;
@@ -954,6 +1010,62 @@ export const labels = {
     projectFrameNoEvents: "No recent events for this session.",
     projectFrameNoSession: "No running session is available yet.",
     projectFrameDiagnosticsWarnings: "Diagnostic warnings",
+    projectFrameDevelopmentSection: "Development",
+    projectFrameDevelopmentDescription: "Draft content-addressed ChangeSets, approve them explicitly, verify in an isolated scratch workspace, then promote only Host-owned trees.",
+    projectFrameDevelopmentLoadFailed: "Development history unavailable",
+    projectFrameDevelopmentGoal: "Goal",
+    projectFrameDevelopmentGoalPlaceholder: "Describe the intended source change",
+    projectFrameDevelopmentTarget: "Relative file path",
+    projectFrameDevelopmentOperation: "Operation",
+    projectFrameDevelopmentWrite: "Write file",
+    projectFrameDevelopmentDelete: "Delete file",
+    projectFrameDevelopmentExecutable: "Executable file",
+    projectFrameDevelopmentDockerBuild: "Verify with Docker build",
+    projectFrameDevelopmentAllowNetwork: "Allow Docker build egress",
+    projectFrameDevelopmentDockerfile: "Dockerfile path",
+    projectFrameDevelopmentContent: "UTF-8 source content",
+    projectFrameDevelopmentSafetyHint: "Drafts store source blobs by digest, never raw source in the journal. Docker scratch builds default to no network and discard verification images. Managed external trees may be promoted; native trees are verify-only, and linked-local projects must first be imported as managed.",
+    projectFrameDevelopmentDrafting: "Drafting…",
+    projectFrameDevelopmentDraft: "Draft ChangeSet",
+    projectFrameDevelopmentHistory: "Change history",
+    projectFrameDevelopmentHistoryDescription: "Durable intent, policy, approval, verification, commit, and effect receipts.",
+    projectFrameDevelopmentRefresh: "Refresh",
+    projectFrameDevelopmentEmpty: "No development ChangeSets have been drafted for this project.",
+    projectFrameDevelopmentDrafted: "Development ChangeSet drafted",
+    projectFrameDevelopmentDraftFailed: "Could not draft development ChangeSet",
+    projectFrameDevelopmentApproveConfirm: "Approve this exact ChangeSet and its listed filesystem, Docker, and network authority?",
+    projectFrameDevelopmentDecisionFailed: "Could not record approval decision",
+    projectFrameDevelopmentExecuteConfirm: "Execute the approved ChangeSet in a Host-owned scratch workspace now?",
+    projectFrameDevelopmentExecutionStarted: "Development execution started",
+    projectFrameDevelopmentExecutionAlreadyActive: "Development execution is already active; status refreshed",
+    projectFrameDevelopmentExecutionFailed: "Could not start development execution",
+    projectFrameDevelopmentRecovered: "Development promotion reconciled",
+    projectFrameDevelopmentRecoveryFailed: "Development promotion still requires recovery",
+    projectFrameDevelopmentExportFailed: "Could not export patch bundle",
+    projectFrameDevelopmentLinkedHint: "Linked-local projects are proposal-only. Import a managed copy before Host verification; Yggdrasil never writes the linked user source.",
+    projectFrameDevelopmentReviewOperations: "Exact operations",
+    projectFrameDevelopmentReviewVerification: "Verification",
+    projectFrameDevelopmentReviewAuthority: "Required authority",
+    projectFrameDevelopmentReviewEffects: "Expected effects",
+    projectFrameDevelopmentApprovalRecord: "Recorded approval decision",
+    projectFrameDevelopmentRecoveryTarget: "Recovery reconciliation target",
+    projectFrameDevelopmentVerificationStatic: "Static validation (no code execution)",
+    projectFrameDevelopmentVerificationDocker: "Docker build verification",
+    projectFrameDevelopmentStatusDrafted: "Drafted",
+    projectFrameDevelopmentStatusApproved: "Approved",
+    projectFrameDevelopmentStatusRejected: "Rejected",
+    projectFrameDevelopmentStatusStaging: "Staging",
+    projectFrameDevelopmentStatusVerifying: "Verifying",
+    projectFrameDevelopmentStatusPromoting: "Promoting",
+    projectFrameDevelopmentStatusVerified: "Verified",
+    projectFrameDevelopmentStatusCommitted: "Committed",
+    projectFrameDevelopmentStatusRecoveryRequired: "Recovery required",
+    projectFrameDevelopmentStatusFailed: "Failed",
+    projectFrameDevelopmentExport: "Export bundle",
+    projectFrameDevelopmentReject: "Reject",
+    projectFrameDevelopmentApprove: "Approve",
+    projectFrameDevelopmentExecute: "Execute",
+    projectFrameDevelopmentRecover: "Reconcile",
     projectFrameDeploymentSection: "Deployment",
     projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
     projectFrameDeploymentExecutions: "Executions",
@@ -1575,6 +1687,62 @@ export const labels = {
     projectFrameNoEvents: "该会话暂无近期事件。",
     projectFrameNoSession: "尚无运行中的会话。",
     projectFrameDiagnosticsWarnings: "诊断警告",
+    projectFrameDevelopmentSection: "开发",
+    projectFrameDevelopmentDescription: "草拟内容寻址 ChangeSet，显式审批，在隔离 scratch 中验证，并且只提升 Host 拥有的工作树。",
+    projectFrameDevelopmentLoadFailed: "无法读取开发历史",
+    projectFrameDevelopmentGoal: "目标",
+    projectFrameDevelopmentGoalPlaceholder: "描述这次源码变更要实现什么",
+    projectFrameDevelopmentTarget: "相对文件路径",
+    projectFrameDevelopmentOperation: "操作",
+    projectFrameDevelopmentWrite: "写入文件",
+    projectFrameDevelopmentDelete: "删除文件",
+    projectFrameDevelopmentExecutable: "可执行文件",
+    projectFrameDevelopmentDockerBuild: "使用 Docker 构建验证",
+    projectFrameDevelopmentAllowNetwork: "允许 Docker 构建出网",
+    projectFrameDevelopmentDockerfile: "Dockerfile 路径",
+    projectFrameDevelopmentContent: "UTF-8 源码内容",
+    projectFrameDevelopmentSafetyHint: "草稿把源码按摘要存为对象，journal 不保存源码明文；Docker scratch 默认断网并删除验证镜像。managed external 可提升，native 只验证；linked-local 必须先导入为 managed 才能由 Host 验证。",
+    projectFrameDevelopmentDrafting: "正在草拟…",
+    projectFrameDevelopmentDraft: "草拟 ChangeSet",
+    projectFrameDevelopmentHistory: "变更历史",
+    projectFrameDevelopmentHistoryDescription: "持久保存 intent、策略、审批、验证、commit 与 effect receipt。",
+    projectFrameDevelopmentRefresh: "刷新",
+    projectFrameDevelopmentEmpty: "该项目尚无开发 ChangeSet。",
+    projectFrameDevelopmentDrafted: "开发 ChangeSet 已草拟",
+    projectFrameDevelopmentDraftFailed: "无法草拟开发 ChangeSet",
+    projectFrameDevelopmentApproveConfirm: "批准这个精确 ChangeSet 及其列出的文件系统、Docker 与网络权限？",
+    projectFrameDevelopmentDecisionFailed: "无法记录审批决定",
+    projectFrameDevelopmentExecuteConfirm: "现在在 Host 拥有的 scratch 工作区执行已批准的 ChangeSet？",
+    projectFrameDevelopmentExecutionStarted: "开发执行已开始",
+    projectFrameDevelopmentExecutionAlreadyActive: "开发执行已在进行，状态已刷新",
+    projectFrameDevelopmentExecutionFailed: "无法启动开发执行",
+    projectFrameDevelopmentRecovered: "开发 promotion 已完成对账",
+    projectFrameDevelopmentRecoveryFailed: "开发 promotion 仍需要恢复",
+    projectFrameDevelopmentExportFailed: "无法导出 patch bundle",
+    projectFrameDevelopmentLinkedHint: "linked-local 项目仅允许提案。请先导入 managed 副本再进行 Host 验证；Yggdrasil 永不写入链接的用户源目录。",
+    projectFrameDevelopmentReviewOperations: "精确操作",
+    projectFrameDevelopmentReviewVerification: "验证方式",
+    projectFrameDevelopmentReviewAuthority: "所需权限",
+    projectFrameDevelopmentReviewEffects: "预期效果",
+    projectFrameDevelopmentApprovalRecord: "已记录的审批决定",
+    projectFrameDevelopmentRecoveryTarget: "恢复对账对象",
+    projectFrameDevelopmentVerificationStatic: "静态验证（不执行代码）",
+    projectFrameDevelopmentVerificationDocker: "Docker 构建验证",
+    projectFrameDevelopmentStatusDrafted: "草稿",
+    projectFrameDevelopmentStatusApproved: "已批准",
+    projectFrameDevelopmentStatusRejected: "已拒绝",
+    projectFrameDevelopmentStatusStaging: "正在暂存",
+    projectFrameDevelopmentStatusVerifying: "正在验证",
+    projectFrameDevelopmentStatusPromoting: "正在提升",
+    projectFrameDevelopmentStatusVerified: "已验证",
+    projectFrameDevelopmentStatusCommitted: "已提交",
+    projectFrameDevelopmentStatusRecoveryRequired: "需要恢复",
+    projectFrameDevelopmentStatusFailed: "失败",
+    projectFrameDevelopmentExport: "导出 bundle",
+    projectFrameDevelopmentReject: "拒绝",
+    projectFrameDevelopmentApprove: "批准",
+    projectFrameDevelopmentExecute: "执行",
+    projectFrameDevelopmentRecover: "对账恢复",
     projectFrameDeploymentSection: "部署",
     projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
     projectFrameDeploymentExecutions: "执行",
