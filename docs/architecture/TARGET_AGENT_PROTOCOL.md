@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-状态：**实施前设计合同**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被部署应用的身份系统。
+状态：**实施合同；Phase 4 进行中**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被部署应用的身份系统。
 
 ## 三种远程边界
 
@@ -54,6 +54,22 @@ ExecutionTarget
 5. revoke 后拒绝新 session 和新 operation；正在运行 workload 的处理由 drain/revoke policy 决定。
 
 Host journal 只保存 public identity、credential digest/serial、状态和审计引用，不保存 agent private key。第一版可以使用 Host 管理的 CA；协议语义应允许后续接入 SPIFFE，而不把 SPIFFE 部署要求写入核心模型。
+
+### 已实现的 identity/observation 切片
+
+当前 `target-agent.v1` 只开放不产生目标端 effect 的身份与观测控制面：
+
+| 调用方 | 路由 | 权威与作用 |
+|---|---|---|
+| Host 客户端 | `POST /host/v1/targets/{target_id}/enrollments` | `deploy` scope + target selector；创建最长 15 分钟的单次 challenge |
+| Agent | `POST /target-agent/v1/enroll` | 消费 challenge，协商版本/能力并一次性接收 Host 生成的 bootstrap target credential |
+| Agent | `POST /target-agent/v1/heartbeat` | 独立 `YggTarget` credential；刷新 observation 与 45 秒 liveness |
+| Host 客户端 | `GET /host/v1/targets/{target_id}/observe` | `observe` scope + target selector；读取声明、有效能力、epoch 与观测摘要 |
+| Host 客户端 | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope + target selector；撤销身份并同时推进 lease/policy epoch |
+
+Enrollment token 和 agent credential 只以带 domain separation 的 SHA-256 digest 进入 `host_control_target_agents` journal；challenge 单次消费，重启后非 revoked target 先回到 `Offline`，旧凭据与旧 epoch 不能恢复为可用状态。`kernel.v1.target.register/unregister` 保留兼容方法名但 fail closed，调用方 JSON 不能绕过该流程制造 `Available` target。
+
+该 HTTP API 是 Phase 4A 的 bootstrap/liveness 控制通道，不接收 operation、artifact、tunnel 或通用命令。`YggTarget` credential 只能经 loopback 或已认证 TLS 传输；在任何 effect endpoint 启用前，后续切片仍必须实现本合同要求的 operation authority、持久 ledger、fencing，以及 mTLS 或等价双向认证 session。
 
 ## Transport session
 

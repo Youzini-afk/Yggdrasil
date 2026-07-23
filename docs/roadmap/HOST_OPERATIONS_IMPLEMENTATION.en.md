@@ -27,8 +27,10 @@ Some release/health work may develop alongside Phase 2, but remote targets do no
 |---|---|---|
 | Phase 0 | Complete | Bilingual design contracts, threats, and failure boundaries are frozen as the implementation baseline |
 | Phase 1 | Candidate implementation complete | Project/target authority, delegation, server-side filtering, Web/CLI, and redacted decision journals are closed; GitHub CI validates the full matrix |
-| Phase 2 | In progress | Next: durable intent/operation/lease/receipt and startup reconciliation |
-| Phase 3–5 | Not started | They remain dependency-gated; remote targets do not open early |
+| Phase 2 | Candidate implementation complete | Durable deployment intent/operation/lease/receipt, candidate-first activation, reconcile/recover/rollback, and bounded restart policy are closed and validated by GitHub CI |
+| Phase 3 | Candidate implementation complete | Non-destructive data migration, backup/verify/restore, live/ready, release integrity, SBOM, and provenance are closed and validated by GitHub CI |
+| Phase 4 | In progress | The identity/observation slice now has durable enrollment, a separate agent credential, heartbeat timeout, observe/revoke, and epoch fencing; typed operation/driver/artifact/tunnel work follows after CI |
+| Phase 5 | Not started | It remains gated on the Remote Target Agent and will not add client-only bypasses |
 
 ## Phase 0: design contracts
 

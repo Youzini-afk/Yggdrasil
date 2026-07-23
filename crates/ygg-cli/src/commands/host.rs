@@ -829,6 +829,15 @@ where
             .await
             .context("failed to hydrate durable Host access control plane")?;
     println!("  Host access journal events loaded: {host_access_events}");
+    let target_agents = ygg_service::target_agent_registry();
+    let target_agent_events = ygg_service::hydrate_target_agent_control_plane(
+        runtime.store(),
+        target_agents.clone(),
+        runtime.config().target_registry.clone(),
+    )
+    .await
+    .context("failed to hydrate durable target agent control plane")?;
+    println!("  target agent journal events loaded: {target_agent_events}");
     let development = ygg_service::development_registry();
     let development_lease =
         ygg_service::acquire_development_host_lease(runtime.store(), development.clone())
@@ -918,6 +927,7 @@ where
         build_jobs,
         development,
         host_access,
+        target_agents,
     };
     match ygg_service::reconcile_deployment_control_plane(&state).await {
         Ok(summary) => println!(

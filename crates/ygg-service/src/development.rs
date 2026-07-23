@@ -4003,6 +4003,7 @@ mod tests {
             build_jobs: crate::build_deploy_job_registry(),
             development: development_registry(),
             host_access: crate::host_access_registry(),
+            target_agents: crate::target_agent_registry(),
         });
         let response = app
             .oneshot(

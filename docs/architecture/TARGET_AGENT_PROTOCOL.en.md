@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-Status: **pre-implementation design contract**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider.
+Status: **implementation contract; Phase 4 in progress**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider.
 
 ## Three remote boundaries
 
@@ -49,6 +49,22 @@ States include Enrolling, Available, Degraded, Offline, Draining, Incompatible, 
 5. revocation rejects new sessions and operations; drain/revoke policy handles existing workloads.
 
 The journal stores public identity, credential digest/serial, state, and audit references, never the agent private key. A Host-managed CA can implement v1 while preserving future SPIFFE integration.
+
+### Implemented identity/observation slice
+
+The current `target-agent.v1` surface exposes only identity and observation control-plane calls that cannot cause target-side effects:
+
+| Caller | Route | Authority and purpose |
+|---|---|---|
+| Host client | `POST /host/v1/targets/{target_id}/enrollments` | `deploy` scope plus target selector; creates a single-use challenge with a maximum 15-minute lifetime |
+| Agent | `POST /target-agent/v1/enroll` | Consumes the challenge, negotiates version/capabilities, and receives a Host-generated bootstrap target credential once |
+| Agent | `POST /target-agent/v1/heartbeat` | Separate `YggTarget` credential; refreshes observation and 45-second liveness |
+| Host client | `GET /host/v1/targets/{target_id}/observe` | `observe` scope plus target selector; returns declarations, effective capabilities, epochs, and observed summary |
+| Host client | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope plus target selector; revokes identity and advances both lease and policy epochs |
+
+Enrollment tokens and agent credentials enter the `host_control_target_agents` journal only as domain-separated SHA-256 digests. Challenges are single-use; after restart every non-revoked remote target first returns to `Offline`; an old credential or epoch cannot restore availability. The compatibility names `kernel.v1.target.register/unregister` now fail closed, so caller JSON cannot bypass enrollment and create an `Available` target.
+
+This HTTP API is the Phase 4A bootstrap/liveness control channel; it accepts no operation, artifact, tunnel, or general command. A `YggTarget` credential may travel only over loopback or authenticated TLS. Before any effect endpoint is enabled, later slices must still deliver this contract's operation authority, durable ledger, fencing, and mTLS or equivalent mutually authenticated session.
 
 ## Transport session
 

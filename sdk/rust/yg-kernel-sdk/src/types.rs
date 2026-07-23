@@ -5983,20 +5983,105 @@ pub struct ExecStoppedPayloadReceipt {
 ///  ],
 ///  "properties": {
 ///    "capabilities": {
+///      "description": "Effective capabilities after protocol negotiation and Host policy.",
 ///      "default": [],
 ///      "type": "array",
 ///      "items": {
 ///        "$ref": "#/definitions/ExecutionTargetCapability"
 ///      }
 ///    },
+///    "declared_capabilities": {
+///      "description": "Capabilities declared by the target before Host policy is applied.",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "enrolled_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
+///    "heartbeat_expires_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
 ///    "id": {
 ///      "type": "string"
+///    },
+///    "identity_ref": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "labels": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": {
+///        "type": "string"
+///      }
+///    },
+///    "last_seen_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
+///    "lease_epoch": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
 ///    },
 ///    "name": {
 ///      "type": "string"
 ///    },
+///    "observed": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ExecutionTargetObservedSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "policy_epoch": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "protocol_versions": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "reachability": {
 ///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "revoked_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
+///    "selected_protocol_version": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
 ///    },
 ///    "status": {
 ///      "$ref": "#/definitions/ExecutionTargetStatusKind"
@@ -6009,11 +6094,40 @@ pub struct ExecStoppedPayloadReceipt {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ExecutionTarget {
+    ///Effective capabilities after protocol negotiation and Host policy.
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    ///Capabilities declared by the target before Host policy is applied.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declared_capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub enrolled_at_ms: ::std::option::Option<i64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub heartbeat_expires_at_ms: ::std::option::Option<i64>,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub identity_ref: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = ":: std :: collections :: HashMap::is_empty")]
+    pub labels: ::std::collections::HashMap<
+        ::std::string::String,
+        ::std::string::String,
+    >,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_seen_at_ms: ::std::option::Option<i64>,
+    #[serde(default)]
+    pub lease_epoch: u64,
     pub name: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub observed: ::std::option::Option<ExecutionTargetObservedSummary>,
+    #[serde(default)]
+    pub policy_epoch: u64,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_versions: ::std::vec::Vec<::std::string::String>,
     pub reachability: ExecutionTargetReachability,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub revoked_at_ms: ::std::option::Option<i64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub selected_protocol_version: ::std::option::Option<::std::string::String>,
     pub status: ExecutionTargetStatusKind,
 }
 ///`ExecutionTargetCapability`
@@ -6028,7 +6142,12 @@ pub struct ExecutionTarget {
 ///    "local_exec",
 ///    "port_lease",
 ///    "http_proxy_upstream",
-///    "websocket_proxy_upstream"
+///    "websocket_proxy_upstream",
+///    "artifact_transfer",
+///    "declarative_verifier",
+///    "health_probe",
+///    "deployment",
+///    "authenticated_tunnel"
 ///  ]
 ///}
 /// ```
@@ -6055,6 +6174,16 @@ pub enum ExecutionTargetCapability {
     HttpProxyUpstream,
     #[serde(rename = "websocket_proxy_upstream")]
     WebsocketProxyUpstream,
+    #[serde(rename = "artifact_transfer")]
+    ArtifactTransfer,
+    #[serde(rename = "declarative_verifier")]
+    DeclarativeVerifier,
+    #[serde(rename = "health_probe")]
+    HealthProbe,
+    #[serde(rename = "deployment")]
+    Deployment,
+    #[serde(rename = "authenticated_tunnel")]
+    AuthenticatedTunnel,
 }
 impl ::std::fmt::Display for ExecutionTargetCapability {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -6063,6 +6192,11 @@ impl ::std::fmt::Display for ExecutionTargetCapability {
             Self::PortLease => f.write_str("port_lease"),
             Self::HttpProxyUpstream => f.write_str("http_proxy_upstream"),
             Self::WebsocketProxyUpstream => f.write_str("websocket_proxy_upstream"),
+            Self::ArtifactTransfer => f.write_str("artifact_transfer"),
+            Self::DeclarativeVerifier => f.write_str("declarative_verifier"),
+            Self::HealthProbe => f.write_str("health_probe"),
+            Self::Deployment => f.write_str("deployment"),
+            Self::AuthenticatedTunnel => f.write_str("authenticated_tunnel"),
         }
     }
 }
@@ -6076,6 +6210,11 @@ impl ::std::str::FromStr for ExecutionTargetCapability {
             "port_lease" => Ok(Self::PortLease),
             "http_proxy_upstream" => Ok(Self::HttpProxyUpstream),
             "websocket_proxy_upstream" => Ok(Self::WebsocketProxyUpstream),
+            "artifact_transfer" => Ok(Self::ArtifactTransfer),
+            "declarative_verifier" => Ok(Self::DeclarativeVerifier),
+            "health_probe" => Ok(Self::HealthProbe),
+            "deployment" => Ok(Self::Deployment),
+            "authenticated_tunnel" => Ok(Self::AuthenticatedTunnel),
             _ => Err("invalid value".into()),
         }
     }
@@ -6104,6 +6243,56 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapabilit
         value.parse()
     }
 }
+///`ExecutionTargetObservedSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExecutionTargetObservedSummary",
+///  "type": "object",
+///  "properties": {
+///    "artifact_count": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "running_operation_count": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "workload_count": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExecutionTargetObservedSummary {
+    #[serde(default)]
+    pub artifact_count: u64,
+    #[serde(default)]
+    pub running_operation_count: u64,
+    #[serde(default)]
+    pub workload_count: u64,
+}
+impl ::std::default::Default for ExecutionTargetObservedSummary {
+    fn default() -> Self {
+        Self {
+            artifact_count: Default::default(),
+            running_operation_count: Default::default(),
+            workload_count: Default::default(),
+        }
+    }
+}
 ///`ExecutionTargetReachability`
 ///
 /// <details><summary>JSON schema</summary>
@@ -6113,7 +6302,9 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapabilit
 ///  "title": "ExecutionTargetReachability",
 ///  "type": "string",
 ///  "enum": [
-///    "local_host"
+///    "local_host",
+///    "direct",
+///    "reverse_tunnel"
 ///  ]
 ///}
 /// ```
@@ -6134,11 +6325,17 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetCapabilit
 pub enum ExecutionTargetReachability {
     #[serde(rename = "local_host")]
     LocalHost,
+    #[serde(rename = "direct")]
+    Direct,
+    #[serde(rename = "reverse_tunnel")]
+    ReverseTunnel,
 }
 impl ::std::fmt::Display for ExecutionTargetReachability {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
             Self::LocalHost => f.write_str("local_host"),
+            Self::Direct => f.write_str("direct"),
+            Self::ReverseTunnel => f.write_str("reverse_tunnel"),
         }
     }
 }
@@ -6149,6 +6346,8 @@ impl ::std::str::FromStr for ExecutionTargetReachability {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
             "local_host" => Ok(Self::LocalHost),
+            "direct" => Ok(Self::Direct),
+            "reverse_tunnel" => Ok(Self::ReverseTunnel),
             _ => Err("invalid value".into()),
         }
     }
@@ -6184,10 +6383,26 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachabil
 /// ```json
 ///{
 ///  "title": "ExecutionTargetStatusKind",
-///  "type": "string",
-///  "enum": [
-///    "available",
-///    "unavailable"
+///  "oneOf": [
+///    {
+///      "type": "string",
+///      "enum": [
+///        "enrolling",
+///        "available",
+///        "degraded",
+///        "offline",
+///        "draining",
+///        "incompatible",
+///        "revoked"
+///      ]
+///    },
+///    {
+///      "description": "Compatibility state used by older local target adapters.",
+///      "type": "string",
+///      "enum": [
+///        "unavailable"
+///      ]
+///    }
 ///  ]
 ///}
 /// ```
@@ -6206,15 +6421,34 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachabil
     PartialOrd
 )]
 pub enum ExecutionTargetStatusKind {
+    #[serde(rename = "enrolling")]
+    Enrolling,
     #[serde(rename = "available")]
     Available,
+    #[serde(rename = "degraded")]
+    Degraded,
+    #[serde(rename = "offline")]
+    Offline,
+    #[serde(rename = "draining")]
+    Draining,
+    #[serde(rename = "incompatible")]
+    Incompatible,
+    #[serde(rename = "revoked")]
+    Revoked,
+    ///Compatibility state used by older local target adapters.
     #[serde(rename = "unavailable")]
     Unavailable,
 }
 impl ::std::fmt::Display for ExecutionTargetStatusKind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
+            Self::Enrolling => f.write_str("enrolling"),
             Self::Available => f.write_str("available"),
+            Self::Degraded => f.write_str("degraded"),
+            Self::Offline => f.write_str("offline"),
+            Self::Draining => f.write_str("draining"),
+            Self::Incompatible => f.write_str("incompatible"),
+            Self::Revoked => f.write_str("revoked"),
             Self::Unavailable => f.write_str("unavailable"),
         }
     }
@@ -6225,7 +6459,13 @@ impl ::std::str::FromStr for ExecutionTargetStatusKind {
         value: &str,
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
+            "enrolling" => Ok(Self::Enrolling),
             "available" => Ok(Self::Available),
+            "degraded" => Ok(Self::Degraded),
+            "offline" => Ok(Self::Offline),
+            "draining" => Ok(Self::Draining),
+            "incompatible" => Ok(Self::Incompatible),
+            "revoked" => Ok(Self::Revoked),
             "unavailable" => Ok(Self::Unavailable),
             _ => Err("invalid value".into()),
         }
@@ -20211,20 +20451,105 @@ pub struct TargetIdParams {
 ///    ],
 ///    "properties": {
 ///      "capabilities": {
+///        "description": "Effective capabilities after protocol negotiation and Host policy.",
 ///        "default": [],
 ///        "type": "array",
 ///        "items": {
 ///          "$ref": "#/definitions/ExecutionTargetCapability"
 ///        }
 ///      },
+///      "declared_capabilities": {
+///        "description": "Capabilities declared by the target before Host policy is applied.",
+///        "default": [],
+///        "type": "array",
+///        "items": {
+///          "$ref": "#/definitions/ExecutionTargetCapability"
+///        }
+///      },
+///      "enrolled_at_ms": {
+///        "type": [
+///          "integer",
+///          "null"
+///        ],
+///        "format": "int64"
+///      },
+///      "heartbeat_expires_at_ms": {
+///        "type": [
+///          "integer",
+///          "null"
+///        ],
+///        "format": "int64"
+///      },
 ///      "id": {
 ///        "type": "string"
+///      },
+///      "identity_ref": {
+///        "type": [
+///          "string",
+///          "null"
+///        ]
+///      },
+///      "labels": {
+///        "default": {},
+///        "type": "object",
+///        "additionalProperties": {
+///          "type": "string"
+///        }
+///      },
+///      "last_seen_at_ms": {
+///        "type": [
+///          "integer",
+///          "null"
+///        ],
+///        "format": "int64"
+///      },
+///      "lease_epoch": {
+///        "default": 0,
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
 ///      },
 ///      "name": {
 ///        "type": "string"
 ///      },
+///      "observed": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/ExecutionTargetObservedSummary"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
+///      "policy_epoch": {
+///        "default": 0,
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
+///      },
+///      "protocol_versions": {
+///        "default": [],
+///        "type": "array",
+///        "items": {
+///          "type": "string"
+///        }
+///      },
 ///      "reachability": {
 ///        "$ref": "#/definitions/ExecutionTargetReachability"
+///      },
+///      "revoked_at_ms": {
+///        "type": [
+///          "integer",
+///          "null"
+///        ],
+///        "format": "int64"
+///      },
+///      "selected_protocol_version": {
+///        "type": [
+///          "string",
+///          "null"
+///        ]
 ///      },
 ///      "status": {
 ///        "$ref": "#/definitions/ExecutionTargetStatusKind"
@@ -20269,20 +20594,105 @@ impl ::std::convert::From<::std::vec::Vec<TargetListResultItem>> for TargetListR
 ///  ],
 ///  "properties": {
 ///    "capabilities": {
+///      "description": "Effective capabilities after protocol negotiation and Host policy.",
 ///      "default": [],
 ///      "type": "array",
 ///      "items": {
 ///        "$ref": "#/definitions/ExecutionTargetCapability"
 ///      }
 ///    },
+///    "declared_capabilities": {
+///      "description": "Capabilities declared by the target before Host policy is applied.",
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ExecutionTargetCapability"
+///      }
+///    },
+///    "enrolled_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
+///    "heartbeat_expires_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
 ///    "id": {
 ///      "type": "string"
+///    },
+///    "identity_ref": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "labels": {
+///      "default": {},
+///      "type": "object",
+///      "additionalProperties": {
+///        "type": "string"
+///      }
+///    },
+///    "last_seen_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
+///    "lease_epoch": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
 ///    },
 ///    "name": {
 ///      "type": "string"
 ///    },
+///    "observed": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ExecutionTargetObservedSummary"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "policy_epoch": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "protocol_versions": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
 ///    "reachability": {
 ///      "$ref": "#/definitions/ExecutionTargetReachability"
+///    },
+///    "revoked_at_ms": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "int64"
+///    },
+///    "selected_protocol_version": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
 ///    },
 ///    "status": {
 ///      "$ref": "#/definitions/ExecutionTargetStatusKind"
@@ -20294,11 +20704,40 @@ impl ::std::convert::From<::std::vec::Vec<TargetListResultItem>> for TargetListR
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct TargetListResultItem {
+    ///Effective capabilities after protocol negotiation and Host policy.
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    ///Capabilities declared by the target before Host policy is applied.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub declared_capabilities: ::std::vec::Vec<ExecutionTargetCapability>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub enrolled_at_ms: ::std::option::Option<i64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub heartbeat_expires_at_ms: ::std::option::Option<i64>,
     pub id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub identity_ref: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = ":: std :: collections :: HashMap::is_empty")]
+    pub labels: ::std::collections::HashMap<
+        ::std::string::String,
+        ::std::string::String,
+    >,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub last_seen_at_ms: ::std::option::Option<i64>,
+    #[serde(default)]
+    pub lease_epoch: u64,
     pub name: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub observed: ::std::option::Option<ExecutionTargetObservedSummary>,
+    #[serde(default)]
+    pub policy_epoch: u64,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_versions: ::std::vec::Vec<::std::string::String>,
     pub reachability: ExecutionTargetReachability,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub revoked_at_ms: ::std::option::Option<i64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub selected_protocol_version: ::std::option::Option<::std::string::String>,
     pub status: ExecutionTargetStatusKind,
 }
 ///`TighteningSuggestion`

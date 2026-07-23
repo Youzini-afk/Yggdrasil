@@ -62,8 +62,7 @@ where
     ) -> anyhow::Result<Value> {
         let target: crate::runtime::ExecutionTarget = serde_json::from_value(params)?;
         Self::ensure_target_authority(context, target.id.as_str())?;
-        self.config.target_registry.register(target.clone()).await;
-        Ok(serde_json::to_value(target)?)
+        anyhow::bail!("direct target mutation is disabled; use the Host target enrollment API")
     }
 
     pub(crate) async fn dispatch_target_unregister(
@@ -73,13 +72,7 @@ where
     ) -> anyhow::Result<Value> {
         let target_id = required_str(params, "target_id", "kernel.v1.target.unregister")?;
         Self::ensure_target_authority(context, &target_id)?;
-        Ok(serde_json::to_value(
-            self.config
-                .target_registry
-                .unregister(&target_id)
-                .await
-                .ok_or_else(|| anyhow::anyhow!("execution target '{target_id}' not found"))?,
-        )?)
+        anyhow::bail!("direct target mutation is disabled; use the Host target revoke API")
     }
 
     // --- Exec ---

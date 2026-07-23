@@ -1406,22 +1406,48 @@ fn redact_live_log_message(message: &str, redaction_values: &[String]) -> String
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionTargetReachability {
     LocalHost,
+    Direct,
+    ReverseTunnel,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionTargetCapability {
     LocalExec,
     PortLease,
     HttpProxyUpstream,
     WebsocketProxyUpstream,
+    ArtifactTransfer,
+    DeclarativeVerifier,
+    HealthProbe,
+    Deployment,
+    AuthenticatedTunnel,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionTargetStatusKind {
+    Enrolling,
     Available,
+    Degraded,
+    Offline,
+    Draining,
+    Incompatible,
+    Revoked,
+    /// Compatibility state used by older local target adapters.
     Unavailable,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ExecutionTargetObservedSummary {
+    #[serde(default)]
+    pub running_operation_count: u64,
+    #[serde(default)]
+    pub workload_count: u64,
+    #[serde(default)]
+    pub artifact_count: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -1429,9 +1455,35 @@ pub struct ExecutionTarget {
     pub id: ExecutionTargetId,
     pub name: String,
     pub reachability: ExecutionTargetReachability,
+    /// Capabilities declared by the target before Host policy is applied.
+    #[serde(default)]
+    pub declared_capabilities: Vec<ExecutionTargetCapability>,
+    /// Effective capabilities after protocol negotiation and Host policy.
     #[serde(default)]
     pub capabilities: Vec<ExecutionTargetCapability>,
     pub status: ExecutionTargetStatusKind,
+    #[serde(default)]
+    pub protocol_versions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_protocol_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_ref: Option<String>,
+    #[serde(default)]
+    pub labels: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed: Option<ExecutionTargetObservedSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_seen_at_ms: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub heartbeat_expires_at_ms: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enrolled_at_ms: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revoked_at_ms: Option<i64>,
+    #[serde(default)]
+    pub lease_epoch: u64,
+    #[serde(default)]
+    pub policy_epoch: u64,
 }
 
 pub struct ExecutionTargetRegistry {
@@ -1440,17 +1492,30 @@ pub struct ExecutionTargetRegistry {
 
 impl ExecutionTargetRegistry {
     pub fn new() -> Self {
+        let capabilities = vec![
+            ExecutionTargetCapability::LocalExec,
+            ExecutionTargetCapability::PortLease,
+            ExecutionTargetCapability::HttpProxyUpstream,
+            ExecutionTargetCapability::WebsocketProxyUpstream,
+        ];
         let target = ExecutionTarget {
             id: "local".to_string(),
             name: "local-host".to_string(),
             reachability: ExecutionTargetReachability::LocalHost,
-            capabilities: vec![
-                ExecutionTargetCapability::LocalExec,
-                ExecutionTargetCapability::PortLease,
-                ExecutionTargetCapability::HttpProxyUpstream,
-                ExecutionTargetCapability::WebsocketProxyUpstream,
-            ],
+            declared_capabilities: capabilities.clone(),
+            capabilities,
             status: ExecutionTargetStatusKind::Available,
+            protocol_versions: vec!["local.v1".to_string()],
+            selected_protocol_version: Some("local.v1".to_string()),
+            identity_ref: Some("host:local".to_string()),
+            labels: BTreeMap::new(),
+            observed: None,
+            last_seen_at_ms: None,
+            heartbeat_expires_at_ms: None,
+            enrolled_at_ms: None,
+            revoked_at_ms: None,
+            lease_epoch: 1,
+            policy_epoch: 1,
         };
         let mut targets = HashMap::new();
         targets.insert(target.id.clone(), target);
@@ -1460,20 +1525,59 @@ impl ExecutionTargetRegistry {
     }
 
     pub async fn list(&self) -> Vec<ExecutionTarget> {
-        self.targets.read().await.values().cloned().collect()
+        let now_ms = Utc::now().timestamp_millis();
+        self.targets
+            .read()
+            .await
+            .values()
+            .cloned()
+            .map(|target| effective_target_status(target, now_ms))
+            .collect()
     }
 
     pub async fn status(&self, target_id: &str) -> Option<ExecutionTarget> {
-        self.targets.read().await.get(target_id).cloned()
+        let now_ms = Utc::now().timestamp_millis();
+        self.targets
+            .read()
+            .await
+            .get(target_id)
+            .cloned()
+            .map(|target| effective_target_status(target, now_ms))
     }
 
-    pub async fn register(&self, target: ExecutionTarget) -> Option<ExecutionTarget> {
+    /// Updates the Host-owned read projection. This is not an enrollment or
+    /// authorization boundary and must never be used to permit target effects.
+    #[doc(hidden)]
+    pub async fn replace_control_plane_projection(
+        &self,
+        target: ExecutionTarget,
+    ) -> Option<ExecutionTarget> {
         self.targets.write().await.insert(target.id.clone(), target)
     }
 
-    pub async fn unregister(&self, target_id: &str) -> Option<ExecutionTarget> {
+    /// Removes a Host-owned read projection without changing durable target identity.
+    #[doc(hidden)]
+    pub async fn remove_control_plane_projection(
+        &self,
+        target_id: &str,
+    ) -> Option<ExecutionTarget> {
         self.targets.write().await.remove(target_id)
     }
+}
+
+fn effective_target_status(mut target: ExecutionTarget, now_ms: i64) -> ExecutionTarget {
+    if target.reachability != ExecutionTargetReachability::LocalHost
+        && matches!(
+            target.status,
+            ExecutionTargetStatusKind::Available | ExecutionTargetStatusKind::Degraded
+        )
+        && target
+            .heartbeat_expires_at_ms
+            .is_none_or(|expires_at_ms| expires_at_ms <= now_ms)
+    {
+        target.status = ExecutionTargetStatusKind::Offline;
+    }
+    target
 }
 
 impl Default for ExecutionTargetRegistry {

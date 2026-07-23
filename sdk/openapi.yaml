@@ -1778,15 +1778,74 @@ components:
       properties:
         capabilities:
           default: []
+          description: Effective capabilities after protocol negotiation and Host policy.
           items:
             $ref: '#/components/schemas/ExecutionTargetCapability'
           type: array
+        declared_capabilities:
+          default: []
+          description: Capabilities declared by the target before Host policy is applied.
+          items:
+            $ref: '#/components/schemas/ExecutionTargetCapability'
+          type: array
+        enrolled_at_ms:
+          format: int64
+          type:
+          - integer
+          - 'null'
+        heartbeat_expires_at_ms:
+          format: int64
+          type:
+          - integer
+          - 'null'
         id:
           type: string
+        identity_ref:
+          type:
+          - string
+          - 'null'
+        labels:
+          additionalProperties:
+            type: string
+          default: {}
+          type: object
+        last_seen_at_ms:
+          format: int64
+          type:
+          - integer
+          - 'null'
+        lease_epoch:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
         name:
           type: string
+        observed:
+          anyOf:
+          - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+          - type: 'null'
+        policy_epoch:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+        protocol_versions:
+          default: []
+          items:
+            type: string
+          type: array
         reachability:
           $ref: '#/components/schemas/ExecutionTargetReachability'
+        revoked_at_ms:
+          format: int64
+          type:
+          - integer
+          - 'null'
+        selected_protocol_version:
+          type:
+          - string
+          - 'null'
         status:
           $ref: '#/components/schemas/ExecutionTargetStatusKind'
       required:
@@ -1802,16 +1861,51 @@ components:
       - port_lease
       - http_proxy_upstream
       - websocket_proxy_upstream
+      - artifact_transfer
+      - declarative_verifier
+      - health_probe
+      - deployment
+      - authenticated_tunnel
       type: string
+    ExecutionTargetObservedSummary:
+      properties:
+        artifact_count:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+        running_operation_count:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+        workload_count:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+      type: object
     ExecutionTargetReachability:
       enum:
       - local_host
+      - direct
+      - reverse_tunnel
       type: string
     ExecutionTargetStatusKind:
-      enum:
-      - available
-      - unavailable
-      type: string
+      oneOf:
+      - enum:
+        - enrolling
+        - available
+        - degraded
+        - offline
+        - draining
+        - incompatible
+        - revoked
+        type: string
+      - description: Compatibility state used by older local target adapters.
+        enum:
+        - unavailable
+        type: string
     ExecutorKind:
       description: The kind of outbound executor that produced a response.
       oneOf:
@@ -6094,15 +6188,74 @@ components:
         properties:
           capabilities:
             default: []
+            description: Effective capabilities after protocol negotiation and Host policy.
             items:
               $ref: '#/components/schemas/ExecutionTargetCapability'
             type: array
+          declared_capabilities:
+            default: []
+            description: Capabilities declared by the target before Host policy is applied.
+            items:
+              $ref: '#/components/schemas/ExecutionTargetCapability'
+            type: array
+          enrolled_at_ms:
+            format: int64
+            type:
+            - integer
+            - 'null'
+          heartbeat_expires_at_ms:
+            format: int64
+            type:
+            - integer
+            - 'null'
           id:
             type: string
+          identity_ref:
+            type:
+            - string
+            - 'null'
+          labels:
+            additionalProperties:
+              type: string
+            default: {}
+            type: object
+          last_seen_at_ms:
+            format: int64
+            type:
+            - integer
+            - 'null'
+          lease_epoch:
+            default: 0
+            format: uint64
+            minimum: 0.0
+            type: integer
           name:
             type: string
+          observed:
+            anyOf:
+            - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+            - type: 'null'
+          policy_epoch:
+            default: 0
+            format: uint64
+            minimum: 0.0
+            type: integer
+          protocol_versions:
+            default: []
+            items:
+              type: string
+            type: array
           reachability:
             $ref: '#/components/schemas/ExecutionTargetReachability'
+          revoked_at_ms:
+            format: int64
+            type:
+            - integer
+            - 'null'
+          selected_protocol_version:
+            type:
+            - string
+            - 'null'
           status:
             $ref: '#/components/schemas/ExecutionTargetStatusKind'
         required:
@@ -9309,15 +9462,74 @@ paths:
                       properties:
                         capabilities:
                           default: []
+                          description: Effective capabilities after protocol negotiation and Host policy.
                           items:
                             $ref: '#/components/schemas/ExecutionTargetCapability'
                           type: array
+                        declared_capabilities:
+                          default: []
+                          description: Capabilities declared by the target before Host policy is applied.
+                          items:
+                            $ref: '#/components/schemas/ExecutionTargetCapability'
+                          type: array
+                        enrolled_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
+                        heartbeat_expires_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
                         id:
                           type: string
+                        identity_ref:
+                          type:
+                          - string
+                          - 'null'
+                        labels:
+                          additionalProperties:
+                            type: string
+                          default: {}
+                          type: object
+                        last_seen_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
+                        lease_epoch:
+                          default: 0
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
                         name:
                           type: string
+                        observed:
+                          anyOf:
+                          - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                          - type: 'null'
+                        policy_epoch:
+                          default: 0
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                        protocol_versions:
+                          default: []
+                          items:
+                            type: string
+                          type: array
                         reachability:
                           $ref: '#/components/schemas/ExecutionTargetReachability'
+                        revoked_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
+                        selected_protocol_version:
+                          type:
+                          - string
+                          - 'null'
                         status:
                           $ref: '#/components/schemas/ExecutionTargetStatusKind'
                       required:
@@ -9359,15 +9571,74 @@ paths:
                   properties:
                     capabilities:
                       default: []
+                      description: Effective capabilities after protocol negotiation and Host policy.
                       items:
                         $ref: '#/components/schemas/ExecutionTargetCapability'
                       type: array
+                    declared_capabilities:
+                      default: []
+                      description: Capabilities declared by the target before Host policy is applied.
+                      items:
+                        $ref: '#/components/schemas/ExecutionTargetCapability'
+                      type: array
+                    enrolled_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
+                    heartbeat_expires_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
                     id:
                       type: string
+                    identity_ref:
+                      type:
+                      - string
+                      - 'null'
+                    labels:
+                      additionalProperties:
+                        type: string
+                      default: {}
+                      type: object
+                    last_seen_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
+                    lease_epoch:
+                      default: 0
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
                     name:
                       type: string
+                    observed:
+                      anyOf:
+                      - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                      - type: 'null'
+                    policy_epoch:
+                      default: 0
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    protocol_versions:
+                      default: []
+                      items:
+                        type: string
+                      type: array
                     reachability:
                       $ref: '#/components/schemas/ExecutionTargetReachability'
+                    revoked_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
+                    selected_protocol_version:
+                      type:
+                      - string
+                      - 'null'
                     status:
                       $ref: '#/components/schemas/ExecutionTargetStatusKind'
                   required:
@@ -9414,15 +9685,74 @@ paths:
                     properties:
                       capabilities:
                         default: []
+                        description: Effective capabilities after protocol negotiation and Host policy.
                         items:
                           $ref: '#/components/schemas/ExecutionTargetCapability'
                         type: array
+                      declared_capabilities:
+                        default: []
+                        description: Capabilities declared by the target before Host policy is applied.
+                        items:
+                          $ref: '#/components/schemas/ExecutionTargetCapability'
+                        type: array
+                      enrolled_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      heartbeat_expires_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
                       id:
                         type: string
+                      identity_ref:
+                        type:
+                        - string
+                        - 'null'
+                      labels:
+                        additionalProperties:
+                          type: string
+                        default: {}
+                        type: object
+                      last_seen_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      lease_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
                       name:
                         type: string
+                      observed:
+                        anyOf:
+                        - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                        - type: 'null'
+                      policy_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      protocol_versions:
+                        default: []
+                        items:
+                          type: string
+                        type: array
                       reachability:
                         $ref: '#/components/schemas/ExecutionTargetReachability'
+                      revoked_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      selected_protocol_version:
+                        type:
+                        - string
+                        - 'null'
                       status:
                         $ref: '#/components/schemas/ExecutionTargetStatusKind'
                     required:
@@ -9504,15 +9834,74 @@ paths:
                     properties:
                       capabilities:
                         default: []
+                        description: Effective capabilities after protocol negotiation and Host policy.
                         items:
                           $ref: '#/components/schemas/ExecutionTargetCapability'
                         type: array
+                      declared_capabilities:
+                        default: []
+                        description: Capabilities declared by the target before Host policy is applied.
+                        items:
+                          $ref: '#/components/schemas/ExecutionTargetCapability'
+                        type: array
+                      enrolled_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      heartbeat_expires_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
                       id:
                         type: string
+                      identity_ref:
+                        type:
+                        - string
+                        - 'null'
+                      labels:
+                        additionalProperties:
+                          type: string
+                        default: {}
+                        type: object
+                      last_seen_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      lease_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
                       name:
                         type: string
+                      observed:
+                        anyOf:
+                        - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                        - type: 'null'
+                      policy_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      protocol_versions:
+                        default: []
+                        items:
+                          type: string
+                        type: array
                       reachability:
                         $ref: '#/components/schemas/ExecutionTargetReachability'
+                      revoked_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      selected_protocol_version:
+                        type:
+                        - string
+                        - 'null'
                       status:
                         $ref: '#/components/schemas/ExecutionTargetStatusKind'
                     required:
@@ -9594,15 +9983,74 @@ paths:
                     properties:
                       capabilities:
                         default: []
+                        description: Effective capabilities after protocol negotiation and Host policy.
                         items:
                           $ref: '#/components/schemas/ExecutionTargetCapability'
                         type: array
+                      declared_capabilities:
+                        default: []
+                        description: Capabilities declared by the target before Host policy is applied.
+                        items:
+                          $ref: '#/components/schemas/ExecutionTargetCapability'
+                        type: array
+                      enrolled_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      heartbeat_expires_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
                       id:
                         type: string
+                      identity_ref:
+                        type:
+                        - string
+                        - 'null'
+                      labels:
+                        additionalProperties:
+                          type: string
+                        default: {}
+                        type: object
+                      last_seen_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      lease_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
                       name:
                         type: string
+                      observed:
+                        anyOf:
+                        - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                        - type: 'null'
+                      policy_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      protocol_versions:
+                        default: []
+                        items:
+                          type: string
+                        type: array
                       reachability:
                         $ref: '#/components/schemas/ExecutionTargetReachability'
+                      revoked_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      selected_protocol_version:
+                        type:
+                        - string
+                        - 'null'
                       status:
                         $ref: '#/components/schemas/ExecutionTargetStatusKind'
                     required:
@@ -17655,15 +18103,74 @@ paths:
                       properties:
                         capabilities:
                           default: []
+                          description: Effective capabilities after protocol negotiation and Host policy.
                           items:
                             $ref: '#/components/schemas/ExecutionTargetCapability'
                           type: array
+                        declared_capabilities:
+                          default: []
+                          description: Capabilities declared by the target before Host policy is applied.
+                          items:
+                            $ref: '#/components/schemas/ExecutionTargetCapability'
+                          type: array
+                        enrolled_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
+                        heartbeat_expires_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
                         id:
                           type: string
+                        identity_ref:
+                          type:
+                          - string
+                          - 'null'
+                        labels:
+                          additionalProperties:
+                            type: string
+                          default: {}
+                          type: object
+                        last_seen_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
+                        lease_epoch:
+                          default: 0
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
                         name:
                           type: string
+                        observed:
+                          anyOf:
+                          - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                          - type: 'null'
+                        policy_epoch:
+                          default: 0
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                        protocol_versions:
+                          default: []
+                          items:
+                            type: string
+                          type: array
                         reachability:
                           $ref: '#/components/schemas/ExecutionTargetReachability'
+                        revoked_at_ms:
+                          format: int64
+                          type:
+                          - integer
+                          - 'null'
+                        selected_protocol_version:
+                          type:
+                          - string
+                          - 'null'
                         status:
                           $ref: '#/components/schemas/ExecutionTargetStatusKind'
                       required:
@@ -17707,15 +18214,74 @@ paths:
                   properties:
                     capabilities:
                       default: []
+                      description: Effective capabilities after protocol negotiation and Host policy.
                       items:
                         $ref: '#/components/schemas/ExecutionTargetCapability'
                       type: array
+                    declared_capabilities:
+                      default: []
+                      description: Capabilities declared by the target before Host policy is applied.
+                      items:
+                        $ref: '#/components/schemas/ExecutionTargetCapability'
+                      type: array
+                    enrolled_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
+                    heartbeat_expires_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
                     id:
                       type: string
+                    identity_ref:
+                      type:
+                      - string
+                      - 'null'
+                    labels:
+                      additionalProperties:
+                        type: string
+                      default: {}
+                      type: object
+                    last_seen_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
+                    lease_epoch:
+                      default: 0
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
                     name:
                       type: string
+                    observed:
+                      anyOf:
+                      - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                      - type: 'null'
+                    policy_epoch:
+                      default: 0
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    protocol_versions:
+                      default: []
+                      items:
+                        type: string
+                      type: array
                     reachability:
                       $ref: '#/components/schemas/ExecutionTargetReachability'
+                    revoked_at_ms:
+                      format: int64
+                      type:
+                      - integer
+                      - 'null'
+                    selected_protocol_version:
+                      type:
+                      - string
+                      - 'null'
                     status:
                       $ref: '#/components/schemas/ExecutionTargetStatusKind'
                   required:
@@ -17762,15 +18328,74 @@ paths:
                     properties:
                       capabilities:
                         default: []
+                        description: Effective capabilities after protocol negotiation and Host policy.
                         items:
                           $ref: '#/components/schemas/ExecutionTargetCapability'
                         type: array
+                      declared_capabilities:
+                        default: []
+                        description: Capabilities declared by the target before Host policy is applied.
+                        items:
+                          $ref: '#/components/schemas/ExecutionTargetCapability'
+                        type: array
+                      enrolled_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      heartbeat_expires_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
                       id:
                         type: string
+                      identity_ref:
+                        type:
+                        - string
+                        - 'null'
+                      labels:
+                        additionalProperties:
+                          type: string
+                        default: {}
+                        type: object
+                      last_seen_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      lease_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
                       name:
                         type: string
+                      observed:
+                        anyOf:
+                        - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                        - type: 'null'
+                      policy_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      protocol_versions:
+                        default: []
+                        items:
+                          type: string
+                        type: array
                       reachability:
                         $ref: '#/components/schemas/ExecutionTargetReachability'
+                      revoked_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      selected_protocol_version:
+                        type:
+                        - string
+                        - 'null'
                       status:
                         $ref: '#/components/schemas/ExecutionTargetStatusKind'
                     required:
@@ -17854,15 +18479,74 @@ paths:
                     properties:
                       capabilities:
                         default: []
+                        description: Effective capabilities after protocol negotiation and Host policy.
                         items:
                           $ref: '#/components/schemas/ExecutionTargetCapability'
                         type: array
+                      declared_capabilities:
+                        default: []
+                        description: Capabilities declared by the target before Host policy is applied.
+                        items:
+                          $ref: '#/components/schemas/ExecutionTargetCapability'
+                        type: array
+                      enrolled_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      heartbeat_expires_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
                       id:
                         type: string
+                      identity_ref:
+                        type:
+                        - string
+                        - 'null'
+                      labels:
+                        additionalProperties:
+                          type: string
+                        default: {}
+                        type: object
+                      last_seen_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      lease_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
                       name:
                         type: string
+                      observed:
+                        anyOf:
+                        - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                        - type: 'null'
+                      policy_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      protocol_versions:
+                        default: []
+                        items:
+                          type: string
+                        type: array
                       reachability:
                         $ref: '#/components/schemas/ExecutionTargetReachability'
+                      revoked_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      selected_protocol_version:
+                        type:
+                        - string
+                        - 'null'
                       status:
                         $ref: '#/components/schemas/ExecutionTargetStatusKind'
                     required:
@@ -17946,15 +18630,74 @@ paths:
                     properties:
                       capabilities:
                         default: []
+                        description: Effective capabilities after protocol negotiation and Host policy.
                         items:
                           $ref: '#/components/schemas/ExecutionTargetCapability'
                         type: array
+                      declared_capabilities:
+                        default: []
+                        description: Capabilities declared by the target before Host policy is applied.
+                        items:
+                          $ref: '#/components/schemas/ExecutionTargetCapability'
+                        type: array
+                      enrolled_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      heartbeat_expires_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
                       id:
                         type: string
+                      identity_ref:
+                        type:
+                        - string
+                        - 'null'
+                      labels:
+                        additionalProperties:
+                          type: string
+                        default: {}
+                        type: object
+                      last_seen_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      lease_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
                       name:
                         type: string
+                      observed:
+                        anyOf:
+                        - $ref: '#/components/schemas/ExecutionTargetObservedSummary'
+                        - type: 'null'
+                      policy_epoch:
+                        default: 0
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      protocol_versions:
+                        default: []
+                        items:
+                          type: string
+                        type: array
                       reachability:
                         $ref: '#/components/schemas/ExecutionTargetReachability'
+                      revoked_at_ms:
+                        format: int64
+                        type:
+                        - integer
+                        - 'null'
+                      selected_protocol_version:
+                        type:
+                        - string
+                        - 'null'
                       status:
                         $ref: '#/components/schemas/ExecutionTargetStatusKind'
                     required:

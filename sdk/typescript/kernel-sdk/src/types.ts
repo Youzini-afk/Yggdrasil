@@ -610,18 +610,42 @@ export interface ExecStoppedPayload {
 }
 
 export interface ExecutionTarget {
+  /**
+   * Effective capabilities after protocol negotiation and Host policy.
+   */
   "capabilities"?: Array<ExecutionTargetCapability>;
+  /**
+   * Capabilities declared by the target before Host policy is applied.
+   */
+  "declared_capabilities"?: Array<ExecutionTargetCapability>;
+  "enrolled_at_ms"?: null | number;
+  "heartbeat_expires_at_ms"?: null | number;
   "id": string;
+  "identity_ref"?: null | string;
+  "labels"?: Record<string, string>;
+  "last_seen_at_ms"?: null | number;
+  "lease_epoch"?: number;
   "name": string;
+  "observed"?: ExecutionTargetObservedSummary | null;
+  "policy_epoch"?: number;
+  "protocol_versions"?: Array<string>;
   "reachability": ExecutionTargetReachability;
+  "revoked_at_ms"?: null | number;
+  "selected_protocol_version"?: null | string;
   "status": ExecutionTargetStatusKind;
 }
 
-export type ExecutionTargetCapability = "local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream";
+export type ExecutionTargetCapability = "local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream" | "artifact_transfer" | "declarative_verifier" | "health_probe" | "deployment" | "authenticated_tunnel";
 
-export type ExecutionTargetReachability = "local_host";
+export interface ExecutionTargetObservedSummary {
+  "artifact_count"?: number;
+  "running_operation_count"?: number;
+  "workload_count"?: number;
+}
 
-export type ExecutionTargetStatusKind = "available" | "unavailable";
+export type ExecutionTargetReachability = "local_host" | "direct" | "reverse_tunnel";
+
+export type ExecutionTargetStatusKind = "enrolling" | "available" | "degraded" | "offline" | "draining" | "incompatible" | "revoked" | "unavailable";
 
 /**
  * The kind of outbound executor that produced a response.
@@ -2375,10 +2399,28 @@ export interface TargetIdParams {
 }
 
 export type TargetListResult = Array<{
+  /**
+   * Effective capabilities after protocol negotiation and Host policy.
+   */
   "capabilities"?: Array<ExecutionTargetCapability>;
+  /**
+   * Capabilities declared by the target before Host policy is applied.
+   */
+  "declared_capabilities"?: Array<ExecutionTargetCapability>;
+  "enrolled_at_ms"?: null | number;
+  "heartbeat_expires_at_ms"?: null | number;
   "id": string;
+  "identity_ref"?: null | string;
+  "labels"?: Record<string, string>;
+  "last_seen_at_ms"?: null | number;
+  "lease_epoch"?: number;
   "name": string;
+  "observed"?: ExecutionTargetObservedSummary | null;
+  "policy_epoch"?: number;
+  "protocol_versions"?: Array<string>;
   "reachability": ExecutionTargetReachability;
+  "revoked_at_ms"?: null | number;
+  "selected_protocol_version"?: null | string;
   "status": ExecutionTargetStatusKind;
 }>;
 

@@ -48,6 +48,7 @@ use ygg_runtime::{
 
 mod development;
 mod host_access;
+mod target_agent;
 
 pub use development::{
     acquire_development_host_lease, development_registry, hydrate_development_control_plane,
@@ -62,6 +63,9 @@ pub use host_access::{
     host_access_registry, hydrate_host_access_control_plane, HostAccessGrantView,
     HostAccessIdentity, HostAccessIdentityKind, HostAccessRegistry, HostAccessResourceKind,
     HostAccessResourceSelector, HostAccessScope,
+};
+pub use target_agent::{
+    hydrate_target_agent_control_plane, target_agent_registry, TargetAgentRegistry,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -193,6 +197,7 @@ where
     pub build_jobs: Arc<BuildDeployJobRegistry>,
     pub development: Arc<DevelopmentRegistry>,
     pub host_access: Arc<HostAccessRegistry>,
+    pub target_agents: Arc<TargetAgentRegistry>,
 }
 
 impl<S> Clone for AppState<S>
@@ -208,6 +213,7 @@ where
             build_jobs: self.build_jobs.clone(),
             development: self.development.clone(),
             host_access: self.host_access.clone(),
+            target_agents: self.target_agents.clone(),
         }
     }
 }
@@ -255,6 +261,7 @@ pub fn app() -> Router {
         build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         development: development_registry(),
         host_access: host_access_registry(),
+        target_agents: target_agent_registry(),
     })
 }
 
@@ -334,6 +341,7 @@ where
         )
         .merge(development::routes::<S>())
         .merge(host_access::protected_routes::<S>())
+        .merge(target_agent::protected_routes::<S>())
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
@@ -356,6 +364,7 @@ where
             get(surface_asset_file::<S>),
         )
         .merge(host_access::public_routes::<S>())
+        .merge(target_agent::public_routes::<S>())
         .merge(protected)
         .fallback(static_fallback::<S>)
         .with_state(state.clone())
@@ -9084,6 +9093,7 @@ mod tests {
             build_jobs: build_deploy_job_registry(),
             development,
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         })
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
         .await?;
@@ -9122,6 +9132,7 @@ mod tests {
             build_jobs,
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         })
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
         .await?;
@@ -9158,6 +9169,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -9248,6 +9260,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let health = app
@@ -9394,6 +9407,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: access_registry.clone(),
+            target_agents: target_agent_registry(),
         });
 
         let unauthenticated_surface = app
@@ -9645,6 +9659,7 @@ mod tests {
                 build_jobs: Arc::new(BuildDeployJobRegistry::default()),
                 development: development_registry(),
                 host_access: host_access_registry(),
+                target_agents: target_agent_registry(),
             },
             Some("single-use-bootstrap-nonce".to_string()),
         );
@@ -9731,6 +9746,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let denied = app
@@ -9767,6 +9783,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -9825,6 +9842,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let denied = app
@@ -9860,6 +9878,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let denied = app
@@ -9886,6 +9905,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -9946,6 +9966,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let not_ready = app
@@ -10075,6 +10096,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -10215,6 +10237,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -10291,6 +10314,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let evil_suffix = app
@@ -10339,6 +10363,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         };
         let route_id = "My_App/Main";
         let url = service_public_url_for_route(
@@ -10434,6 +10459,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -10474,6 +10500,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let denied = app
@@ -10536,6 +10563,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -10636,6 +10664,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let proxy_addr = listener.local_addr()?;
@@ -10696,6 +10725,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: access_registry.clone(),
+            target_agents: target_agent_registry(),
         });
 
         let denied = app
@@ -10847,6 +10877,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -10878,6 +10909,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
@@ -10914,6 +10946,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         for path in [
@@ -10964,6 +10997,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            target_agents: target_agent_registry(),
         });
 
         let response = app
