@@ -116,13 +116,29 @@ globalThis.fetch = (async () =>
   })) as typeof fetch;
 
 await rejectsWithHttpStatus(new YggProtocolClient("http://host.test", "bad-token").diagnostics(), 401);
+await rejectsWithHttpStatus(new YggProtocolClient("http://host.test", "bad-token").listTargetOperations("remote"), 401);
 
 const capturedRequests: unknown[] = [];
-const capturedFetches: Array<{ input: string; body: unknown; headers?: HeadersInit }> = [];
+const capturedFetches: Array<{ input: string; method?: string; body: unknown; headers?: HeadersInit }> = [];
 globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const inputString = String(input);
   const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
-  capturedFetches.push({ input: inputString, body, headers: init?.headers });
+  capturedFetches.push({ input: inputString, method: init?.method, body, headers: init?.headers });
+  if (inputString.includes("/host/v1/targets/") && inputString.includes("/operations")) {
+    if (inputString.endsWith("/operations")) return Response.json([]);
+    return Response.json({
+      operation_id: "op-1",
+      target_id: "remote/one",
+      project_id: "project-1",
+      revision: 1,
+      status: "succeeded",
+      spec: { kind: "health_probe" },
+      authority: {},
+      receipt: null,
+      created_at_ms: 1,
+      updated_at_ms: 2,
+    });
+  }
   if (inputString.endsWith("/host/v1/deploy")) {
     return Response.json({
       route_id: body.route_id,
@@ -448,6 +464,20 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
   undefined,
   {},
 ]);
+
+capturedFetches.length = 0;
+await protocolClient.listTargetOperations("remote/one");
+await protocolClient.getTargetOperation("remote/one", "op/1");
+assertDeepEqual(capturedFetches.map((request) => request.input), [
+  "http://host.test/host/v1/targets/remote%2Fone/operations",
+  "http://host.test/host/v1/targets/remote%2Fone/operations/op%2F1",
+]);
+assertDeepEqual(capturedFetches.map((request) => request.method), ["GET", "GET"]);
+assertDeepEqual(capturedFetches.map((request) => request.body), [undefined, undefined]);
+assertDeepEqual(
+  capturedFetches.map((request) => new Headers(request.headers).get("authorization")),
+  ["Bearer valid-token", "Bearer valid-token"],
+);
 
 capturedFetches.length = 0;
 await protocolClient.listProjectChanges("project-1");

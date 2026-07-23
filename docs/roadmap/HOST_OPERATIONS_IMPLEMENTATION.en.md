@@ -30,7 +30,7 @@ Some release/health work may develop alongside Phase 2, but remote targets do no
 | Phase 2 | Candidate implementation complete | Durable deployment intent/operation/lease/receipt, candidate-first activation, reconcile/recover/rollback, and bounded restart policy are closed and validated by GitHub CI |
 | Phase 3 | Candidate implementation complete | Non-destructive data migration, backup/verify/restore, live/ready, release integrity, SBOM, and provenance are closed and validated by GitHub CI |
 | Phase 4 | Candidate implementation complete | Durable identity/operations/artifacts, equivalent local/Agent Docker deployment, actual-port projection, and authenticated reverse-tunnel HTTP/WebSocket/private/public routing are closed; reconnect, duplicate ownership, revoke, backpressure, stale-epoch, framing, and vhost authority acceptance pass GitHub CI |
-| Phase 5 | In progress | Shared Host connections and project/target context are the next slice; clients continue to use the same Host API and grants without a bypass |
+| Phase 5 | In progress | Shared Host connection/context and Project Console operation/revision diagnostics are closed; the next slice is the transactional Verified Artifact to deployment preview/activation bridge |
 
 ## Phase 0: design contracts
 
@@ -66,7 +66,9 @@ Gate: crashes, duplicates, reordering, reconnect, revoke, corruption, and stale 
 
 Slices: Host connection profiles and project/target context in shared client-core; desktop local default plus explicit remote Host; shared Web/PWA UI and only a thin native-mobile wrapper when needed; CLI over the same API/grant; Project Console operations/revisions/logs/rollback; Verified Artifact as deployment-preview input with approval/provenance.
 
-Client/context result (2026-07-24): the shared Web/PWA/Desktop client now has explicit HTTPS Host connections, per-Host credentials, per-project target context, remote-safe surface loading, and a managed-local fallback. The CLI persists only non-secret connection/context metadata and uses the selected endpoint plus the same Bearer grant for project/target observation. Project Console operations and the Verified Artifact deployment bridge remain in progress.
+Client/context result (2026-07-24): the shared Web/PWA/Desktop client now has explicit HTTPS Host connections, per-Host credentials, per-project target context, remote-safe surface loading, and a managed-local fallback. The CLI persists only non-secret connection/context metadata and uses the selected endpoint plus the same Bearer grant for project/target observation. The Verified Artifact deployment bridge remains in progress.
+
+Project Console result (2026-07-24): the shared client now exposes the selected target's durable operation ledger, status, authority/request digests, terminal output, and bounded diagnostics; the local target also exposes durable deployment jobs/revisions, source provenance, recover, and rollback. The current deployment revision/replay contract is explicitly bound to `local`, so remote targets do not pretend to support revision/recover/rollback; the unified deployment transaction bridge is the next slice.
 
 Gate: one real external project completes propose→verify→preview→approve→activate→recover→rollback from different clients without a client-only bypass.
 

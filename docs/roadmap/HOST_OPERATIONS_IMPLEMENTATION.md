@@ -41,7 +41,7 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 | Phase 2 | Candidate 实现完成 | durable deployment intent/operation/lease/receipt、candidate-first activation、reconcile/recover/rollback 与受限 restart policy 已闭环并通过 GitHub CI |
 | Phase 3 | Candidate 实现完成 | 非破坏性数据迁移、backup/verify/restore、live/ready、release integrity、SBOM 与 provenance 已闭环并通过 GitHub CI |
 | Phase 4 | Candidate 实现完成 | durable identity/operation/artifact、local/Agent 等价 Docker deployment、actual-port 投影及 authenticated reverse-tunnel HTTP/WebSocket/private/public routing 已闭环；重连、重复连接、revoke、backpressure、stale epoch、HTTP framing 与 vhost authority 验收通过 GitHub CI |
-| Phase 5 | 进行中 | 下一切片是共享 Host 连接与 project/target context；所有客户端继续复用同一 Host API 与 grant，不建立旁路 |
+| Phase 5 | 进行中 | 共享 Host 连接/context 与 Project Console operation/revision 诊断已闭环；下一切片是 Verified Artifact 到部署 preview/activation 的事务桥 |
 
 ## Phase 0：设计合同
 
@@ -120,7 +120,9 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 5. Project Console 接入 target、operation、revision、logs、rollback；
 6. Development Verified Artifact 成为 deployment preview 的输入，保留审批/provenance。
 
-客户端/context 结果（2026-07-24）：共享 Web/PWA/Desktop 客户端已经支持显式 HTTPS Host 连接、按 Host 隔离凭据、按项目保存 target context、远程安全 surface 加载与 managed-local fallback。CLI 只持久化非密钥连接/context 元数据，并用当前 endpoint 与同一 Bearer grant 观察 project/target。Project Console operation 与 Verified Artifact 部署桥仍在实施中。
+客户端/context 结果（2026-07-24）：共享 Web/PWA/Desktop 客户端已经支持显式 HTTPS Host 连接、按 Host 隔离凭据、按项目保存 target context、远程安全 surface 加载与 managed-local fallback。CLI 只持久化非密钥连接/context 元数据，并用当前 endpoint 与同一 Bearer grant 观察 project/target。Verified Artifact 部署桥仍在实施中。
+
+Project Console 结果（2026-07-24）：所选 target 的 durable operation ledger、状态、授权/request digest、终态 output 与有界 diagnostics 已进入共享客户端；local target 继续展示 durable deployment job/revision、source provenance、recover 与 rollback。现有 deployment revision/replay 合同只绑定 `local`，因此远程 target 不伪装 revision/recover/rollback 能力，统一部署事务桥在下一切片完成。
 
 门槛：同一真实外部项目可从不同客户端完成 propose→verify→preview→approve→activate→recover→rollback，不存在客户端专属旁路。
 

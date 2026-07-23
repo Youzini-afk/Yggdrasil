@@ -1,5 +1,5 @@
-import { allowedSurfaceCapabilityIdsForTest, summarizeConsoleDiagnostics } from "./project-frame";
-import type { PackageRecord, SurfaceContributionRecord } from "@/protocol/client";
+import { allowedSurfaceCapabilityIdsForTest, summarizeConsoleDiagnostics, targetOperationsForProject } from "./project-frame";
+import type { PackageRecord, SurfaceContributionRecord, TargetOperationRecord } from "@/protocol/client";
 
 function assertEqual<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -47,6 +47,44 @@ assertEqual(allowedSurfaceCapabilityIdsForTest(contribution).has("pkg/surface/un
 
 assertDeepEqual([...allowedSurfaceCapabilityIdsForTest(null)], []);
 
+function targetOperation(operationId: string, projectId: string, targetId: string, updatedAt: number): TargetOperationRecord {
+  return {
+    operation_id: operationId,
+    target_id: targetId,
+    project_id: projectId,
+    revision: 1,
+    status: "requested",
+    spec: { kind: "health_probe" },
+    authority: {
+      target_id: targetId,
+      operation_id: operationId,
+      step_id: "execute",
+      project_id: projectId,
+      effect: "health_probe",
+      artifact_digests: [],
+      lease_epoch: 1,
+      policy_epoch: 1,
+      issued_at_ms: 1,
+      expires_at_ms: 2,
+      nonce: "nonce",
+      request_digest: "sha256:request",
+      authority_digest: "sha256:authority",
+    },
+    created_at_ms: 1,
+    updated_at_ms: updatedAt,
+  };
+}
+
+assertDeepEqual(
+  targetOperationsForProject([
+    targetOperation("remote-old", "project-a", "remote", 2),
+    targetOperation("other-project", "project-b", "remote", 4),
+    targetOperation("local", "project-a", "local", 5),
+    targetOperation("remote-new", "project-a", "remote", 3),
+  ], "project-a", "remote").map((operation) => operation.operation_id),
+  ["remote-new", "remote-old"],
+);
+
 const packages = [
   {
     id: "pkg/ready",
@@ -77,6 +115,7 @@ const packages = [
 ] satisfies PackageRecord[];
 
 assertDeepEqual(summarizeConsoleDiagnostics({
+  projectId: "project-a",
   packages,
   events: [{
     id: "evt-1",
@@ -139,6 +178,7 @@ assertDeepEqual(summarizeConsoleDiagnostics(null), {
 });
 
 assertDeepEqual(summarizeConsoleDiagnostics({
+  projectId: "project-a",
   packages: [],
   events: [],
   errors: [],

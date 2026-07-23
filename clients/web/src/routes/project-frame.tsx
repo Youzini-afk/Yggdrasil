@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { ArrowLeft, ArrowsClockwise, BookOpenText, Copy, LinkSimple, StopCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalFooter, ModalHeader } from "@/components/ui/modal";
-import { StatusPill, projectStateTone } from "@/components/ui/status-pill";
+import { StatusPill, projectStateTone, type StatusTone } from "@/components/ui/status-pill";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useKernel } from "@/lib/kernel-client";
 import { useRoute } from "@/lib/router";
@@ -31,6 +31,8 @@ import type {
   ProxyRouteRecord,
   ProjectDeploymentsResponse,
   SurfaceContributionRecord,
+  TargetOperationRecord,
+  TargetOperationStatus,
   UpdateCheckResult,
 } from "@/protocol/client";
 
@@ -38,6 +40,7 @@ const FRAME_CONTAINER_ID = "ygg-project-frame";
 const UPDATE_AVAILABLE_STATUSES = new Set(["available", "update_available", "repair_required"]);
 
 interface ProjectDiagnostics {
+  projectId: string;
   bundle?: ResolvedSurfaceBundle;
   packages: PackageRecord[];
   events: KernelEvent[];
@@ -45,6 +48,7 @@ interface ProjectDiagnostics {
   executions: ExecStatus[];
   portLeases: PortLeaseRecord[];
   proxyRoutes: ProxyRouteRecord[];
+  operations?: TargetOperationRecord[];
   deployments?: ProjectDeploymentsResponse;
   updates?: UpdateCheckResult;
   errors: string[];
@@ -80,6 +84,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const [buildDeployJob, setBuildDeployJob] = useState<BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse | null>(null);
   const [buildDeployEvents, setBuildDeployEvents] = useState<BuildDeployJobEvent[]>([]);
   const [diagnostics, setDiagnostics] = useState<ProjectDiagnostics | null>(null);
+  const diagnosticsRequestRef = useRef(0);
   const [frameState, setFrameState] = useState<"loading" | "mounted" | "start_failed" | "mount_failed" | "stopped">("loading");
   const handleRef = useRef<SurfaceHostHandle | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -142,19 +147,24 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         }
         const bundle = await resolveSurfaceBundle(client, detail.entry_surface_id);
         if (chrome !== "none") {
-          setDiagnostics((current) => ({
-            bundle,
-            packages: current?.packages ?? [],
-            events: current?.events ?? [],
-            targets: current?.targets ?? [],
-            executions: current?.executions ?? [],
-            portLeases: current?.portLeases ?? [],
-            proxyRoutes: current?.proxyRoutes ?? [],
-            deployments: current?.deployments,
-            updates: current?.updates,
-            errors: current?.errors ?? [],
-            refreshedAt: current?.refreshedAt ?? new Date().toISOString(),
-          }));
+          setDiagnostics((current) => {
+            const matching = current?.projectId === projectId ? current : null;
+            return {
+              projectId,
+              bundle,
+              packages: matching?.packages ?? [],
+              events: matching?.events ?? [],
+              targets: matching?.targets ?? [],
+              executions: matching?.executions ?? [],
+              portLeases: matching?.portLeases ?? [],
+              proxyRoutes: matching?.proxyRoutes ?? [],
+              operations: matching?.operations ?? [],
+              deployments: matching?.deployments,
+              updates: matching?.updates,
+              errors: matching?.errors ?? [],
+              refreshedAt: matching?.refreshedAt ?? new Date().toISOString(),
+            };
+          });
           setFrameState("mounted");
           return;
         }
@@ -274,11 +284,14 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   }, [chrome, onStop]);
 
   const loadDiagnostics = useCallback(async () => {
+    const requestId = ++diagnosticsRequestRef.current;
+    const targetId = selectedTargetId;
     setRefreshingDiagnostics(true);
     const errors: string[] = [];
-    let latestProject = projectRef.current;
+    let latestProject = projectRef.current?.id === projectId ? projectRef.current : null;
     try {
       const fetchedProject = await client.getProject(projectId);
+      if (requestId !== diagnosticsRequestRef.current) return;
       latestProject = fetchedProject;
       setProject((current) => ({
         ...(fetchedProject as ProjectRecord & { running_session_id?: string; entry_surface_id?: string }),
@@ -289,12 +302,12 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       errors.push(errorMessage(err));
     }
 
-    const currentProject = projectRef.current;
+    const currentProject = projectRef.current?.id === projectId ? projectRef.current : null;
     const entrySurfaceId = latestProject?.entry_surface_id ?? currentProject?.entry_surface_id;
     const sessionId = latestProject?.running_session_id ?? currentProject?.running_session_id;
     const declaredPackageRefs = latestProject?.packages ?? currentProject?.packages ?? [];
 
-    const [bundleResult, packageListResult, eventResult, updateResult, targetResult, execResult, portResult, proxyResult, deploymentResult] = await Promise.allSettled([
+    const [bundleResult, packageListResult, eventResult, updateResult, targetResult, execResult, portResult, proxyResult, operationResult, deploymentResult] = await Promise.allSettled([
       entrySurfaceId ? resolveSurfaceBundle(client, entrySurfaceId) : Promise.resolve(undefined),
       client.packages(),
       sessionId ? client.listEvents(sessionId) : Promise.resolve([]),
@@ -303,8 +316,11 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       client.listExecs(),
       client.listPortLeases(),
       client.listProxyRoutes(),
+      client.listTargetOperations(targetId),
       client.getProjectDeployments(projectId),
     ]);
+
+    if (requestId !== diagnosticsRequestRef.current) return;
 
     const bundle = unwrapSettled(bundleResult, errors);
     const packageList = unwrapSettled(packageListResult, errors) ?? [];
@@ -314,10 +330,16 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     const executions = unwrapSettled(execResult, errors)?.executions ?? [];
     const portLeases = unwrapSettled(portResult, errors) ?? [];
     const proxyRoutes = unwrapSettled(proxyResult, errors) ?? [];
+    const operations = targetOperationsForProject(
+      unwrapSettled(operationResult, errors) ?? [],
+      projectId,
+      targetId,
+    );
     const deployments = unwrapSettled(deploymentResult, errors);
     const projectPackages = filterProjectPackages(packageList, declaredPackageRefs, projectId, updates?.results ?? []);
 
     setDiagnostics({
+      projectId,
       bundle,
       packages: projectPackages,
       events: [...events].slice(-8).reverse(),
@@ -325,13 +347,14 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       executions,
       portLeases,
       proxyRoutes,
+      operations,
       deployments,
       updates,
       errors,
       refreshedAt: new Date().toISOString(),
     });
     setRefreshingDiagnostics(false);
-  }, [client, projectId]);
+  }, [client, projectId, selectedTargetId]);
 
   useEffect(() => {
     if (chrome === "none") return;
@@ -526,9 +549,10 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     return () => { closed = true; close(); };
   }, [buildDeployJob?.job_id, client, loadDiagnostics]);
 
+  const projectDiagnostics = diagnostics?.projectId === projectId ? diagnostics : null;
   const consoleSummary = useMemo(
-    () => summarizeConsoleDiagnostics(diagnostics, selectedTargetId),
-    [diagnostics, selectedTargetId],
+    () => summarizeConsoleDiagnostics(projectDiagnostics, selectedTargetId),
+    [projectDiagnostics, selectedTargetId],
   );
 
   const onSelectTarget = useCallback(
@@ -610,11 +634,11 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
             <ProjectConsole
               projectId={projectId}
               project={project}
-              diagnostics={diagnostics}
+              diagnostics={projectDiagnostics}
               summary={consoleSummary}
               selectedTargetId={selectedTargetId}
               onSelectTarget={onSelectTarget}
-              loading={refreshingDiagnostics && !diagnostics}
+              loading={refreshingDiagnostics && !projectDiagnostics}
               stopping={stopping}
               updating={updatingProject}
               onOpenProjectTab={onOpenProjectTab}
@@ -724,6 +748,16 @@ export function summarizeConsoleDiagnostics(
   };
 }
 
+export function targetOperationsForProject(
+  operations: TargetOperationRecord[],
+  projectId: string,
+  targetId: string,
+): TargetOperationRecord[] {
+  return operations
+    .filter((operation) => operation.project_id === projectId && operation.target_id === targetId)
+    .sort((left, right) => right.updated_at_ms - left.updated_at_ms);
+}
+
 function diagnosticsForTarget(
   diagnostics: ProjectDiagnostics | null,
   targetId: string,
@@ -739,6 +773,7 @@ function diagnosticsForTarget(
     proxyRoutes: diagnostics.proxyRoutes.filter((route) =>
       leaseIds.has(route.upstream.port_lease_id),
     ),
+    operations: (diagnostics.operations ?? []).filter((operation) => operation.target_id === targetId),
   };
 }
 
@@ -930,7 +965,7 @@ function ProjectConsole({
             {t("projectFrameRemoteTargetOperationsOnly")}
           </p>
         ) : null}
-        <DeploymentDiagnostics diagnostics={selectedDiagnostics} />
+        <DeploymentDiagnostics key={`${projectId}:${selectedTargetId}`} diagnostics={selectedDiagnostics} targetId={selectedTargetId} />
       </ConsoleSection>
 
       <ConsoleSection title={t("projectFramePackagesSection")} description={t("projectFramePackagesDescription")}>
@@ -1211,6 +1246,9 @@ function DeploymentRevisionHistory({
             <TinyValue label={t("projectFrameBuildDeployStrategy")} value={active.strategy} />
             <TinyValue label={t("projectFrameRouteExposure")} value={active.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate")} />
             <TinyValue label={t("projectFrameDeploymentCreatedAt")} value={new Date(active.created_at_ms).toLocaleString()} />
+            <TinyValue label={t("projectFrameDeploymentSourceCommit")} value={active.source_commit || "—"} />
+            <TinyValue label={t("projectFrameDeploymentBuildDigest")} value={active.build_descriptor_hash || "—"} />
+            <TinyValue label={t("projectFrameDeploymentParentRevision")} value={active.parent_revision_id ?? "—"} />
           </dl>
           {!active.recoverable ? <p className="mt-3 rounded-[10px] bg-deep-rust-surface p-2 text-[12px] text-deep-rust">{t("projectFrameDeploymentNotRecoverable")}: {active.recovery_blockers.join("; ")}</p> : null}
         </div>
@@ -1231,6 +1269,9 @@ function DeploymentRevisionHistory({
                       {isActive ? <StatusPill tone="accent" label={t("projectFrameDeploymentActiveRevision")} showDot={false} /> : null}
                     </div>
                     <p className="mt-1 truncate text-[11px] text-steel-secondary" title={revision.image}>{revision.image} · {revision.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate")} · {new Date(revision.created_at_ms).toLocaleString()}</p>
+                    <p className="mt-1 truncate font-mono text-[10px] text-muted-tone" title={`${revision.source_commit} · ${revision.build_descriptor_hash}`}>
+                      {revision.source_commit || "—"} · {revision.build_descriptor_hash || "—"}
+                    </p>
                   </div>
                   {!isActive ? (
                     <Button tone="secondary" size="sm" disabled={busy || !revision.recoverable} onClick={() => onRollback(revision)}>
@@ -1249,8 +1290,8 @@ function DeploymentRevisionHistory({
           <p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameDeploymentJobHistory")}</p>
           <div className="mt-2 grid gap-2 lg:grid-cols-2">
             {jobs.slice(0, 6).map((job) => (
-              <div key={job.job_id} className="flex items-center justify-between gap-3 rounded-[12px] border border-whisper-border bg-warm-bone p-3">
-                <div className="min-w-0"><p className="truncate font-mono text-[11px] text-charcoal-ink">{job.job_id}</p><p className="mt-1 text-[11px] text-steel-secondary">{new Date(job.updated_at_ms).toLocaleString()}</p></div>
+              <div key={job.job_id} className="flex items-start justify-between gap-3 rounded-[12px] border border-whisper-border bg-warm-bone p-3">
+                <div className="min-w-0"><p className="truncate font-mono text-[11px] text-charcoal-ink">{job.job_id}</p><p className="mt-1 text-[11px] text-steel-secondary">{humanEventKind(job.operation)} · {new Date(job.updated_at_ms).toLocaleString()}</p>{job.error ? <p className="mt-1 text-[11px] text-deep-rust">{job.error}</p> : null}</div>
                 <StatusPill tone={job.state === "ready" ? "stopped" : job.state === "failed" || job.state === "cancelled" ? "failed" : "starting"} label={job.state} />
               </div>
             ))}
@@ -1346,10 +1387,11 @@ function BuildDeployResultCard({ job, status, events, onRetry, onEdit }: { job: 
   return <div className="mt-4 space-y-3 rounded-[14px] border border-whisper-border bg-pure-surface p-4"><JobStatusTracker state={job.state} /><div className="rounded-[12px] bg-warm-bone p-3 text-[12px]"><p className="font-display text-[15px] font-bold text-charcoal-ink">{ready ? t("projectFrameBuildDeployResultReady") : failed ? t("projectFrameBuildDeployResultFailed") : t("projectFrameBuildDeployResultCancelled")}</p>{url ? <p className="mt-1 break-all text-steel-secondary">{url}</p> : null}{status?.error ? <p className="mt-1 text-deep-rust">{status.error}</p> : null}<div className="mt-3 flex flex-wrap gap-2">{ready && url ? <Button tone="secondary" size="sm" onClick={() => window.open(url, "_blank", "noopener,noreferrer")}>{t("projectFrameOpenUrl")}</Button> : null}<Button tone="primary" size="sm" onClick={onRetry}>{ready ? t("projectFrameBuildDeployNewBuild") : failed ? t("retry") : t("projectFrameBuildDeployRestart")}</Button>{!ready ? <Button tone="secondary" size="sm" onClick={onEdit}>{t("projectFrameBuildDeployEditConfig")}</Button> : null}</div></div><TerminalLogPanel events={events} live={false} onCopy={() => void navigator.clipboard?.writeText(events.map((event) => `#${event.sequence} [${event.state}] ${event.message}`).join("\n"))} /></div>;
 }
 
-function DeploymentDiagnostics({ diagnostics }: { diagnostics: ProjectDiagnostics | null }) {
+function DeploymentDiagnostics({ diagnostics, targetId }: { diagnostics: ProjectDiagnostics | null; targetId: string }) {
   const t = useT();
-  const [tab, setTab] = useState<"exec" | "ports" | "proxy">("exec");
+  const [tab, setTab] = useState<"operations" | "exec" | "ports" | "proxy">("operations");
   const tabs = [
+    { id: "operations" as const, label: t("projectFrameTargetOperations"), count: diagnostics?.operations?.length ?? 0 },
     { id: "exec" as const, label: t("projectFrameDeploymentExecutions"), count: diagnostics?.executions.length ?? 0 },
     { id: "ports" as const, label: t("projectFrameDeploymentPortLeases"), count: diagnostics?.portLeases.length ?? 0 },
     { id: "proxy" as const, label: t("projectFrameDeploymentProxyRoutes"), count: diagnostics?.proxyRoutes.length ?? 0 },
@@ -1363,6 +1405,7 @@ function DeploymentDiagnostics({ diagnostics }: { diagnostics: ProjectDiagnostic
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
+            aria-pressed={item.id === tab}
             className={item.id === tab
               ? "rounded-full bg-charcoal-ink px-3 py-1.5 text-[12px] font-semibold text-pure-surface"
               : "rounded-full border border-whisper-border bg-warm-bone px-3 py-1.5 text-[12px] font-semibold text-steel-secondary hover:text-charcoal-ink"}
@@ -1371,11 +1414,134 @@ function DeploymentDiagnostics({ diagnostics }: { diagnostics: ProjectDiagnostic
           </button>
         ))}
       </div>
+      {tab === "operations" ? <TargetOperationDiagnostics key={targetId} targetId={targetId} operations={diagnostics?.operations ?? []} /> : null}
       {tab === "exec" ? <ExecutionDiagnostics executions={diagnostics?.executions ?? []} /> : null}
       {tab === "ports" ? <PortLeaseDiagnostics leases={diagnostics?.portLeases ?? []} /> : null}
       {tab === "proxy" ? <ProxyRouteDiagnostics routes={diagnostics?.proxyRoutes ?? []} /> : null}
     </div>
   );
+}
+
+function TargetOperationDiagnostics({
+  targetId,
+  operations,
+}: {
+  targetId: string;
+  operations: TargetOperationRecord[];
+}) {
+  const t = useT();
+  const client = useKernel();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [details, setDetails] = useState<Record<string, {
+    loading: boolean;
+    record: TargetOperationRecord;
+    error?: string;
+  }>>({});
+  const visible = operations.slice(0, 20);
+
+  const toggleDetails = useCallback((operation: TargetOperationRecord) => {
+    const opening = expanded !== operation.operation_id;
+    setExpanded(opening ? operation.operation_id : null);
+    if (!opening) return;
+    setDetails((current) => ({
+      ...current,
+      [operation.operation_id]: { loading: true, record: operation },
+    }));
+    client.getTargetOperation(targetId, operation.operation_id)
+      .then((record) => {
+        setDetails((current) => ({
+          ...current,
+          [operation.operation_id]: { loading: false, record },
+        }));
+      })
+      .catch((err: unknown) => {
+        setDetails((current) => ({
+          ...current,
+          [operation.operation_id]: { loading: false, record: operation, error: errorMessage(err) },
+        }));
+      });
+  }, [client, expanded, targetId]);
+
+  if (visible.length === 0) return <QuietEmpty>{t("projectFrameTargetOperationEmpty")}</QuietEmpty>;
+
+  return (
+    <div className="space-y-3">
+      {visible.map((operation) => {
+        const cachedDetail = details[operation.operation_id];
+        const detailState = cachedDetail
+          && cachedDetail.record.revision >= operation.revision
+          && cachedDetail.record.updated_at_ms >= operation.updated_at_ms
+          ? cachedDetail
+          : undefined;
+        const record = detailState?.record ?? operation;
+        const isExpanded = expanded === operation.operation_id;
+        const receiptOutput = JSON.stringify(record.receipt?.output ?? null, null, 2);
+        return (
+          <div key={operation.operation_id} className="rounded-[14px] border border-whisper-border bg-warm-bone p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[12px] text-charcoal-ink" title={operation.operation_id}>{operation.operation_id}</p>
+                <p className="mt-1 text-[11px] text-steel-secondary">
+                  {humanEventKind(operation.spec.kind)} · {new Date(operation.updated_at_ms).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <StatusPill tone={targetOperationTone(operation.status)} label={humanEventKind(operation.status)} />
+                <Button tone="tertiary" size="sm" aria-expanded={isExpanded} onClick={() => toggleDetails(operation)}>
+                  {isExpanded ? t("projectFrameTargetOperationHideDetails") : t("projectFrameTargetOperationShowDetails")}
+                </Button>
+              </div>
+            </div>
+            {isExpanded ? (
+              <div className="mt-4 space-y-3 border-t border-whisper-border pt-4">
+                {detailState?.loading ? <p className="text-[12px] text-steel-secondary">{t("projectFrameDiagnosticsLoading")}</p> : null}
+                {detailState?.error ? <p className="rounded-[10px] bg-deep-rust-surface p-2 text-[12px] text-deep-rust">{detailState.error}</p> : null}
+                <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <TinyValue label={t("projectFrameTargetOperationRevision")} value={String(record.revision)} />
+                  <TinyValue label={t("projectFrameTargetOperationExecution")} value={record.execution_id ?? "—"} />
+                  <TinyValue label={t("projectFrameDeploymentCreatedAt")} value={new Date(record.created_at_ms).toLocaleString()} />
+                  <TinyValue label={t("projectFrameTargetOperationUpdatedAt")} value={new Date(record.updated_at_ms).toLocaleString()} />
+                  <TinyValue label={t("projectFrameTargetOperationRequestDigest")} value={record.authority.request_digest} />
+                  <TinyValue label={t("projectFrameTargetOperationAuthorityDigest")} value={record.authority.authority_digest} />
+                </dl>
+                {record.receipt ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="min-w-0 rounded-[12px] bg-pure-surface p-3">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{t("projectFrameTargetOperationOutput")}</p>
+                      <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-charcoal-ink">{receiptOutput}</pre>
+                    </div>
+                    <div className="min-w-0 rounded-[12px] bg-charcoal-ink p-3 text-pure-surface">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-warm-bone/70">{t("projectFrameTargetOperationDiagnostics")}</p>
+                      <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
+                        {record.receipt.diagnostics.length
+                          ? record.receipt.diagnostics.join("\n")
+                          : t("projectFrameTargetOperationNoDiagnostics")}
+                      </pre>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="rounded-[10px] bg-pure-surface p-2 text-[12px] text-steel-secondary">
+                    {t("projectFrameTargetOperationReceiptPending")}
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+      {operations.length > visible.length ? (
+        <p className="text-[11px] text-muted-tone">{t("projectFrameTargetOperationShowingRecent", visible.length, operations.length)}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function targetOperationTone(status: TargetOperationStatus): StatusTone {
+  if (status === "succeeded") return "stopped";
+  if (status === "failed" || status === "outcome_unknown" || status === "expired") return "failed";
+  if (status === "running") return "running";
+  if (status === "requested" || status === "accepted") return "starting";
+  return "neutral";
 }
 
 function ExecutionDiagnostics({ executions }: { executions: ExecStatus[] }) {

@@ -9737,7 +9737,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn device_authority_is_project_exact_across_http_and_rpc() -> anyhow::Result<()> {
+    async fn device_authority_is_resource_exact_across_http_and_rpc() -> anyhow::Result<()> {
         fn project(id: &str, title: &str) -> ProjectDescriptor {
             ProjectDescriptor {
                 schema_version: 1,
@@ -9831,10 +9831,10 @@ mod tests {
                     .body(Body::from(
                         json!({
                             "device_name": "Project A device",
-                            "scopes": ["observe", "project_operate", "develop_propose", "access_manage"],
+                            "scopes": ["observe", "project_operate", "deploy", "develop_propose", "access_manage"],
                             "resources": [
                                 {"kind": "project", "id": project_a},
-                                {"kind": "target"}
+                                {"kind": "target", "id": "local"}
                             ],
                             "pairing_ttl_secs": 60,
                             "grant_ttl_secs": 7200
@@ -9873,6 +9873,80 @@ mod tests {
             .and_then(|value| value.split(';').next())
             .expect("device access token is encoded in the cookie")
             .to_string();
+
+        let unauthenticated_operations = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/host/v1/targets/local/operations")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(
+            unauthenticated_operations.status(),
+            StatusCode::UNAUTHORIZED
+        );
+
+        let visible_operations = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/host/v1/targets/local/operations")
+                    .header(header::ORIGIN, "https://client.example")
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(visible_operations.status(), StatusCode::OK);
+        assert_eq!(
+            visible_operations
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static("*"))
+        );
+        let visible_operations_body = to_bytes(visible_operations.into_body(), usize::MAX).await?;
+        assert_eq!(
+            serde_json::from_slice::<Value>(&visible_operations_body)?,
+            json!([])
+        );
+
+        let denied_target_operations = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/host/v1/targets/other/operations")
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(denied_target_operations.status(), StatusCode::FORBIDDEN);
+
+        let denied_project_operation = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/targets/local/operations")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::from(
+                        json!({"project_id": project_b, "spec": {"kind": "health_probe"}})
+                            .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(denied_project_operation.status(), StatusCode::FORBIDDEN);
+
+        let unknown_operation = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/host/v1/targets/local/operations/unknown")
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(unknown_operation.status(), StatusCode::NOT_FOUND);
 
         let overbroad_delegation = app
             .clone()

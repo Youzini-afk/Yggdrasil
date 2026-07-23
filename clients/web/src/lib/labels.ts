@@ -411,6 +411,20 @@ export interface LocaleDictionary {
   projectFrameDeploymentSection: string;
   projectFrameDeploymentDescription: string;
   projectFrameRemoteTargetOperationsOnly: string;
+  projectFrameTargetOperations: string;
+  projectFrameTargetOperationEmpty: string;
+  projectFrameTargetOperationShowDetails: string;
+  projectFrameTargetOperationHideDetails: string;
+  projectFrameTargetOperationRevision: string;
+  projectFrameTargetOperationExecution: string;
+  projectFrameTargetOperationUpdatedAt: string;
+  projectFrameTargetOperationRequestDigest: string;
+  projectFrameTargetOperationAuthorityDigest: string;
+  projectFrameTargetOperationOutput: string;
+  projectFrameTargetOperationDiagnostics: string;
+  projectFrameTargetOperationNoDiagnostics: string;
+  projectFrameTargetOperationReceiptPending: string;
+  projectFrameTargetOperationShowingRecent: (shown: number, total: number) => string;
   projectFrameDeploymentExecutions: string;
   projectFrameDeploymentPortLeases: string;
   projectFrameDeploymentProxyRoutes: string;
@@ -436,6 +450,9 @@ export interface LocaleDictionary {
   projectFrameDeploymentNoDurableHistory: string;
   projectFrameDeploymentJobHistory: string;
   projectFrameDeploymentCreatedAt: string;
+  projectFrameDeploymentSourceCommit: string;
+  projectFrameDeploymentBuildDigest: string;
+  projectFrameDeploymentParentRevision: string;
   projectFrameRouteExposure: string;
   projectFrameRoutePrivate: string;
   projectFrameRoutePrivateBody: string;
@@ -1204,6 +1221,20 @@ export const labels = {
     projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
     projectFrameRemoteTargetOperationsOnly:
       "This target is operated through durable Host target operations. Local-only deploy and build actions are hidden so they cannot silently affect another target.",
+    projectFrameTargetOperations: "Target operations",
+    projectFrameTargetOperationEmpty: "No durable target operations have been recorded for this project and target.",
+    projectFrameTargetOperationShowDetails: "Show details",
+    projectFrameTargetOperationHideDetails: "Hide details",
+    projectFrameTargetOperationRevision: "Operation revision",
+    projectFrameTargetOperationExecution: "Execution ID",
+    projectFrameTargetOperationUpdatedAt: "Updated",
+    projectFrameTargetOperationRequestDigest: "Request digest",
+    projectFrameTargetOperationAuthorityDigest: "Authority digest",
+    projectFrameTargetOperationOutput: "Receipt output",
+    projectFrameTargetOperationDiagnostics: "Terminal diagnostics",
+    projectFrameTargetOperationNoDiagnostics: "The terminal receipt contains no diagnostics.",
+    projectFrameTargetOperationReceiptPending: "No terminal receipt is available yet. Refresh to observe the next durable state.",
+    projectFrameTargetOperationShowingRecent: (shown, total) => `Showing the newest ${shown} of ${total} operations.`,
     projectFrameDeploymentExecutions: "Executions",
     projectFrameDeploymentPortLeases: "Port Leases",
     projectFrameDeploymentProxyRoutes: "Proxy Routes",
@@ -1229,6 +1260,9 @@ export const labels = {
     projectFrameDeploymentNoDurableHistory: "No durable deployment revision has been recorded for this project.",
     projectFrameDeploymentJobHistory: "Recent deployment jobs",
     projectFrameDeploymentCreatedAt: "Created",
+    projectFrameDeploymentSourceCommit: "Source commit",
+    projectFrameDeploymentBuildDigest: "Build descriptor",
+    projectFrameDeploymentParentRevision: "Parent revision",
     projectFrameRouteExposure: "Route exposure",
     projectFrameRoutePrivate: "Host authenticated",
     projectFrameRoutePrivateBody: "Only authenticated Host clients can reach this service through the managed /p route.",
@@ -2003,6 +2037,20 @@ export const labels = {
     projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
     projectFrameRemoteTargetOperationsOnly:
       "该 target 只通过 Host 的持久 target operation 操作。本机专用的部署和构建按钮已隐藏，避免静默作用到错误目标。",
+    projectFrameTargetOperations: "目标操作",
+    projectFrameTargetOperationEmpty: "该项目与目标尚无持久化操作记录。",
+    projectFrameTargetOperationShowDetails: "显示详情",
+    projectFrameTargetOperationHideDetails: "隐藏详情",
+    projectFrameTargetOperationRevision: "操作修订",
+    projectFrameTargetOperationExecution: "执行 ID",
+    projectFrameTargetOperationUpdatedAt: "更新时间",
+    projectFrameTargetOperationRequestDigest: "请求摘要",
+    projectFrameTargetOperationAuthorityDigest: "授权摘要",
+    projectFrameTargetOperationOutput: "回执输出",
+    projectFrameTargetOperationDiagnostics: "终态诊断",
+    projectFrameTargetOperationNoDiagnostics: "终态回执没有诊断信息。",
+    projectFrameTargetOperationReceiptPending: "当前还没有终态回执；刷新后可查看下一项持久状态。",
+    projectFrameTargetOperationShowingRecent: (shown, total) => `显示最新 ${shown} 项，共 ${total} 项操作。`,
     projectFrameDeploymentExecutions: "执行",
     projectFrameDeploymentPortLeases: "端口租约",
     projectFrameDeploymentProxyRoutes: "代理路由",
@@ -2028,6 +2076,9 @@ export const labels = {
     projectFrameDeploymentNoDurableHistory: "该项目尚无持久化部署修订。",
     projectFrameDeploymentJobHistory: "近期部署任务",
     projectFrameDeploymentCreatedAt: "创建时间",
+    projectFrameDeploymentSourceCommit: "来源提交",
+    projectFrameDeploymentBuildDigest: "构建描述摘要",
+    projectFrameDeploymentParentRevision: "父修订",
     projectFrameRouteExposure: "路由暴露范围",
     projectFrameRoutePrivate: "需要 Host 认证",
     projectFrameRoutePrivateBody: "只有已认证的 Host 客户端可通过托管的 /p 路由访问此服务。",

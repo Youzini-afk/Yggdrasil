@@ -745,6 +745,70 @@ export interface ExecutionTarget {
   capabilities?: Array<"local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream" | string>;
 }
 
+export type TargetOperationKind =
+  | "artifact_materialize"
+  | "artifact_release"
+  | "deployment_apply"
+  | "deployment_observe"
+  | "deployment_drain"
+  | "deployment_stop"
+  | "health_probe"
+  | "verifier_run";
+
+export type TargetOperationStatus =
+  | "requested"
+  | "accepted"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "outcome_unknown"
+  | "expired";
+
+export interface TargetOperationAuthority {
+  target_id: string;
+  operation_id: string;
+  step_id: string;
+  project_id: string;
+  effect: TargetOperationKind;
+  artifact_digests: string[];
+  lease_epoch: number;
+  policy_epoch: number;
+  issued_at_ms: number;
+  expires_at_ms: number;
+  nonce: string;
+  request_digest: string;
+  authority_digest: string;
+}
+
+export interface TargetOperationReceipt {
+  operation_id: string;
+  target_id: string;
+  execution_id: string;
+  step_id: string;
+  request_digest: string;
+  authority_digest: string;
+  status: Exclude<TargetOperationStatus, "requested" | "accepted" | "running" | "expired">;
+  completed_at_ms: number;
+  output: unknown;
+  diagnostics: string[];
+}
+
+export interface TargetOperationRecord {
+  operation_id: string;
+  target_id: string;
+  project_id: string;
+  revision: number;
+  status: TargetOperationStatus;
+  execution_id?: string | null;
+  spec: { kind: TargetOperationKind } & Record<string, unknown>;
+  authority: TargetOperationAuthority;
+  idempotency_key?: string | null;
+  receipt?: TargetOperationReceipt | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
 export interface ExecStatus {
   exec_id?: string | null;
   target_id?: string | null;
@@ -904,6 +968,16 @@ export class YggProtocolClient {
 
   targetStatus(targetId: string) {
     return this.call<ExecutionTarget>("host.target.status", { target_id: targetId });
+  }
+
+  listTargetOperations(targetId: string): Promise<TargetOperationRecord[]> {
+    return this.fetchHostGetJson(`/host/v1/targets/${encodeURIComponent(targetId)}/operations`);
+  }
+
+  getTargetOperation(targetId: string, operationId: string): Promise<TargetOperationRecord> {
+    return this.fetchHostGetJson(
+      `/host/v1/targets/${encodeURIComponent(targetId)}/operations/${encodeURIComponent(operationId)}`,
+    );
   }
 
   listExecs() {
@@ -1277,7 +1351,7 @@ export class YggProtocolClient {
       return (await response.json()) as T;
     } catch (err: unknown) {
       if (isFetchTransportError(err)) {
-        throw new Error("Cannot reach the Yggdrasil host deployment broker. Check that the host is still running and the access token is valid.");
+        throw new Error("Cannot reach the Yggdrasil Host control API. Check that the Host is reachable and the access token is valid.");
       }
       throw err;
     }
@@ -1293,7 +1367,7 @@ export class YggProtocolClient {
       return (await response.json()) as T;
     } catch (err: unknown) {
       if (isFetchTransportError(err)) {
-        throw new Error("Cannot reach the Yggdrasil host deployment broker. Check that the host is still running and the access token is valid.");
+        throw new Error("Cannot reach the Yggdrasil Host control API. Check that the Host is reachable and the access token is valid.");
       }
       throw err;
     }
