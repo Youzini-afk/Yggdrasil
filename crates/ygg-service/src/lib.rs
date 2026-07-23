@@ -7034,9 +7034,10 @@ where
         .header(header::CONNECTION, "close")
         .body(body);
     if let Some(bridge_token) = &connection.bridge_token {
-        upstream = upstream
-            .header(TARGET_TUNNEL_BRIDGE_HEADER, bridge_token)
-            .header(header::HOST, format!("127.0.0.1:{}", resolved.port));
+        upstream = upstream.header(TARGET_TUNNEL_BRIDGE_HEADER, bridge_token);
+        if vhost_authority.is_none() {
+            upstream = upstream.header(header::HOST, format!("127.0.0.1:{}", resolved.port));
+        }
     }
     for (name, value) in request_headers.iter() {
         if should_forward_request_header(name) {
