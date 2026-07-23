@@ -1,0 +1,153 @@
+# Target Agent Protocol
+
+> [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
+
+Status: **pre-implementation design contract**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider.
+
+## Three remote boundaries
+
+| Boundary | Subject | Purpose | Trust |
+|---|---|---|---|
+| Remote Host client | Human device, Web/PWA, CLI | Control one Host | root or project-scoped device grant |
+| Remote Target Agent | Managed execution node | Execute deployment/verifier operations and report truth | target identity + operation authority |
+| Remote package entry | Capability-provider service | Serve package invoke/stream | workload identity + attenuated capability |
+
+They never share bearer credentials, lifecycle, or implicit authority.
+
+## Roles
+
+- **Controller:** owner of desired state, operations, leases, policy, and audit.
+- **Agent:** executes typed operations locally, persists an operation ledger, and observes entities.
+- **Target driver:** transport-neutral Controller seam; local and remote implementations pass the same conformance.
+- **Artifact service:** authorized, digest-verified content transport.
+- **Ingress/tunnel adapter:** connects Host routes to agent loopback without treating arbitrary remote IPs as local leases.
+
+An Agent does not own the project catalog, grant registry, user sessions, package marketplace, or final deployment intent.
+
+## Target lifecycle
+
+```text
+ExecutionTarget
+  id / display_name
+  reachability: local | direct | reverse_tunnel
+  identity_ref
+  protocol_versions[]
+  declared_capabilities[] / effective_capabilities[]
+  labels{}
+  status / last_seen_at?
+  enrolled_at / revoked_at?
+```
+
+States include Enrolling, Available, Degraded, Offline, Draining, Incompatible, and Revoked. Effective capability is the intersection of declaration, Host policy, and verified probing. Caller-submitted JSON cannot make a target Available.
+
+## Enrollment and identity
+
+1. root or target-manage authority creates a short-lived single-use challenge;
+2. the Agent generates its key and submits challenge, public key, version, and capabilities;
+3. the Host verifies it and registers a Host-audience target identity;
+4. sessions use mTLS or equivalent mutual authentication with rotation;
+5. revocation rejects new sessions and operations; drain/revoke policy handles existing workloads.
+
+The journal stores public identity, credential digest/serial, state, and audit references, never the agent private key. A Host-managed CA can implement v1 while preserving future SPIFFE integration.
+
+## Transport session
+
+The protocol runs over an authenticated bidirectional session independent of connection direction:
+
+```text
+Hello(target_id, identity, versions, nonce)
+Welcome(host_id, selected_version, session_id, policy_epoch)
+Heartbeat(observed_summary, receipt_cursor)
+OperationRequest(operation, step, lease_epoch, authority, body)
+OperationAccepted | OperationRejected
+OperationProgress(sequence, diagnostic_refs)
+OperationReceipt(terminal result)
+ObserveRequest / ObserveSnapshot
+CancelRequest / CancelReceipt
+ArtifactRequest / ArtifactChunk / ArtifactReceipt
+```
+
+V1 selects one transport. Direct mTLS HTTP/2 and reverse tunnel may later be connection adapters without changing operation semantics. Reconnect resumes from a durable receipt cursor.
+
+## Typed operations
+
+Agents accept only public versioned policy-decidable operations: artifact materialize/release, deployment apply/observe/stop/drain, health probe, logs read/follow, actual port reserve/release, tunnel open/close, and declarative verifier run.
+
+There is no `shell(command: string)`. Process execution, when needed, constrains program, args, cwd, env, network, mounts, resources, and output under both target policy and operation authority. Unknown operations and fields fail closed.
+
+## Operation authority and fencing
+
+```text
+OperationAuthority
+  audience_target_id
+  operation_id / step_id
+  project_resource_ref
+  allowed_effect
+  artifact_digests[] / secret_envelope_refs[]
+  lease_epoch
+  issued_at / expires_at
+  nonce / authority_digest
+```
+
+It is bound to one target, operation, step, and effect. The Agent verifies Host identity, audience, expiry, policy epoch, and lease epoch. `(operation_id, step_id, request_digest)` is idempotent; a different digest for the same step conflicts. Older epochs are rejected even with valid signatures. V1 may encode this as an mTLS-session-bound, signed, or MACed short-lived token without weakening semantics.
+
+## Agent ledger
+
+The Agent persists request digest and epoch before acknowledging acceptance, and persists a receipt before acknowledging terminal state:
+
+```text
+accepted -> running -> succeeded | failed | cancelled
+                     -> outcome_unknown
+```
+
+After restart it reconciles the ledger with ownership-labelled local entities. Uncertain effects remain outcome_unknown.
+
+## Artifacts and secrets
+
+Artifacts are content addressed, chunked, resumable under a lease, fully digest-verified before activation, authorized per operation, and retained by active/previous/in-flight/pinned reachability. Provenance, signature, and media type travel with the descriptor.
+
+Journals and artifacts carry only `secret_ref`. The Host creates a short-lived envelope for one target identity and operation; the Agent decrypts as late as possible into tmpfs/restricted executor facilities and destroys temporary material after terminal state. There is no general secret list/get API.
+
+## Network and ingress
+
+The Host loopback-only upstream rule remains a security boundary. Remote routing uses an authenticated target tunnel:
+
+1. Agent actually reserves a target-loopback port;
+2. Controller registers a target-aware route;
+3. Host proxy opens a stream through the authenticated tunnel;
+4. Agent validates route, lease, generation, and epoch before dialing loopback;
+5. Host route policy continues to decide public versus Host-authenticated access.
+
+Target-side public ingress, ACME, and edge identity are later adapters, not a hidden relaxation in v1.
+
+## Failure behavior
+
+| Condition | Behavior |
+|---|---|
+| Heartbeat timeout | Offline; workloads are not assumed absent |
+| Reconnect | Revalidate identity/epoch and resume receipt cursor |
+| Host crashes after request | Observe/ledger lookup before retry |
+| Agent crashes after start | Reconcile ledger and ownership labels |
+| Network partition | Expiring authority and fencing prevent split ownership |
+| Target revoked | Reject new work; apply explicit drain policy |
+| Artifact corruption | Delete partial data and terminally fail the step |
+| Tunnel loss | Route becomes unready while intent remains |
+| Version mismatch | Incompatible; never execute unknown semantics |
+
+## Delivery slices
+
+1. Identity and observation: durable registry, enrollment, heartbeat, negotiation, observe.
+2. Typed verifier worker: artifact transfer, declarative verifier, receipts/logs.
+3. Private deployment preview: deployment/port/tunnel operations and Host-authenticated route.
+4. Public deployment through an already-public Host, followed later by target-edge design.
+
+Initial placement is explicit. No automatic scheduler, multi-Host leader election, or secret federation.
+
+## Completion gate
+
+- local and remote target implementations produce equivalent operation states and receipts;
+- duplicate, out-of-order, expired, and stale-epoch requests are deterministic;
+- crashes/disconnects at every step do not duplicate workloads;
+- revoke, drain, reconnect, corruption, and version mismatch have coverage;
+- no general shell, device credential, or cross-project artifact/secret access exists;
+- remote routing does not rely on arbitrary network upstreams.

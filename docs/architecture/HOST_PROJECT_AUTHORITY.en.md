@@ -1,0 +1,181 @@
+# Host Project-Scoped Authority
+
+> [English](./HOST_PROJECT_AUTHORITY.en.md) · [中文](./HOST_PROJECT_AUTHORITY.md)
+
+Status: **pre-implementation design contract**. This document defines authorization boundaries for Host project operations. Candidate fields and methods are not Stable until implementation and conformance are complete.
+
+## Goal
+
+The constitutional substrate owns principals, authenticated call context, authority attenuation/delegation/revocation, and audit mechanisms. A Project is a Host Control Plane resource. Project isolation must use the former to protect the latter without promoting `Project` into kernel ontology or treating a caller-supplied `session_id` as proof of authority.
+
+The completed design must ensure that:
+
+- root, devices, CLI, Web/PWA, desktop, package surfaces, and future target agents enter the public protocol through one authenticated context model;
+- grants can be constrained to exact projects, targets, and Host actions;
+- sessions carry only Host-verified project bindings and cannot amplify authority;
+- transports, aliases, and legacy adapters cannot bypass resource authorization;
+- sensitive allow/deny decisions link subject, grant, delegation, resource, and effect receipt.
+
+## Layer boundary
+
+```text
+Constitutional Substrate
+  AuthenticatedCallContext / AuthorityRef / ResourceRef / delegation / audit
+
+Host Control Plane
+  ProjectId / TargetId / Host action / resource policy / session binding
+
+Experience and package layers
+  receive attenuated handles; never receive Host root or device credentials
+```
+
+The substrate understands only a structured `ResourceRef { owner, kind, id }`, for example owner=`host`, kind=`project`. It does not interpret Project semantics. The Host policy resolver maps method parameters, paths, session bindings, and object ownership to resource sets.
+
+## Two call contexts
+
+### AuthenticatedCallContext
+
+Every transport constructs the same request-body-independent context after authentication:
+
+```text
+AuthenticatedCallContext
+  principal_ref
+  credential_kind
+  grant_ref?
+  delegation_chain[]
+  authority_refs[]
+  transport
+  audience_host_id
+  issued_at / expires_at?
+  correlation_id / parent_invocation_id?
+```
+
+Bearer, Cookie, stdio, in-process, and future mTLS are authentication adapters. They do not change authorization semantics.
+
+### HostOperationContext
+
+Before dispatching a method, the Host resolves request resources into:
+
+```text
+HostOperationContext
+  authenticated_call
+  action
+  resources[]
+  verified_project_binding?
+  target_ref?
+  operation_ref?
+  policy_decision_ref
+```
+
+When runtime code needs project scope, it receives this verified resource context or an attenuated handle minted from it. It must not derive authority from unverified JSON, URL parameters, or session metadata.
+
+## Grant model
+
+Host grants retain the current opaque bearer credential whose digest alone is stored. Phase one does not require a self-contained token. Authority semantics stabilize before selecting a Biscuit-like encoding.
+
+Candidate shape:
+
+```text
+HostGrant
+  id
+  subject
+  actions[]
+  resource_selectors[]
+  parent_grant_id?
+  delegation_depth
+  issued_at / expires_at
+  revoked_at?
+  credential_digest
+```
+
+Selectors are structured and never matched by string prefix:
+
+- `host/project/<exact-id>`;
+- `host/target/<exact-id>`;
+- `host/all-projects` or `host/all-targets`, delegable only by an authority with the same scope;
+- explicit Host-wide resources such as `host/access-registry`.
+
+Rules:
+
+1. A child grant's actions, resources, expiry, and delegation depth are subsets of its issuer.
+2. Root is the Host root authority, but still uses public APIs and audit paths.
+3. A device identity is never collapsed into unconstrained `HostDev` at the RPC boundary.
+4. Revocation affects all new calls; operation leases/policies define whether in-flight work is cancelled.
+5. Legacy global device grants migrate to explicit `all-projects` / `all-targets` selectors through audited migration.
+
+## Method authorization
+
+Each canonical method registers:
+
+```text
+MethodPolicy
+  action
+  resource_extractor
+  project_binding_requirement
+  anonymous_allowed = false
+  failure_mode = deny
+```
+
+The fixed order is:
+
+1. authenticate the transport into `AuthenticatedCallContext`;
+2. canonicalize the method name so aliases share policy;
+3. extract resources from parsed parameters and server-side projections;
+4. validate session/project/object ownership and reject conflicts;
+5. intersect action, resources, and authority;
+6. record the policy decision;
+7. only then invoke runtime code or external effects.
+
+Unknown paths, methods, resources, and missing bindings fail closed. List methods filter server-side instead of returning all resources for the client to hide.
+
+## Session binding
+
+`session_id` is a locator, not a capability:
+
+- the Host writes a controlled project binding when creating a session;
+- requested project, session, and object ownership must agree;
+- the caller also needs the matching project action;
+- package surfaces receive a short-lived, method-allowlisted project handle, not a Host grant;
+- fork, restore, archive, and delete preserve or explicitly change the binding with audit;
+- resolvers, secrets, events, artifacts, proposals, and deployment consume the verified binding.
+
+## Audit linkage
+
+Sensitive calls record principal, credential kind, grant, delegation-chain digest, canonical method, action, resources, session/project/target/operation references, allow/deny reason, causation, and the resulting receipt or terminal failure. Raw credentials, secret values, and Cookies never enter the journal.
+
+## Threat table
+
+| Threat | Required defense |
+|---|---|
+| Project A grant submits project B session | Cross-check Host session binding and selectors |
+| Legacy alias escapes policy | Canonicalize before authorization |
+| HTTP RPC device becomes `HostDev` | Preserve authenticated identity and grant |
+| Lists or streams leak other projects | Server-side projection filters and fixed subscription scope |
+| Project iframe steals a Host token | Expose only short-lived project handles and allowlisted methods |
+| Project-id prefix collision | Structured exact `ResourceRef` comparison |
+| Revoked grant creates new effects | Recheck projection per call and lease epoch for long work |
+| In-process/stdio bypasses middleware | Require authenticated context in transport-neutral dispatch |
+
+## Compatibility
+
+- New fields begin optional under Experimental/Candidate schemas; omission preserves legacy global scope.
+- New-grant UI/API must submit selectors after migration.
+- Canonical ownership remains under `host.access`, `host.project`, and related Host methods; `kernel.v1.*` remains an adapter.
+- Run one authorization conformance table across canonical, legacy, HTTP, and direct transports.
+- Do not remove old fields or response shapes before grant and client migration completes.
+
+## Implementation order
+
+1. Add authenticated context and structured selectors without changing behavior.
+2. Propagate root/device identity into runtime dispatch and remove device-to-`HostDev` collapse.
+3. Enforce session/project/object binding across events, secrets, artifacts, and resolvers.
+4. Extend pairing/grant projection, delegation, and audit.
+5. Migrate UI/CLI, then reject selector-less new grants.
+
+## Completion gate
+
+- A project-A-only device is denied project B get/list/event/secret/develop/deploy/route operations.
+- Forged sessions, aliases, direct transports, and replayed grants cannot bypass policy.
+- Root, global devices, and pre-migration clients retain explicit tested compatibility.
+- Revocation, expiry, attenuation, and bulk revocation have concurrency coverage.
+- Audit traces user action through policy decision and effect receipt without credential leakage.

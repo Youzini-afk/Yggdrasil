@@ -15,6 +15,10 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 
 The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 
+The dependency order among project authority, reliable deployment, operational safety, remote targets, and unified clients is fixed in
+[`HOST_OPERATIONS_IMPLEMENTATION.en.md`](HOST_OPERATIONS_IMPLEMENTATION.en.md). Implementation must satisfy project isolation and local recovery gates
+before enabling remote targets; real-project pressure still drives this work, and none of it becomes kernel content ontology.
+
 > “Complete” here means current v1 operational closure, not that every `kernel.v1.*`
 > boundary is permanent constitutional substrate. The long-term layering candidate is
 > [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md), with item-level ownership and temporary implementation order in

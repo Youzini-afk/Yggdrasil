@@ -15,6 +15,10 @@
 
 下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。
 
+项目级权威、可靠部署、运行安全、remote target 与统一客户端之间的依赖顺序已经固定在
+[`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md)。实现必须先满足项目隔离和本地恢复门槛，
+再开放 remote target；这些能力仍由真实项目压力驱动，不构成新的内核内容本体。
+
 > 这里的「完整」指当前 v1 运行闭环，不代表现有 `kernel.v1.*` 边界已经成为永久宪法。
 > 长期分层候选见 [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)，逐项归属与临时实施顺序见
 > [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 和
