@@ -498,7 +498,8 @@ await protocolClient.projections();
 await protocolClient.proposals();
 await protocolClient.surfaceContributions();
 await protocolClient.describeSurface("official/test.entry");
-await resolveSurfaceBundle(protocolClient, "official/test.entry");
+const remoteBundle = await resolveSurfaceBundle(protocolClient, "official/test.entry");
+assertEqual(remoteBundle.bundleUrl, "http://host.test/surface-bundles/test/bundle.mjs");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
   "host.project.list",
   "projection.list",

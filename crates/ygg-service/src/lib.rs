@@ -31,6 +31,7 @@ use tokio::net::TcpStream;
 use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
 use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tower_http::cors::{Any, CorsLayer};
 use ygg_core::{
     EventEnvelope, EventSequence, KernelSession, PackageId, PackageManifest, ProjectId, SessionId,
 };
@@ -392,6 +393,15 @@ where
             access_control,
             desktop_bootstrap_middleware::<S>,
         ))
+        .layer(browser_client_cors())
+}
+
+fn browser_client_cors() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
+        .max_age(Duration::from_secs(60 * 60))
 }
 
 pub fn spawn_health_supervisor<S>(state: AppState<S>) -> tokio::task::JoinHandle<()>
@@ -9642,6 +9652,31 @@ mod tests {
             .await?;
         assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
 
+        let preflight = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/rpc")
+                    .header(header::ORIGIN, "https://client.example")
+                    .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                    .header(
+                        header::ACCESS_CONTROL_REQUEST_HEADERS,
+                        "authorization,content-type",
+                    )
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(preflight.status(), StatusCode::OK);
+        assert_eq!(
+            preflight.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static("*"))
+        );
+        assert!(preflight
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            .is_none());
+
         let allowed = app
             .clone()
             .oneshot(
@@ -9649,6 +9684,7 @@ mod tests {
                     .method("POST")
                     .uri("/rpc")
                     .header("content-type", "application/json")
+                    .header(header::ORIGIN, "https://client.example")
                     .header(header::AUTHORIZATION, "Bearer secret-token")
                     .body(Body::from(
                         json!({"id":"1","method":"kernel.v1.host.info","params":{}}).to_string(),
@@ -9656,6 +9692,10 @@ mod tests {
             )
             .await?;
         assert_eq!(allowed.status(), StatusCode::OK);
+        assert_eq!(
+            allowed.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static("*"))
+        );
 
         let access_identity = app
             .oneshot(

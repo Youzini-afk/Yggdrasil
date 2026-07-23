@@ -2,12 +2,30 @@ import {
   BROWSER_ACCESS_TOKEN_STORAGE_KEY,
   BrowserCredentialProvider,
   PendingCredentialLease,
+  browserAccessTokenStorageKey,
 } from "./credentials";
 import { PROJECT_SHELL_HISTORY_STATE, shouldReturnToShellHistory } from "./platform-adapter";
-import { normalizeHostBaseUrl, resolveHostBaseUrl } from "./host-endpoint";
+import { BrowserProjectTargetContextStore } from "./project-target-context";
+import {
+  BrowserHostConnectionStore,
+  HOST_CONNECTIONS_STORAGE_KEY,
+  normalizeHostBaseUrl,
+  normalizeHostConnectionBaseUrl,
+  resolveHostBaseUrl,
+} from "./host-endpoint";
 
 function assertEqual<T>(actual: T, expected: T) {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
+}
+
+function assertThrows(fn: () => unknown, message: string) {
+  try {
+    fn();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(message)) return;
+    throw error;
+  }
+  throw new Error(`expected error containing ${message}`);
 }
 
 class MemoryStorage {
@@ -61,3 +79,47 @@ assertEqual(shouldReturnToShellHistory({ length: 5, state: { [PROJECT_SHELL_HIST
 
 assertEqual(normalizeHostBaseUrl("https://host.example///"), "https://host.example");
 assertEqual(resolveHostBaseUrl("https://host.example/root/"), "https://host.example/root");
+
+assertEqual(normalizeHostConnectionBaseUrl("https://host.example:9443/"), "https://host.example:9443");
+assertEqual(normalizeHostConnectionBaseUrl("http://127.0.0.2:8787"), "http://127.0.0.2:8787");
+assertThrows(() => normalizeHostConnectionBaseUrl("http://host.example"), "must use HTTPS");
+assertThrows(() => normalizeHostConnectionBaseUrl("https://user@host.example"), "cannot contain credentials");
+assertThrows(() => normalizeHostConnectionBaseUrl("https://host.example/api"), "must not contain a path");
+
+const connectionStorage = new MemoryStorage();
+const connections = new BrowserHostConnectionStore(connectionStorage);
+const remote = connections.save("Remote Host", "https://host.example/");
+assertEqual(remote.id, "https://host.example");
+assertEqual(connections.list().length, 1);
+connections.select(remote.id);
+assertEqual(connections.active()?.name, "Remote Host");
+connections.save("Renamed Host", "https://host.example");
+assertEqual(connections.list().length, 1);
+assertEqual(connections.active()?.name, "Renamed Host");
+
+const remoteCredential = new BrowserCredentialProvider(
+  {
+    localStorage: connectionStorage,
+    location: { pathname: "/", search: "", hash: "" },
+    history: { state: null, replaceState: () => {} },
+  },
+  browserAccessTokenStorageKey(remote.id),
+);
+remoteCredential.write("remote-token");
+assertEqual(remoteCredential.read(), "remote-token");
+assertEqual(connectionStorage.getItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY), null);
+connections.remove(remote.id);
+assertEqual(connections.active(), undefined);
+assertEqual(connections.list().length, 0);
+assertEqual(connectionStorage.getItem(HOST_CONNECTIONS_STORAGE_KEY), null);
+
+const projectContexts = new BrowserProjectTargetContextStore(connectionStorage, remote.id);
+projectContexts.set("project-one", "target-a");
+assertEqual(projectContexts.get("project-one"), "target-a");
+const otherHostContexts = new BrowserProjectTargetContextStore(
+  connectionStorage,
+  "https://other.example",
+);
+assertEqual(otherHostContexts.get("project-one"), undefined);
+projectContexts.clear("project-one");
+assertEqual(projectContexts.get("project-one"), undefined);

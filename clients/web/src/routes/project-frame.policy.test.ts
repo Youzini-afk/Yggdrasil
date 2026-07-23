@@ -137,3 +137,38 @@ assertDeepEqual(summarizeConsoleDiagnostics(null), {
   portActive: 0,
   proxyActive: 0,
 });
+
+assertDeepEqual(summarizeConsoleDiagnostics({
+  packages: [],
+  events: [],
+  errors: [],
+  targets: [
+    { id: "local", name: "Local", reachability: "local_host", status: "available" },
+    { id: "remote", name: "Remote", reachability: "remote", status: "available" },
+  ],
+  executions: [
+    { exec_id: "local-exec", target_id: "local", kind: "running", ready: true },
+    { exec_id: "remote-exec", target_id: "remote", kind: "running", ready: true },
+  ],
+  portLeases: [
+    { id: "local-lease", target_id: "local", port_name: "web", host: "127.0.0.1", port: 3000, protocol: "tcp", status: "active" },
+    { id: "remote-lease", target_id: "remote", port_name: "web", host: "127.0.0.1", port: 4000, protocol: "tcp", status: "active" },
+  ],
+  proxyRoutes: [
+    { id: "local-route", protocol: "http", access: "host_authenticated", public_url: "https://local.test", iframe_url: "https://local.test", status: "active", ready: true, upstream: { port_lease_id: "local-lease", port_name: "web" } },
+    { id: "remote-route", protocol: "http", access: "host_authenticated", public_url: "https://remote.test", iframe_url: "https://remote.test", status: "active", ready: true, upstream: { port_lease_id: "remote-lease", port_name: "web" } },
+  ],
+  refreshedAt: "now",
+}, "remote"), {
+  packageTotal: 0,
+  packageHealthy: 0,
+  packageProblem: 0,
+  recentEvents: 0,
+  updateAvailable: 0,
+  updateChecked: false,
+  targetTotal: 1,
+  execTotal: 1,
+  execRunning: 1,
+  portActive: 1,
+  proxyActive: 1,
+});

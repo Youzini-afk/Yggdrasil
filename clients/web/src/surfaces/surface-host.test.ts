@@ -6,6 +6,7 @@ import {
   createSurfaceBridgeState,
   createStreamFrameMessageForTest,
   isAuthorizedSurfaceMessageForTest,
+  surfaceFrameUrlForTest,
   SurfaceBridgeError,
   type SurfaceHostBridge,
 } from "./surface-host";
@@ -53,6 +54,11 @@ const bridge: SurfaceHostBridge = {
 
 const testWindow = { location: { origin: "http://localhost" } } as Window;
 Object.defineProperty(globalThis, "window", { value: testWindow, configurable: true });
+
+assertEqual(
+  surfaceFrameUrlForTest("https://remote.example/surface-assets/lease/bundle.mjs"),
+  "https://remote.example/surface-frame.html",
+);
 
 const mountProps = createMountInitialPropsForTest({ projectId: "project-1", sessionId: "old-session" }, bridge, "token-1");
 assertDeepEqual(mountProps, {

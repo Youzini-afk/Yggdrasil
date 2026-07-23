@@ -806,7 +806,7 @@ export class YggProtocolClient {
   private contractSelection?: ContractSelection;
   private contractDiagnostics: ContractDiagnostic[] = [];
 
-  constructor(private readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string | null) {
+  constructor(readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string | null) {
     this.accessToken = accessToken === undefined ? resolveBrowserAccessToken() : accessToken || undefined;
   }
 

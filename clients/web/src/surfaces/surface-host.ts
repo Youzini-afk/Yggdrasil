@@ -192,7 +192,7 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
   iframe.style.width = '100%';
   iframe.style.height = '100%';
   iframe.style.border = '0';
-  iframe.src = '/surface-frame.html';
+  iframe.src = surfaceFrameUrlForTest(options.bundleUrl);
 
   // Wait for iframe to send {type: 'ready'}
   const ready = new Promise<void>((resolve, reject) => {
@@ -306,6 +306,17 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
       iframe.remove();
     },
   };
+}
+
+export function surfaceFrameUrlForTest(
+  bundleUrl: string,
+  currentOrigin: string = window.location.origin,
+): string {
+  const bundle = new URL(bundleUrl, `${currentOrigin}/`);
+  if (bundle.protocol !== 'http:' && bundle.protocol !== 'https:') {
+    throw new Error('Surface bundle must use HTTP or HTTPS');
+  }
+  return new URL('/surface-frame.html', bundle.origin).toString();
 }
 
 function waitForSurfaceMountError(

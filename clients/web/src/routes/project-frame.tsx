@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/locale";
 import { openProjectInTab } from "@/lib/project-launcher";
 import { shouldReturnToShellHistory } from "@/client-core/platform-adapter";
+import { BrowserProjectTargetContextStore } from "@/client-core/project-target-context";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle, type ResolvedSurfaceBundle } from "@/surfaces/bundle-resolver";
 import { formatBytes } from "@/lib/format";
@@ -84,6 +85,14 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const containerRef = useRef<HTMLDivElement>(null);
   const projectRef = useRef(project);
   const [mountAttempt, setMountAttempt] = useState(0);
+  const targetContextStore = useMemo(() => new BrowserProjectTargetContextStore(), []);
+  const [selectedTargetId, setSelectedTargetId] = useState(
+    () => targetContextStore.get(projectId) ?? "local",
+  );
+
+  useEffect(() => {
+    setSelectedTargetId(targetContextStore.get(projectId) ?? "local");
+  }, [projectId, targetContextStore]);
 
   useEffect(() => {
     projectRef.current = project;
@@ -329,6 +338,14 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     void loadDiagnostics();
   }, [chrome, loadDiagnostics]);
 
+  useEffect(() => {
+    const targets = diagnostics?.targets ?? [];
+    if (targets.length === 0 || targets.some((target) => target.id === selectedTargetId)) return;
+    const fallback = targets.find((target) => target.id === "local") ?? targets[0];
+    setSelectedTargetId(fallback.id);
+    targetContextStore.set(projectId, fallback.id);
+  }, [diagnostics?.targets, projectId, selectedTargetId, targetContextStore]);
+
   const onRefreshDiagnostics = useCallback(() => {
     void loadDiagnostics();
   }, [loadDiagnostics]);
@@ -509,7 +526,18 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     return () => { closed = true; close(); };
   }, [buildDeployJob?.job_id, client, loadDiagnostics]);
 
-  const consoleSummary = useMemo(() => summarizeConsoleDiagnostics(diagnostics), [diagnostics]);
+  const consoleSummary = useMemo(
+    () => summarizeConsoleDiagnostics(diagnostics, selectedTargetId),
+    [diagnostics, selectedTargetId],
+  );
+
+  const onSelectTarget = useCallback(
+    (targetId: string) => {
+      setSelectedTargetId(targetId);
+      targetContextStore.set(projectId, targetId);
+    },
+    [projectId, targetContextStore],
+  );
   const isStandalone = chrome === "none";
   const returnToShell = useCallback(() => {
     if (shouldReturnToShellHistory(window.history)) {
@@ -584,6 +612,8 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
               project={project}
               diagnostics={diagnostics}
               summary={consoleSummary}
+              selectedTargetId={selectedTargetId}
+              onSelectTarget={onSelectTarget}
               loading={refreshingDiagnostics && !diagnostics}
               stopping={stopping}
               updating={updatingProject}
@@ -661,12 +691,22 @@ export function allowedSurfaceCapabilityIdsForTest(record: SurfaceContributionRe
   return ids;
 }
 
-export function summarizeConsoleDiagnostics(diagnostics: ProjectDiagnostics | null): ConsoleSummary {
+export function summarizeConsoleDiagnostics(
+  diagnostics: ProjectDiagnostics | null,
+  targetId?: string,
+): ConsoleSummary {
   const packages = diagnostics?.packages ?? [];
   const updateResults = diagnostics?.updates?.results ?? [];
-  const executions = diagnostics?.executions ?? [];
-  const portLeases = diagnostics?.portLeases ?? [];
-  const proxyRoutes = diagnostics?.proxyRoutes ?? [];
+  const executions = (diagnostics?.executions ?? []).filter(
+    (execution) => !targetId || execution.target_id === targetId,
+  );
+  const portLeases = (diagnostics?.portLeases ?? []).filter(
+    (lease) => !targetId || lease.target_id === targetId,
+  );
+  const leaseIds = new Set(portLeases.map((lease) => lease.id));
+  const proxyRoutes = (diagnostics?.proxyRoutes ?? []).filter(
+    (route) => !targetId || leaseIds.has(route.upstream.port_lease_id),
+  );
   return {
     packageTotal: packages.length,
     packageHealthy: packages.filter((pkg) => pkg.state === "ready" || pkg.state === "running").length,
@@ -674,11 +714,31 @@ export function summarizeConsoleDiagnostics(diagnostics: ProjectDiagnostics | nu
     recentEvents: diagnostics?.events.length ?? 0,
     updateAvailable: updateResults.filter((record) => record.available || UPDATE_AVAILABLE_STATUSES.has(record.status ?? "")).length,
     updateChecked: Boolean(diagnostics?.updates),
-    targetTotal: diagnostics?.targets.length ?? 0,
+    targetTotal: (diagnostics?.targets ?? []).filter(
+      (target) => !targetId || target.id === targetId,
+    ).length,
     execTotal: executions.length,
     execRunning: executions.filter((execution) => execution.kind === "running").length,
     portActive: portLeases.filter((lease) => lease.status === "active").length,
     proxyActive: proxyRoutes.filter((route) => route.status === "active").length,
+  };
+}
+
+function diagnosticsForTarget(
+  diagnostics: ProjectDiagnostics | null,
+  targetId: string,
+): ProjectDiagnostics | null {
+  if (!diagnostics) return null;
+  const portLeases = diagnostics.portLeases.filter((lease) => lease.target_id === targetId);
+  const leaseIds = new Set(portLeases.map((lease) => lease.id));
+  return {
+    ...diagnostics,
+    targets: diagnostics.targets.filter((target) => target.id === targetId),
+    executions: diagnostics.executions.filter((execution) => execution.target_id === targetId),
+    portLeases,
+    proxyRoutes: diagnostics.proxyRoutes.filter((route) =>
+      leaseIds.has(route.upstream.port_lease_id),
+    ),
   };
 }
 
@@ -687,6 +747,8 @@ function ProjectConsole({
   project,
   diagnostics,
   summary,
+  selectedTargetId,
+  onSelectTarget,
   loading,
   stopping,
   updating,
@@ -709,6 +771,8 @@ function ProjectConsole({
   project: (ProjectRecord & { running_session_id?: string; entry_surface_id?: string }) | null;
   diagnostics: ProjectDiagnostics | null;
   summary: ConsoleSummary;
+  selectedTargetId: string;
+  onSelectTarget: (targetId: string) => void;
   loading: boolean;
   stopping: boolean;
   updating: boolean;
@@ -729,6 +793,10 @@ function ProjectConsole({
 }) {
   const t = useT();
   const bundle = diagnostics?.bundle;
+  const selectedDiagnostics = useMemo(
+    () => diagnosticsForTarget(diagnostics, selectedTargetId),
+    [diagnostics, selectedTargetId],
+  );
   const deploymentParse = parseDockerDeploymentDescriptor(projectId, project?.metadata);
   const buildDeployParse = parseBuildDeployDescriptor(projectId, project?.metadata);
   const updateResults = diagnostics?.updates?.results ?? [];
@@ -762,6 +830,20 @@ function ProjectConsole({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="font-display text-[22px] font-bold text-charcoal-ink">{t("projectFrameConsoleTitle")}</p>
+            <label className="mt-3 flex items-center gap-2 text-[12px] text-steel-secondary">
+              <span>{t("accessTargetResources")}</span>
+              <select
+                value={selectedTargetId}
+                onChange={(event) => onSelectTarget(event.target.value)}
+                className="max-w-[260px] rounded-[9px] border border-whisper-border bg-pure-surface px-2 py-1.5 font-mono text-[12px] text-charcoal-ink"
+              >
+                {(diagnostics?.targets ?? []).map((target) => (
+                  <option key={target.id} value={target.id}>
+                    {target.name} · {target.id} · {target.status}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button tone="primary" size="sm" onClick={onOpenProjectTab}>{t("projectFrameOpenProjectTab")}</Button>
@@ -814,17 +896,17 @@ function ProjectConsole({
       </ConsoleSection>
 
       <ConsoleSection title={t("projectFrameDeploymentSection")} description={t("projectFrameDeploymentDescription")}>
-        {deploymentParse.descriptor || deploymentParse.error ? (
+        {selectedTargetId === "local" && (deploymentParse.descriptor || deploymentParse.error) ? (
           <DeploymentActionCard
             descriptor={deploymentParse.descriptor}
             error={deploymentParse.error}
-            diagnostics={diagnostics}
+            diagnostics={selectedDiagnostics}
             operation={deploymentOperation}
             onDeploy={onDeployDocker}
             onStop={onStopDockerDeployment}
           />
         ) : null}
-        {buildDeployParse.descriptor || buildDeployParse.error ? (
+        {selectedTargetId === "local" && (buildDeployParse.descriptor || buildDeployParse.error) ? (
           <BuildDeployActionCard
             descriptor={buildDeployParse.descriptor}
             error={buildDeployParse.error}
@@ -834,14 +916,21 @@ function ProjectConsole({
             onCancel={onCancelBuildDeploy}
           />
         ) : null}
-        <DeploymentRevisionHistory
-          deployments={diagnostics?.deployments}
-          operation={deploymentOperation}
-          onRecover={onRecoverDeployment}
-          onRollback={onRollbackDeployment}
-          onStop={onStopDeploymentRoute}
-        />
-        <DeploymentDiagnostics diagnostics={diagnostics} />
+        {selectedTargetId === "local" ? (
+          <DeploymentRevisionHistory
+            deployments={diagnostics?.deployments}
+            operation={deploymentOperation}
+            onRecover={onRecoverDeployment}
+            onRollback={onRollbackDeployment}
+            onStop={onStopDeploymentRoute}
+          />
+        ) : null}
+        {selectedTargetId !== "local" ? (
+          <p className="rounded-[12px] border border-aged-brass/30 bg-aged-brass/10 p-3 text-[12px] text-steel-secondary">
+            {t("projectFrameRemoteTargetOperationsOnly")}
+          </p>
+        ) : null}
+        <DeploymentDiagnostics diagnostics={selectedDiagnostics} />
       </ConsoleSection>
 
       <ConsoleSection title={t("projectFramePackagesSection")} description={t("projectFramePackagesDescription")}>

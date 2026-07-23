@@ -26,12 +26,20 @@ export async function resolveSurfaceBundle(
     project_id?: string;
     source: "installed_project" | "dev_path";
   };
+  const hostOrigin = new URL(client.baseUrl).origin;
+  const resolveAsset = (value: string) => {
+    const url = new URL(value, `${hostOrigin}/`);
+    if (url.origin !== hostOrigin || (url.protocol !== "http:" && url.protocol !== "https:")) {
+      throw new Error("Resolved surface asset is outside the selected Host");
+    }
+    return url.toString();
+  };
   return {
     surfaceId: r.surface_id,
-    bundleUrl: r.bundle_url,
+    bundleUrl: resolveAsset(r.bundle_url),
     bundleFingerprint: r.bundle_fingerprint,
     exportName: r.export_name,
-    stylesheets: r.stylesheets ?? [],
+    stylesheets: (r.stylesheets ?? []).map(resolveAsset),
     wrapperClass: r.wrapper_class,
     projectId: r.project_id,
     source: r.source,

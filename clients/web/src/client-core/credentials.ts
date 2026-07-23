@@ -1,4 +1,14 @@
+import { activeHostCredentialScope, CURRENT_HOST_CONNECTION_ID } from "./host-endpoint";
+
 export const BROWSER_ACCESS_TOKEN_STORAGE_KEY = "ygg_http_access_token";
+
+export function browserAccessTokenStorageKey(
+  scope: string = activeHostCredentialScope(),
+): string {
+  return scope === CURRENT_HOST_CONNECTION_ID
+    ? BROWSER_ACCESS_TOKEN_STORAGE_KEY
+    : `${BROWSER_ACCESS_TOKEN_STORAGE_KEY}:${encodeURIComponent(scope)}`;
+}
 
 export interface CredentialProvider {
   read(): string | undefined;
@@ -46,11 +56,14 @@ function currentWindow(): CredentialWindow | undefined {
 }
 
 export class BrowserCredentialProvider implements CredentialProvider {
-  constructor(private readonly browserWindow: CredentialWindow | undefined = currentWindow()) {}
+  constructor(
+    private readonly browserWindow: CredentialWindow | undefined = currentWindow(),
+    private readonly storageKey: string = browserAccessTokenStorageKey(),
+  ) {}
 
   read(): string | undefined {
     try {
-      return this.browserWindow?.localStorage.getItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY) ?? undefined;
+      return this.browserWindow?.localStorage.getItem(this.storageKey) ?? undefined;
     } catch {
       return undefined;
     }
@@ -58,7 +71,7 @@ export class BrowserCredentialProvider implements CredentialProvider {
 
   write(token: string): void {
     try {
-      this.browserWindow?.localStorage.setItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY, token);
+      this.browserWindow?.localStorage.setItem(this.storageKey, token);
     } catch {
       // Storage can be unavailable; AuthProvider still retains the token in memory.
     }
@@ -66,7 +79,7 @@ export class BrowserCredentialProvider implements CredentialProvider {
 
   clear(): void {
     try {
-      this.browserWindow?.localStorage.removeItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY);
+      this.browserWindow?.localStorage.removeItem(this.storageKey);
     } catch {
       // Best effort only.
     }

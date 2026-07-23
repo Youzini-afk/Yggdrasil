@@ -410,6 +410,7 @@ export interface LocaleDictionary {
   projectFrameDevelopmentRecover: string;
   projectFrameDeploymentSection: string;
   projectFrameDeploymentDescription: string;
+  projectFrameRemoteTargetOperationsOnly: string;
   projectFrameDeploymentExecutions: string;
   projectFrameDeploymentPortLeases: string;
   projectFrameDeploymentProxyRoutes: string;
@@ -704,6 +705,22 @@ export interface LocaleDictionary {
   profilesSwitchBody: (id: string) => string;
   profilesSwitchViaCli: string;
   profilesDefaultDescription: (packages: number, hosts: number) => string;
+  hostConnectionsEyebrowActive: (name: string) => string;
+  hostConnectionsTitle: string;
+  hostConnectionsDescription: string;
+  hostConnectionsSaved: string;
+  hostConnectionsCurrent: string;
+  hostConnectionsNew: string;
+  hostConnectionsNewTitle: string;
+  hostConnectionsNewBody: string;
+  hostConnectionsName: string;
+  hostConnectionsEndpoint: string;
+  hostConnectionsEndpointHint: string;
+  hostConnectionsConnect: string;
+  hostConnectionsRemove: string;
+  hostConnectionsRemoveConfirm: (name: string) => string;
+  hostConnectionsReturnCurrent: string;
+  hostConnectionsCredentialHint: string;
 
   storageTitleEyebrow: string;
   storageTitle: string;
@@ -1185,6 +1202,8 @@ export const labels = {
     projectFrameDevelopmentRecover: "Reconcile",
     projectFrameDeploymentSection: "Deployment",
     projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
+    projectFrameRemoteTargetOperationsOnly:
+      "This target is operated through durable Host target operations. Local-only deploy and build actions are hidden so they cannot silently affect another target.",
     projectFrameDeploymentExecutions: "Executions",
     projectFrameDeploymentPortLeases: "Port Leases",
     projectFrameDeploymentProxyRoutes: "Proxy Routes",
@@ -1489,6 +1508,27 @@ export const labels = {
     profilesSwitchViaCli: "Switch profile via CLI",
     profilesDefaultDescription: (packages, hosts) =>
       `Active profile · ${packages} packages loaded · ${hosts} hosts allowed`,
+
+    hostConnectionsEyebrowActive: (name) => `Host connection · ${name}`,
+    hostConnectionsTitle: "Host connections",
+    hostConnectionsDescription:
+      "Use the managed Host that served this client, or connect the same Web, PWA, and Desktop UI to an explicit remote Host. Each connection keeps an independent access credential.",
+    hostConnectionsSaved: "Saved Host connections",
+    hostConnectionsCurrent: "Current managed Host",
+    hostConnectionsNew: "Add Host",
+    hostConnectionsNewTitle: "Connect another Host",
+    hostConnectionsNewBody:
+      "Remote Hosts require HTTPS. Plain HTTP is accepted only for loopback development endpoints.",
+    hostConnectionsName: "Connection name",
+    hostConnectionsEndpoint: "Host endpoint",
+    hostConnectionsEndpointHint:
+      "Use the Host origin only; credentials, paths, queries, and fragments are rejected.",
+    hostConnectionsConnect: "Save and connect",
+    hostConnectionsRemove: "Remove",
+    hostConnectionsRemoveConfirm: (name) => `Remove ${name} and its locally stored credential?`,
+    hostConnectionsReturnCurrent: "Return to managed Host",
+    hostConnectionsCredentialHint:
+      "The endpoint and display name are saved as a profile. Access tokens remain browser-local and are isolated per Host.",
 
     storageTitleEyebrow: "Storage",
     storageTitle: "Where your data lives",
@@ -1961,6 +2001,8 @@ export const labels = {
     projectFrameDevelopmentRecover: "对账恢复",
     projectFrameDeploymentSection: "部署",
     projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
+    projectFrameRemoteTargetOperationsOnly:
+      "该 target 只通过 Host 的持久 target operation 操作。本机专用的部署和构建按钮已隐藏，避免静默作用到错误目标。",
     projectFrameDeploymentExecutions: "执行",
     projectFrameDeploymentPortLeases: "端口租约",
     projectFrameDeploymentProxyRoutes: "代理路由",
@@ -2259,6 +2301,25 @@ export const labels = {
     profilesSwitchViaCli: "通过 CLI 切换配置档",
     profilesDefaultDescription: (packages, hosts) =>
       `当前配置档 · 已加载 ${packages} 个包 · 允许 ${hosts} 个主机`,
+
+    hostConnectionsEyebrowActive: (name) => `Host 连接 · ${name}`,
+    hostConnectionsTitle: "Host 连接",
+    hostConnectionsDescription:
+      "可以继续使用承载当前客户端的托管 Host，也可以让同一套 Web、PWA 与桌面界面显式连接远程 Host。每个连接使用独立凭据。",
+    hostConnectionsSaved: "已保存的 Host 连接",
+    hostConnectionsCurrent: "当前托管 Host",
+    hostConnectionsNew: "添加 Host",
+    hostConnectionsNewTitle: "连接另一台 Host",
+    hostConnectionsNewBody: "远程 Host 必须使用 HTTPS；明文 HTTP 仅允许 loopback 开发地址。",
+    hostConnectionsName: "连接名称",
+    hostConnectionsEndpoint: "Host 地址",
+    hostConnectionsEndpointHint: "只填写 Host origin；凭据、路径、查询参数和 fragment 都会被拒绝。",
+    hostConnectionsConnect: "保存并连接",
+    hostConnectionsRemove: "移除",
+    hostConnectionsRemoveConfirm: (name) => `移除 ${name} 及其保存在本机的凭据？`,
+    hostConnectionsReturnCurrent: "返回托管 Host",
+    hostConnectionsCredentialHint:
+      "连接配置只保存地址和显示名称。访问令牌仍仅保存在浏览器本地，并按 Host 隔离。",
 
     storageTitleEyebrow: "存储",
     storageTitle: "数据存放位置",

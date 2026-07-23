@@ -6,6 +6,7 @@ import { InputGroup } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-gate";
 import { useT } from "@/lib/locale";
 import { SPRING } from "@/lib/motion";
+import { BrowserHostConnectionStore } from "@/client-core";
 
 export function AuthGateScreen() {
   const { login, status, error } = useAuth();
@@ -109,6 +110,7 @@ export function AuthGateScreen() {
         >
           {t("authStoredLocally")}
         </motion.p>
+        <ManagedHostFallback />
       </motion.div>
     </div>
   );
@@ -155,7 +157,27 @@ export function HostUnavailable() {
         <Button tone="primary" size="lg" type="button" disabled={retrying} onClick={handleRetry} className="mt-6 w-full">
           {retrying ? t("authCheckingButton") : t("retry")}
         </Button>
+        <ManagedHostFallback />
       </div>
     </div>
+  );
+}
+
+function ManagedHostFallback() {
+  const t = useT();
+  const store = new BrowserHostConnectionStore();
+  if (!store.active()) return null;
+  return (
+    <Button
+      tone="secondary"
+      type="button"
+      className="mt-3 w-full"
+      onClick={() => {
+        store.select(undefined);
+        window.location.reload();
+      }}
+    >
+      {t("hostConnectionsReturnCurrent")}
+    </Button>
   );
 }
