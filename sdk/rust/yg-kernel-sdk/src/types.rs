@@ -6498,11 +6498,40 @@ for ExtensionPointListResult {
 ///      "description": "Source URL or path the external project was installed from.",
 ///      "type": "string"
 ///    },
+///    "source_digest": {
+///      "description": "Content digest of the materialized workspace tree.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "source_kind": {
+///      "description": "Kind of source that produced the managed workspace.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ExternalSourceKind"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "source_ref": {
 ///      "description": "Resolved commit SHA or version (for git sources).",
 ///      "type": [
 ///        "string",
 ///        "null"
+///      ]
+///    },
+///    "workspace_ownership": {
+///      "description": "Ownership boundary for the workspace path. Managed workspaces may be archived or deleted with the project; linked local sources never may.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ExternalWorkspaceOwnership"
+///        },
+///        {
+///          "type": "null"
+///        }
 ///      ]
 ///    },
 ///    "workspace_root": {
@@ -6524,12 +6553,177 @@ pub struct ExternalProjectData {
     pub adapter_manifest: ::std::option::Option<::std::string::String>,
     ///Source URL or path the external project was installed from.
     pub source: ::std::string::String,
+    ///Content digest of the materialized workspace tree.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub source_digest: ::std::option::Option<::std::string::String>,
+    ///Kind of source that produced the managed workspace.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub source_kind: ::std::option::Option<ExternalSourceKind>,
     ///Resolved commit SHA or version (for git sources).
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub source_ref: ::std::option::Option<::std::string::String>,
+    ///Ownership boundary for the workspace path. Managed workspaces may be archived or deleted with the project; linked local sources never may.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub workspace_ownership: ::std::option::Option<ExternalWorkspaceOwnership>,
     ///For external_workspace: path to the fetched project tree under the workspace.
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub workspace_root: ::std::option::Option<::std::string::String>,
+}
+///`ExternalSourceKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExternalSourceKind",
+///  "type": "string",
+///  "enum": [
+///    "local",
+///    "git"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExternalSourceKind {
+    #[serde(rename = "local")]
+    Local,
+    #[serde(rename = "git")]
+    Git,
+}
+impl ::std::fmt::Display for ExternalSourceKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Local => f.write_str("local"),
+            Self::Git => f.write_str("git"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExternalSourceKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "local" => Ok(Self::Local),
+            "git" => Ok(Self::Git),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExternalSourceKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExternalSourceKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExternalSourceKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`ExternalWorkspaceOwnership`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExternalWorkspaceOwnership",
+///  "type": "string",
+///  "enum": [
+///    "managed",
+///    "linked_local"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ExternalWorkspaceOwnership {
+    #[serde(rename = "managed")]
+    Managed,
+    #[serde(rename = "linked_local")]
+    LinkedLocal,
+}
+impl ::std::fmt::Display for ExternalWorkspaceOwnership {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Managed => f.write_str("managed"),
+            Self::LinkedLocal => f.write_str("linked_local"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExternalWorkspaceOwnership {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "managed" => Ok(Self::Managed),
+            "linked_local" => Ok(Self::LinkedLocal),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExternalWorkspaceOwnership {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExternalWorkspaceOwnership {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExternalWorkspaceOwnership {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`FilesystemPermissions`
 ///

@@ -35,12 +35,41 @@
           "description": "Source URL or path the external project was installed from.",
           "type": "string"
         },
+        "source_digest": {
+          "description": "Content digest of the materialized workspace tree.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalSourceKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Kind of source that produced the managed workspace."
+        },
         "source_ref": {
           "description": "Resolved commit SHA or version (for git sources).",
           "type": [
             "string",
             "null"
           ]
+        },
+        "workspace_ownership": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalWorkspaceOwnership"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ownership boundary for the workspace path. Managed workspaces may be archived or deleted with the project; linked local sources never may."
         },
         "workspace_root": {
           "description": "For external_workspace: path to the fetched project tree under the workspace.",
@@ -54,6 +83,20 @@
         "source"
       ],
       "type": "object"
+    },
+    "ExternalSourceKind": {
+      "enum": [
+        "local",
+        "git"
+      ],
+      "type": "string"
+    },
+    "ExternalWorkspaceOwnership": {
+      "enum": [
+        "managed",
+        "linked_local"
+      ],
+      "type": "string"
     },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

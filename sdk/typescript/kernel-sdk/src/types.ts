@@ -651,14 +651,30 @@ export interface ExternalProjectData {
    */
   "source": string;
   /**
+   * Content digest of the materialized workspace tree.
+   */
+  "source_digest"?: null | string;
+  /**
+   * Kind of source that produced the managed workspace.
+   */
+  "source_kind"?: ExternalSourceKind | null;
+  /**
    * Resolved commit SHA or version (for git sources).
    */
   "source_ref"?: null | string;
+  /**
+   * Ownership boundary for the workspace path. Managed workspaces may be archived or deleted with the project; linked local sources never may.
+   */
+  "workspace_ownership"?: ExternalWorkspaceOwnership | null;
   /**
    * For external_workspace: path to the fetched project tree under the workspace.
    */
   "workspace_root"?: null | string;
 }
+
+export type ExternalSourceKind = "local" | "git";
+
+export type ExternalWorkspaceOwnership = "managed" | "linked_local";
 
 export interface FilesystemPermissions {
   "read"?: Array<string>;

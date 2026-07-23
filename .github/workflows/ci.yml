@@ -66,6 +66,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libsoup-3.0-dev
 
+      - name: Prepare desktop frontend placeholder
+        run: |
+          mkdir -p clients/web/dist
+          printf '<!doctype html><title>CI placeholder</title>\n' > clients/web/dist/index.html
+
       - name: cargo check workspace
         run: cargo check --workspace
 
