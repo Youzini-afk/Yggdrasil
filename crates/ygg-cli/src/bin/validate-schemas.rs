@@ -124,6 +124,21 @@ fn validate_additive_schema(
     pointer: &str,
     file: &Path,
 ) -> anyhow::Result<()> {
+    if let Some(old_values) = pure_string_enum_values(old) {
+        let new_values = pure_string_enum_values(new).ok_or_else(|| {
+            anyhow::anyhow!(
+                "breaking string enum shape change in {} at {pointer}",
+                file.display()
+            )
+        })?;
+        anyhow::ensure!(
+            old_values.is_subset(&new_values),
+            "breaking enum narrowing in {} at {pointer}",
+            file.display()
+        );
+        return Ok(());
+    }
+
     if let Some(old_types) = schema_string_set(old.get("type")) {
         let new_types = schema_string_set(new.get("type"));
         anyhow::ensure!(
@@ -199,6 +214,45 @@ fn validate_additive_schema(
     compare_schema_array(old, new, "anyOf", true, pointer, file)?;
     compare_schema_array(old, new, "oneOf", false, pointer, file)?;
     Ok(())
+}
+
+fn pure_string_enum_values(schema: &Value) -> Option<BTreeSet<String>> {
+    let object = schema.as_object()?;
+    if object.keys().any(|key| {
+        !matches!(
+            key.as_str(),
+            "$schema"
+                | "title"
+                | "description"
+                | "default"
+                | "deprecated"
+                | "examples"
+                | "type"
+                | "enum"
+                | "oneOf"
+        )
+    }) {
+        return None;
+    }
+    if let Some(values) = object.get("enum").and_then(Value::as_array) {
+        let types = schema_string_set(object.get("type"))?;
+        if types != BTreeSet::from(["string".to_string()]) {
+            return None;
+        }
+        return values
+            .iter()
+            .map(|value| value.as_str().map(str::to_string))
+            .collect();
+    }
+    let variants = object.get("oneOf")?.as_array()?;
+    if variants.is_empty() {
+        return None;
+    }
+    let mut values = BTreeSet::new();
+    for variant in variants {
+        values.extend(pure_string_enum_values(variant)?);
+    }
+    Some(values)
 }
 
 fn schema_string_set(value: Option<&Value>) -> Option<BTreeSet<String>> {
@@ -429,6 +483,48 @@ fn validate_local_refs(value: &Value, root: &Value, file: &Path) -> anyhow::Resu
         _ => {}
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_equivalent_one_of_to_flat_string_enum() -> anyhow::Result<()> {
+        let old = serde_json::json!({
+            "oneOf": [
+                { "type": "string", "enum": ["available", "offline"] },
+                {
+                    "description": "legacy value",
+                    "type": "string",
+                    "enum": ["unavailable"]
+                }
+            ]
+        });
+        let new = serde_json::json!({
+            "type": "string",
+            "enum": ["available", "offline", "unavailable"]
+        });
+        validate_additive_schema(&old, &new, "$/$defs/status", Path::new("target.json"))
+    }
+
+    #[test]
+    fn rejects_value_loss_while_flattening_string_enum() {
+        let old = serde_json::json!({
+            "oneOf": [
+                { "type": "string", "enum": ["available", "offline"] },
+                { "type": "string", "enum": ["unavailable"] }
+            ]
+        });
+        let new = serde_json::json!({
+            "type": "string",
+            "enum": ["available", "offline"]
+        });
+        assert!(
+            validate_additive_schema(&old, &new, "$/$defs/status", Path::new("target.json"))
+                .is_err()
+        );
+    }
 }
 
 fn collect_json(dir: &Path, out: &mut Vec<std::path::PathBuf>) -> anyhow::Result<()> {
