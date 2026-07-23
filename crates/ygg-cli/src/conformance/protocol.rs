@@ -966,6 +966,8 @@ pub(crate) async fn deployment_reconcile_promotes_live_container() -> anyhow::Re
         port_lease_id: "port-lease-000000".to_string(),
         running: true,
         host_port: Some(39201),
+        container_ref: None,
+        operation_id: None,
     };
     let (
         runtime,
@@ -995,6 +997,8 @@ pub(crate) async fn deployment_reconcile_exec_always_failed() -> anyhow::Result<
         port_lease_id: "port-lease-000000".to_string(),
         running: true,
         host_port: Some(39201),
+        container_ref: None,
+        operation_id: None,
     };
     let (
         runtime,

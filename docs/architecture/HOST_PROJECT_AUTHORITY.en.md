@@ -10,7 +10,8 @@ Implementation snapshot (2026-07-23):
 - project/session/event/proposal/surface/target/exec/port/proxy paths enforce exact resources or server-side filtering, and legacy adapters reuse canonical policy;
 - the pairing journal supports attenuated delegation, expiry, ancestor-revocation cascade, and explicit wildcard hydration for legacy global grants; Web/PWA and the `yg host access` CLI use the same API;
 - device calls append redacted `host/control/v1/authority.decision` allow/deny records without credentials or request payloads;
-- global package/capability/asset/projection objects and surface contributions do not yet carry project ownership, so exact-project devices operate through verified project/session paths and may resolve their project bundle but cannot enumerate Host-global catalogues. An opaque-origin frame receives only a five-minute, read-only asset lease bound to its grant and bundle root; raw static paths still require a Host identity. Durable authority leases for long deployments, persistent route ownership, and effect-receipt linkage belong to Phase 2.
+- global package/capability/asset/projection objects and surface contributions do not yet carry project ownership, so exact-project devices operate through verified project/session paths and may resolve their project bundle but cannot enumerate Host-global catalogues. An opaque-origin frame receives only a five-minute, read-only asset lease bound to its grant and bundle root; raw static paths still require a Host identity;
+- Phase 2 deployment jobs and activations persist a redacted authority lease, rehydrate current grant state, reject expiry/revocation before each new effect, and persist revision/direct-route ownership. Full cross-operation effect-receipt linkage remains part of the first-class deployment operation migration.
 
 ## Goal
 

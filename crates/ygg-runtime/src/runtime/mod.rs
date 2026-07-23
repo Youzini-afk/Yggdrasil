@@ -699,11 +699,13 @@ where
             .deployment_reconcile_source
             .list_managed()
             .await?;
-        let running_by_route: HashMap<String, ManagedContainerReport> = reports
-            .into_iter()
-            .filter(|report| report.running)
-            .map(|report| (report.route_id.clone(), report))
-            .collect();
+        let mut running_by_route: HashMap<String, Vec<ManagedContainerReport>> = HashMap::new();
+        for report in reports.into_iter().filter(|report| report.running) {
+            running_by_route
+                .entry(report.route_id.clone())
+                .or_default()
+                .push(report);
+        }
 
         let mut summary = DeploymentReconcileSummary {
             execs_failed: self
@@ -720,9 +722,12 @@ where
             if route.status != ProxyRouteStatusKind::Stale {
                 continue;
             }
-            let matching_running_container = running_by_route
-                .get(&route.id)
-                .is_some_and(|report| report.port_lease_id == route.upstream.port_lease_id);
+            let matching_running_container =
+                running_by_route.get(&route.id).is_some_and(|reports| {
+                    reports
+                        .iter()
+                        .any(|report| report.port_lease_id == route.upstream.port_lease_id)
+                });
             if matching_running_container {
                 if self
                     .config

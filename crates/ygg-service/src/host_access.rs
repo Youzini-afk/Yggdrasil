@@ -1144,7 +1144,7 @@ where
         })
 }
 
-async fn sync_host_access_journal<S>(
+pub(crate) async fn sync_host_access_journal<S>(
     store: &S,
     registry: &HostAccessRegistry,
 ) -> anyhow::Result<usize>

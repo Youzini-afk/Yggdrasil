@@ -2,7 +2,15 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-Status: **pre-implementation design contract**. This document specifies how the Host Control Plane turns immutable artifacts into recoverable, rollback-capable deployments. Docker, process managers, and future remote agents are execution adapters, not public deployment ontology.
+Status: **Candidate implementation**. Phase 2 establishes the durable local-deployment baseline behind the existing deployment facades. The first-class intent/operation/step-receipt contract, failure-injection gate, bounded restart policy, and remote-target implementation remain incomplete.
+
+Implementation snapshot (2026-07-23):
+
+- one contiguous deployment journal now uses sequence CAS, while revision activation also fences on the expected parent revision;
+- build output is resolved to a content-addressable Docker image ID before deployment;
+- build-deploy, recover, rollback, and project-owned direct deploy use candidate-first readiness, lease-guarded route promotion, and post-commit draining of the previous instance;
+- deployment authority is persisted without credentials and revalidated, together with the single Host control-plane lease, before each new long-running effect;
+- startup restores durable route ownership, observes real Docker labels, cleans uncommitted candidates, and preserves stale state when Docker observation is unavailable.
 
 ## Goal and invariants
 
@@ -191,6 +199,8 @@ Canonical Host candidates include `host.deployment.intent.*`, `host.deployment.o
 4. Implement candidate-first and atomic route activation.
 5. Reconcile on startup; enable bounded restart only after failure-injection coverage.
 6. Migrate clients and stop creating legacy-shaped deployments.
+
+The current Candidate baseline covers the local observation, candidate-first, guarded activation, and startup-reconciliation portions of steps 3-5 through the legacy facades. It deliberately does not claim the completion gate below.
 
 ## Completion gate
 

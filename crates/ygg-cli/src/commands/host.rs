@@ -128,14 +128,6 @@ pub(crate) async fn host_serve(
                     .hydrate_substrate_from_events()
                     .await
                     .context("failed to rehydrate substrate from sqlite event log")?;
-                runtime
-                    .hydrate_deployment_from_events()
-                    .await
-                    .context("failed to rehydrate deployment from sqlite event log")?;
-                runtime
-                    .reconcile_deployment()
-                    .await
-                    .context("failed to reconcile deployment from sqlite event log")?;
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
                 serve_runtime(
                     http,
@@ -161,14 +153,6 @@ pub(crate) async fn host_serve(
                         .hydrate_substrate_from_events()
                         .await
                         .context("failed to rehydrate substrate from postgres event log")?;
-                    runtime
-                        .hydrate_deployment_from_events()
-                        .await
-                        .context("failed to rehydrate deployment from postgres event log")?;
-                    runtime
-                        .reconcile_deployment()
-                        .await
-                        .context("failed to reconcile deployment from postgres event log")?;
                     load_profile_packages(runtime.clone(), profile, profile_path).await?;
                     serve_runtime(
                         http,
@@ -191,6 +175,8 @@ pub(crate) async fn host_serve(
         let mut runtime_config = RuntimeConfig::default();
         runtime_config.object_store =
             Arc::new(FilesystemObjectStore::new(schema_data_dir.join("objects")));
+        runtime_config.deployment_reconcile_source =
+            Arc::new(ygg_runtime::DockerDeploymentReconcileSource);
         let runtime = Arc::new(Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             runtime_config,
@@ -213,6 +199,7 @@ pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfi
     validate_local_exec_profile(&profile.local_exec)?;
 
     let mut config = RuntimeConfig::default();
+    config.deployment_reconcile_source = Arc::new(ygg_runtime::DockerDeploymentReconcileSource);
     // Y1: Wire outbound.execute profile into RuntimeConfig
     let exec = &profile.outbound.execute;
     config.outbound_execute_policy = OutboundExecutePolicyConfig {
@@ -829,12 +816,6 @@ where
         .load_from_projects_dir(&projects_dir)
         .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?;
     println!("  projects loaded: {count}");
-    let build_jobs = ygg_service::build_deploy_job_registry();
-    let deployment_events =
-        ygg_service::hydrate_deployment_control_plane(runtime.store(), build_jobs.clone())
-            .await
-            .context("failed to hydrate durable deployment control plane")?;
-    println!("  deployment journal events loaded: {deployment_events}");
     let host_access = ygg_service::host_access_registry();
     let host_access_events =
         ygg_service::hydrate_host_access_control_plane(runtime.store(), host_access.clone())
@@ -850,6 +831,28 @@ where
         runtime.store(),
         development_lease.clone(),
     );
+    if let Err(error) = runtime.hydrate_deployment_from_events().await {
+        development_heartbeat.abort();
+        ygg_service::release_development_host_lease(runtime.store(), &development_lease)
+            .await
+            .ok();
+        return Err(error).context("failed to rehydrate deployment runtime state");
+    }
+    let build_jobs = ygg_service::build_deploy_job_registry();
+    let deployment_events =
+        match ygg_service::hydrate_deployment_control_plane(runtime.store(), build_jobs.clone())
+            .await
+        {
+            Ok(events) => events,
+            Err(error) => {
+                development_heartbeat.abort();
+                ygg_service::release_development_host_lease(runtime.store(), &development_lease)
+                    .await
+                    .ok();
+                return Err(error).context("failed to hydrate durable deployment control plane");
+            }
+        };
+    println!("  deployment journal events loaded: {deployment_events}");
     let development_events =
         match ygg_service::hydrate_development_control_plane(runtime.store(), development.clone())
             .await
@@ -909,6 +912,20 @@ where
         development,
         host_access,
     };
+    match ygg_service::reconcile_deployment_control_plane(&state).await {
+        Ok(summary) => println!(
+            "  deployment reconcile: durable_routes_restored={} orphan_candidates_found={} routes_promoted={} routes_removed={} leases_promoted={} leases_released={}",
+            summary.durable_routes_restored,
+            summary.orphan_candidates_found,
+            summary.runtime.routes_promoted,
+            summary.runtime.routes_removed,
+            summary.runtime.leases_promoted,
+            summary.runtime.leases_released
+        ),
+        Err(error) => eprintln!(
+            "warning: deployment reconcile paused; stale runtime records were preserved: {error}"
+        ),
+    }
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
     let bootstrap_token = std::env::var("YGG_HTTP_BOOTSTRAP_TOKEN")
         .ok()

@@ -35,8 +35,8 @@ pub use contract::{
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{
-    compute_external_workspace_tree_hash, InprocInvocation, InprocPackage, InprocPackageCatalog,
-    KernelEnv, WorkspaceTreeHash,
+    compute_external_workspace_tree_hash, DockerDeploymentReconcileSource, InprocInvocation,
+    InprocPackage, InprocPackageCatalog, KernelEnv, WorkspaceTreeHash,
 };
 pub use object_store::{
     sha256_digest, FilesystemObjectStore, InMemoryObjectStore, ObjectInfo, ObjectStore,

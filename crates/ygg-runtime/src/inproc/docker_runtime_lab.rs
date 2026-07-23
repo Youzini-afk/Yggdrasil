@@ -29,11 +29,51 @@ use serde_json::Value;
 
 use super::safety;
 use super::InprocInvocation;
+use crate::runtime::{DeploymentReconcileSource, ManagedContainerReport};
 
 const PACKAGE_ID: &str = "official/docker-runtime-lab";
 const BIND_HOST: &str = "127.0.0.1";
 const DEFAULT_TAIL: u32 = 200;
 const DEFAULT_MAX_BYTES: usize = 65_536;
+
+#[derive(Debug, Default)]
+pub struct DockerDeploymentReconcileSource;
+
+#[async_trait::async_trait]
+impl DeploymentReconcileSource for DockerDeploymentReconcileSource {
+    async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>> {
+        let output = list_managed_async().await.map_err(anyhow::Error::msg)?;
+        Ok(output
+            .get("managed")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|container| {
+                Some(ManagedContainerReport {
+                    route_id: container.get("route_id")?.as_str()?.to_string(),
+                    port_lease_id: container.get("port_lease_id")?.as_str()?.to_string(),
+                    running: container.get("running")?.as_bool()?,
+                    host_port: container
+                        .get("host_port")
+                        .and_then(Value::as_u64)
+                        .and_then(|port| u16::try_from(port).ok()),
+                    container_ref: ["container_id", "id", "container_name", "name"]
+                        .into_iter()
+                        .find_map(|field| {
+                            container
+                                .get(field)
+                                .and_then(Value::as_str)
+                                .map(str::to_string)
+                        }),
+                    operation_id: container
+                        .get("operation_id")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                })
+            })
+            .collect())
+    }
+}
 const MAX_TAIL: u32 = 5_000;
 const DEFAULT_MAX_CONTEXT_BYTES: u64 = 256 * 1024 * 1024;
 const DEFAULT_MAX_CONTEXT_FILES: u64 = 25_000;
@@ -325,6 +365,7 @@ fn start_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     let host_port = u16_field(&request.input, "host_port").unwrap_or_default();
     let route_id = string_field(&request.input, "route_id").unwrap_or_default();
     let port_lease_id = string_field(&request.input, "port_lease_id").unwrap_or_default();
+    let operation_id = string_field(&request.input, "operation_id");
     let pull_if_missing = request
         .input
         .get("pull_if_missing")
@@ -348,6 +389,7 @@ fn start_container(request: &InprocInvocation) -> anyhow::Result<Value> {
                 host_port,
                 route_id,
                 port_lease_id,
+                operation_id,
                 container_name,
                 pull_if_missing,
             )
@@ -509,6 +551,7 @@ async fn start_container_async(
     host_port: u16,
     route_id: String,
     port_lease_id: String,
+    operation_id: Option<String>,
     container_name: String,
     pull_if_missing: bool,
 ) -> Result<Value, String> {
@@ -522,6 +565,14 @@ async fn start_container_async(
             item.map_err(|e| format!("docker image pull failed: {e}"))?;
         }
     }
+    let image_id = docker
+        .inspect_image(&image)
+        .await
+        .map_err(|e| format!("docker image inspect failed: {e}"))?
+        .id
+        .ok_or_else(|| {
+            "docker image inspect did not return a content-addressable id".to_string()
+        })?;
 
     let container_port_key = format!("{container_port}/tcp");
     let mut port_bindings: PortMap = HashMap::new();
@@ -533,14 +584,23 @@ async fn start_container_async(
         }]),
     );
 
-    let labels = HashMap::from([
+    let mut labels = HashMap::from([
         ("managed-by".to_string(), "yggdrasil".to_string()),
         ("yggdrasil.package_id".to_string(), PACKAGE_ID.to_string()),
         ("yggdrasil.route_id".to_string(), route_id.clone()),
         ("yggdrasil.port_lease_id".to_string(), port_lease_id.clone()),
     ]);
+    if let Some(operation_id) = operation_id.as_ref() {
+        if !valid_label_value(operation_id) {
+            return Err("deployment operation id must be label-safe".to_string());
+        }
+        labels.insert(
+            "yggdrasil.deployment_operation_id".to_string(),
+            operation_id.clone(),
+        );
+    }
     let config = ContainerCreateBody {
-        image: Some(image.clone()),
+        image: Some(image_id.clone()),
         labels: Some(labels),
         exposed_ports: Some(vec![container_port_key]),
         env: None,
@@ -574,11 +634,13 @@ async fn start_container_async(
         "container_name": container_name,
         "status": "started",
         "image": image,
+        "image_id": image_id,
         "container_port": container_port,
         "host_port": host_port,
         "bind_host": BIND_HOST,
         "route_id": route_id,
         "port_lease_id": port_lease_id,
+        "operation_id": operation_id,
         "docker_performed": true,
         "container_started": true,
         "warnings": created.warnings
@@ -672,10 +734,17 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
     let log_tail = tokio::time::timeout(Duration::from_secs(spec.build_timeout_secs), build)
         .await
         .map_err(|_| "docker build timed out".to_string())??;
+    let image_id = docker
+        .inspect_image(&tag)
+        .await
+        .map_err(|e| format!("docker built image inspect failed: {e}"))?
+        .id
+        .ok_or_else(|| "docker built image has no content-addressable id".to_string())?;
 
     Ok(serde_json::json!({
         "kind": "docker_runtime_lab_image_built",
         "image": tag,
+        "image_id": image_id,
         "build_id": spec.build_id,
         "strategy": spec.strategy.as_str(),
         "network_mode": spec.network_mode.as_str(),
@@ -948,6 +1017,7 @@ fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
     let labels = container.labels.as_ref()?;
     let route_id = labels.get("yggdrasil.route_id")?.clone();
     let port_lease_id = labels.get("yggdrasil.port_lease_id")?.clone();
+    let operation_id = labels.get("yggdrasil.deployment_operation_id").cloned();
     let running = matches!(container.state, Some(ContainerSummaryStateEnum::RUNNING));
     let host_port = container
         .ports
@@ -964,6 +1034,7 @@ fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
         "container_name": container_name,
         "route_id": route_id,
         "port_lease_id": port_lease_id,
+        "operation_id": operation_id,
         "running": running,
         "host_port": host_port
     }))
@@ -2127,6 +2198,10 @@ mod tests {
                     "yggdrasil.port_lease_id".to_string(),
                     "port-lease-000001".to_string(),
                 ),
+                (
+                    "yggdrasil.deployment_operation_id".to_string(),
+                    "dop-000001".to_string(),
+                ),
             ])),
             state: Some(ContainerSummaryStateEnum::RUNNING),
             ports: Some(vec![bollard::models::PortSummary {
@@ -2142,6 +2217,7 @@ mod tests {
         assert_eq!(output["container_name"], "ygg-container-000001");
         assert_eq!(output["route_id"], "proxy-route-000001");
         assert_eq!(output["port_lease_id"], "port-lease-000001");
+        assert_eq!(output["operation_id"], "dop-000001");
         assert_eq!(output["running"], true);
         assert_eq!(output["host_port"], 39000);
     }

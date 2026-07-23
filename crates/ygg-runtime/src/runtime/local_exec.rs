@@ -211,6 +211,10 @@ pub struct ManagedContainerReport {
     pub port_lease_id: String,
     pub running: bool,
     pub host_port: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub container_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
 }
 
 #[async_trait]

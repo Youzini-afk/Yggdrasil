@@ -10,7 +10,8 @@
 - project/session/event/proposal/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，legacy adapter 复用 canonical policy；
 - pairing journal 支持衰减委托、期限、祖先撤销级联和旧全局 grant 的显式 wildcard 水化；Web/PWA 与 `yg host access` CLI 使用同一 API；
 - 设备调用写入不含凭据与请求 payload 的 `host/control/v1/authority.decision` allow/deny journal；
-- 全局 package/capability/asset/projection 与 surface contribution 尚无项目归属，因此精确项目设备只能通过已验证项目/session 路径操作资源和解析其项目 bundle，不能枚举 Host 全局 catalog；opaque-origin frame 只获得绑定 grant 和 bundle root 的五分钟只读 asset lease，原始静态路径仍要求 Host 身份。长时间部署的 authority lease、route ownership 持久化和 effect-receipt 串联属于 Phase 2。
+- 全局 package/capability/asset/projection 与 surface contribution 尚无项目归属，因此精确项目设备只能通过已验证项目/session 路径操作资源和解析其项目 bundle，不能枚举 Host 全局 catalog；opaque-origin frame 只获得绑定 grant 和 bundle root 的五分钟只读 asset lease，原始静态路径仍要求 Host 身份；
+- Phase 2 的部署 job 与 activation 已持久化不含凭据的 authority lease，在每个新副作用前重新水化 grant 并拒绝过期/撤销，同时持久化 revision/direct-route ownership；跨 operation 的完整 effect-receipt 串联仍留给一等部署 operation 迁移。
 
 ## 目标
 

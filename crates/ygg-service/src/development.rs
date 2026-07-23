@@ -518,6 +518,13 @@ impl DevelopmentRegistry {
         Ok(())
     }
 
+    fn has_host_lease(&self) -> bool {
+        self.host_lease
+            .lock()
+            .expect("development host lease lock poisoned")
+            .is_some()
+    }
+
     fn active_host_lease(&self) -> anyhow::Result<DevelopmentHostLease> {
         self.ensure_active_host_lease()?;
         self.host_lease
@@ -1121,6 +1128,21 @@ where
         .expires_at_ms
         .store(current.expires_at_ms, Ordering::Release);
     Ok(lease)
+}
+
+pub(crate) async fn verify_host_control_plane_lease_if_installed<S>(
+    store: &S,
+    registry: &DevelopmentRegistry,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    if !registry.has_host_lease() {
+        return Ok(());
+    }
+    verify_development_host_lease(store, registry)
+        .await
+        .map(|_| ())
 }
 
 async fn ensure_development_host_lease<S>(state: &AppState<S>) -> Result<(), ServiceError>

@@ -2,7 +2,15 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-状态：**实施前设计合同**。本文规定 Host Control Plane 如何把不可变制品变成可恢复、可回滚的部署。Docker、进程管理器或未来 remote agent 是执行适配器，不是公共部署本体。
+状态：**Candidate 实现**。Phase 2 已在现有部署 facade 背后建立本地持久部署基线；一等 intent/operation/step-receipt 合同、故障注入门槛、有界 restart policy 和 remote target 实现仍未完成。
+
+当前实现快照（2026-07-23）：
+
+- 单一连续 deployment journal 使用 sequence CAS，revision 激活同时按预期 parent revision fencing；
+- 构建输出在部署前解析为内容寻址的 Docker image ID；
+- build-deploy、recover、rollback 和有项目归属的 direct deploy 统一采用 candidate-first readiness、按 lease 守卫的 route promotion，以及日志提交后再排空旧实例；
+- 长部署 authority 在不持久化凭据的前提下进入日志，并在每个新副作用前与唯一 Host 控制面 lease 一起重新校验；
+- 启动时恢复持久 route ownership、读取真实 Docker label、清理未提交 candidate；Docker 无法观测时保留 stale 状态而不假定资源消失。
 
 ## 目标与不变量
 
@@ -215,6 +223,8 @@ RestartPolicy
 4. 实现 candidate-first 和原子 route activation。
 5. 启动时 reconcile；完成故障注入后再启用有界 restart policy。
 6. 迁移客户端并停止创建旧形状的新部署记录。
+
+当前 Candidate 基线通过旧 facade 覆盖了步骤 3-5 中的本地 observation、candidate-first、守卫式激活和启动 reconcile，但尚不宣称达到下述完成门槛。
 
 ## 完成门槛
 
