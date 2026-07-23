@@ -7677,7 +7677,7 @@ mod tests {
                     description: String::new(),
                     project_type: ProjectType::YggdrasilNative,
                     icon: None,
-                    entry_surface_id: None,
+                    entry_surface_id: Some("packages/test/main".to_string()),
                     packages: vec!["packages/test/manifest.yaml".to_string()],
                     optional_packages: Vec::new(),
                     required_surfaces: Vec::new(),
