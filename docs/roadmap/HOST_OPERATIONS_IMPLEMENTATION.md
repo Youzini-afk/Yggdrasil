@@ -40,7 +40,7 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 | Phase 1 | Candidate 实现完成 | project/target authority、delegation、server-side filtering、Web/CLI 与脱敏判定日志已闭环；完整矩阵由 GitHub CI 验收 |
 | Phase 2 | Candidate 实现完成 | durable deployment intent/operation/lease/receipt、candidate-first activation、reconcile/recover/rollback 与受限 restart policy 已闭环并通过 GitHub CI |
 | Phase 3 | Candidate 实现完成 | 非破坏性数据迁移、backup/verify/restore、live/ready、release integrity、SBOM 与 provenance 已闭环并通过 GitHub CI |
-| Phase 4 | 进行中 | identity/observation、typed-worker、reachability driver、typed deployment worker 与 actual-port lease 投影已实现：durable enrollment/heartbeat/revoke、MAC-bound authority、双 ledger、artifact/verifier、local/Agent 等价部署语义、target-owned 实际端口租约与 outcome-unknown 恢复；authenticated tunnel/private preview 待后续切片 |
+| Phase 4 | 进行中 | identity/observation、typed-worker、reachability driver、等价 Docker deployment、actual-port lease 投影与 authenticated reverse tunnel/private preview Candidate 基线已实现；剩余门槛是 remote HTTP/WebSocket、重连/revoke/backpressure/stale-epoch 故障矩阵和显式 public-route acceptance 在 GitHub CI 闭环 |
 | Phase 5 | 未开始 | 等待 Remote Target Agent gate，不建立客户端专属旁路 |
 
 ## Phase 0：设计合同
@@ -104,6 +104,8 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 4. artifact transfer 与 declarative verifier；
 5. deployment/actual port lease/authenticated tunnel/private preview；
 6. 显式 public route；target-side edge 另立后续设计。
+
+当前代码已覆盖 1–5，并可复用 Host 已有的显式 `public` route 模式承载远端 workload；在完整 remote tunnel/failure/public-route acceptance matrix 通过前，Phase 4 仍保持“进行中”，不以 endpoint 已出现代替完成。
 
 门槛：Controller/Agent 任意 step 崩溃、重复/乱序请求、断线重连、revoke、artifact corruption 和 stale epoch 不产生重复或越权 effect。
 

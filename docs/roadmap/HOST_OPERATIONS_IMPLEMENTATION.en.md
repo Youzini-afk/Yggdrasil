@@ -29,7 +29,7 @@ Some release/health work may develop alongside Phase 2, but remote targets do no
 | Phase 1 | Candidate implementation complete | Project/target authority, delegation, server-side filtering, Web/CLI, and redacted decision journals are closed; GitHub CI validates the full matrix |
 | Phase 2 | Candidate implementation complete | Durable deployment intent/operation/lease/receipt, candidate-first activation, reconcile/recover/rollback, and bounded restart policy are closed and validated by GitHub CI |
 | Phase 3 | Candidate implementation complete | Non-destructive data migration, backup/verify/restore, live/ready, release integrity, SBOM, and provenance are closed and validated by GitHub CI |
-| Phase 4 | In progress | Identity/observation, typed-worker, reachability driver, typed deployment worker, and actual-port lease projection are implemented: durable enrollment/heartbeat/revoke, MAC-bound authority, dual ledgers, artifact/verifier, equivalent local/Agent deployment semantics, target-owned actual-port leases, and outcome-unknown recovery; authenticated tunnel/private preview remains |
+| Phase 4 | In progress | Identity/observation, typed-worker, reachability driver, equivalent Docker deployment, actual-port lease projection, and the authenticated reverse-tunnel/private-preview Candidate baseline are implemented; the remaining gate is GitHub CI closure for remote HTTP/WebSocket, reconnect/revoke/backpressure/stale-epoch faults, and explicit public-route acceptance |
 | Phase 5 | Not started | It remains gated on the Remote Target Agent and will not add client-only bypasses |
 
 ## Phase 0: design contracts
@@ -57,6 +57,8 @@ Gate: old-data upgrade→backup→restore, store/object/secret faults, installer
 ## Phase 4: Remote Target Agent
 
 Slices: durable target registry/enrollment/heartbeat/observe; target driver router and local conformance; agent ledger/authority/idempotency/fencing; artifact and verifier transport; deployment/actual ports/authenticated tunnel/private preview; explicit public route, with target-edge work deferred.
+
+The code now covers slices 1–5 and can reuse the Host's existing explicit `public` route mode for remote workloads. Phase 4 remains In progress until the complete remote-tunnel/failure/public-route acceptance matrix passes; an exposed endpoint alone is not the gate.
 
 Gate: crashes, duplicates, reordering, reconnect, revoke, corruption, and stale epochs never produce duplicate or unauthorized effects.
 

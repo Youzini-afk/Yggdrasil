@@ -169,6 +169,6 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 
 - Native execution remains trusted/dev-oriented. It is not a full OS sandbox.
 - **Auto-restart** is not implemented and remains a separate future phase. The host-plane now has durable revisions and explicit recovery, but health supervision still only monitors, flips readiness, and audits; it never replays deployment side effects without user authorization.
-- Remote execution targets are not implemented; ports bind to loopback only. Multi-client control of one Host and explicit public vhosts are implemented, but neither is a remote target nor an application identity system.
+- The Remote Target Agent now has a Candidate baseline. After explicit target selection, typed Docker operations bind only to Agent loopback; the Host provides private preview through an authenticated reverse tunnel bound to target/route/lease/epochs and can reuse an explicit public vhost. Full Project Console/development-to-deployment wiring and the remote fault matrix remain Phase 4/5 work. This is neither an application identity system nor an arbitrary network proxy.
 - Docker descriptors still lack pull progress and long-term log archival.
 - External project wizards can generate deployment descriptors later, but deployment must remain an explicit user action.

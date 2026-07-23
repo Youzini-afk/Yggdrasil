@@ -2074,6 +2074,41 @@ where
     Ok(projected)
 }
 
+pub(super) async fn mark_target_deployment_routes_unready<S>(
+    state: &AppState<S>,
+    target_id: &str,
+) -> usize
+where
+    S: EventStore,
+{
+    let lease_ids = state
+        .runtime
+        .config()
+        .port_lease_registry
+        .list()
+        .await
+        .into_iter()
+        .filter(|lease| lease.target_id == target_id)
+        .map(|lease| lease.id)
+        .collect::<std::collections::HashSet<_>>();
+    let mut updated = 0usize;
+    for route in state.runtime.config().proxy_route_registry.list().await {
+        if route.ready
+            && lease_ids.contains(&route.upstream.port_lease_id)
+            && state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .set_ready(&route.id, false)
+                .await
+                .is_some()
+        {
+            updated = updated.saturating_add(1);
+        }
+    }
+    updated
+}
+
 async fn complete_local_operation<S>(
     state: &AppState<S>,
     operation_id: &str,

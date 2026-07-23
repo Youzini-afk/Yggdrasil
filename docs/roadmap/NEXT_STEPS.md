@@ -16,10 +16,9 @@
 下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。
 
 项目级权威、可靠部署、运行安全、remote target 与统一客户端之间的依赖顺序已经固定在
-[`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md)。实现必须先满足项目隔离和本地恢复门槛，
-再开放 remote target；这些能力仍由真实项目压力驱动，不构成新的内核内容本体。
+[`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md)。实现已经按顺序先满足项目隔离和本地恢复门槛，再开放 Remote Target Candidate；这些能力仍由真实项目压力驱动，不构成新的内核内容本体。
 
-截至 2026-07-23，Phase 0 设计合同与 Phase 1 项目级权威 Candidate 实现已完成；当前主线进入 Phase 2，把已有部署作业提升为可重启恢复、带 lease/receipt 和实际状态 reconcile 的本地部署控制器。
+截至 2026-07-24，Phase 0–3 Candidate 已完成；当前主线处于 Phase 4 收口：durable Target Agent identity/operation ledger、artifact/verifier、local/Agent 等价 Docker deployment、actual-port lease 投影和 authenticated reverse tunnel/private preview 基线已经落地。下一门槛是把 remote HTTP/WebSocket、断线重连、revoke、backpressure、stale epoch 与显式 public route 的完整矩阵放到 GitHub CI，随后进入 Phase 5 统一客户端与开发—部署闭环。
 
 > 这里的「完整」指当前 v1 运行闭环，不代表现有 `kernel.v1.*` 边界已经成为永久宪法。
 > 长期分层候选见 [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)，逐项归属与临时实施顺序见
@@ -78,7 +77,7 @@
 - 开发 artifact 的读取权限、加密/保留策略和 reachability GC，以及更多声明式 verifier / sandbox backend。
 - 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
 - 部署描述符 polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及外部项目 wizard 自动生成描述符。
-- 远程执行目标：当前端口只绑 loopback。单 Host 多客户端控制与显式 public vhost 已完成，但不等于远程 target 或应用身份系统。
+- Remote Target Agent 的剩余收口：remote HTTP/WebSocket acceptance、断线/重连/revoke/backpressure/stale-epoch 故障矩阵、显式 public-route acceptance，以及 Phase 5 的 Project Console/dev-to-deploy 接线。target 端口仍只绑 loopback，流量只经认证 tunnel；这不等于应用身份系统或任意网络代理。
 
 ### 模型与出站
 

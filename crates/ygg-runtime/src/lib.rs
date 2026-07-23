@@ -113,11 +113,11 @@ pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, Subproces
 pub use target_deployment::{
     apply_managed_target_deployment, count_managed_target_deployments,
     drain_managed_target_deployment, is_managed_target_deployment_outcome_unknown,
-    observe_managed_target_deployment, stop_managed_target_deployment,
-    validate_managed_target_deployment_runtime, ManagedTargetDeploymentApply,
-    ManagedTargetDeploymentDrainReceipt, ManagedTargetDeploymentObservation,
-    ManagedTargetDeploymentOutcomeUnknown, ManagedTargetDeploymentRef,
-    ManagedTargetDeploymentStopReceipt,
+    observe_managed_target_deployment, open_managed_target_tunnel_stream,
+    stop_managed_target_deployment, validate_managed_target_deployment_runtime,
+    ManagedTargetDeploymentApply, ManagedTargetDeploymentDrainReceipt,
+    ManagedTargetDeploymentObservation, ManagedTargetDeploymentOutcomeUnknown,
+    ManagedTargetDeploymentRef, ManagedTargetDeploymentStopReceipt,
 };
 pub use tavern::TAVERN_COMPAT_DEFERRED;
 pub use ygg_core::{

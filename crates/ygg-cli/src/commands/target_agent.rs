@@ -7,6 +7,7 @@ use std::time::Duration;
 use anyhow::Context;
 use chrono::Utc;
 use fs2::FileExt;
+use futures::{SinkExt, StreamExt};
 use reqwest::redirect::Policy;
 use reqwest::{Client, Method, StatusCode};
 use serde::de::DeserializeOwned;
@@ -14,17 +15,23 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::{mpsc, watch, Mutex as AsyncMutex};
 use tokio::time::{sleep, Instant};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::Message as TunnelMessage;
 use ygg_core::{EventEnvelope, EventSequence};
 use ygg_runtime::{
-    EventStore, ExecutionTargetCapability, ExecutionTargetObservedSummary, SqliteEventStore,
+    EventStore, ExecutionTargetCapability, ExecutionTargetObservedSummary,
+    ExecutionTargetReachability, SqliteEventStore,
 };
 use ygg_service::{
-    verify_target_operation_authority, ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse,
-    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetAgentHeartbeatRequest,
-    TargetAgentHeartbeatResponse, TargetDeploymentRef, TargetOperationProgressRequest,
-    TargetOperationReceipt, TargetOperationReceiptStatus, TargetOperationRecord,
-    TargetOperationSpec, TargetOperationStatusKind,
+    decode_target_tunnel_data, encode_target_tunnel_data, verify_target_operation_authority,
+    ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse, DeclarativeVerifierDescriptor,
+    NextTargetOperationResponse, TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse,
+    TargetDeploymentRef, TargetOperationProgressRequest, TargetOperationReceipt,
+    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
+    TargetOperationStatusKind, TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen,
+    TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
 };
 
 use super::host_access::host_url;
@@ -38,6 +45,9 @@ const PROTOCOL_VERSION: &str = "target-agent.v1";
 const MAX_JSON_RESPONSE_BYTES: usize = 1024 * 1024;
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_RETRY_BACKOFF: Duration = Duration::from_secs(30);
+const TARGET_TUNNEL_CONTROL_QUEUE_CAPACITY: usize = 64;
+const TARGET_TUNNEL_DATA_QUEUE_CAPACITY: usize = 64;
+const TARGET_TUNNEL_STREAM_QUEUE_CAPACITY: usize = 4;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct AgentConfig {
@@ -47,8 +57,14 @@ struct AgentConfig {
     protocol_version: String,
     lease_epoch: u64,
     policy_epoch: u64,
+    #[serde(default = "default_agent_reachability")]
+    reachability: ExecutionTargetReachability,
     capabilities: Vec<ExecutionTargetCapability>,
     heartbeat_interval_seconds: u64,
+}
+
+fn default_agent_reachability() -> ExecutionTargetReachability {
+    ExecutionTargetReachability::ReverseTunnel
 }
 
 pub async fn enroll(
@@ -90,6 +106,7 @@ pub async fn enroll(
         protocol_version: response.selected_protocol_version.clone(),
         lease_epoch: response.target.lease_epoch,
         policy_epoch: response.target.policy_epoch,
+        reachability: response.target.reachability,
         capabilities: response.target.capabilities.clone(),
         heartbeat_interval_seconds: response.heartbeat_interval_seconds.max(1),
     };
@@ -240,7 +257,8 @@ fn load_config(data_dir: &Path) -> anyhow::Result<(PathBuf, AgentConfig)> {
         config.schema_version == 1
             && config.protocol_version == PROTOCOL_VERSION
             && config.lease_epoch > 0
-            && config.policy_epoch > 0,
+            && config.policy_epoch > 0
+            && config.reachability != ExecutionTargetReachability::LocalHost,
         "target agent config is incompatible"
     );
     Ok((data_dir, config))
@@ -590,6 +608,11 @@ pub async fn run(data_dir: PathBuf, credential: String) -> anyhow::Result<()> {
             .await
             .context("deployment capability requires an available Docker runtime")?;
     }
+    let _tunnel_task = (config.reachability == ExecutionTargetReachability::ReverseTunnel
+        && config
+            .capabilities
+            .contains(&ExecutionTargetCapability::Deployment))
+    .then(|| tokio::spawn(target_tunnel_supervisor(config.clone(), credential.clone())));
 
     let mut next_heartbeat = Instant::now();
     let mut retry_backoff = Duration::from_secs(1);
@@ -636,6 +659,358 @@ pub async fn run(data_dir: PathBuf, credential: String) -> anyhow::Result<()> {
             }
         }
     }
+}
+
+enum AgentTunnelStreamState {
+    Pending(Arc<()>),
+    Active {
+        reservation: Arc<()>,
+        incoming_tx: mpsc::Sender<Vec<u8>>,
+    },
+}
+
+type AgentTunnelStreams = Arc<AsyncMutex<HashMap<String, AgentTunnelStreamState>>>;
+
+async fn target_tunnel_supervisor(config: AgentConfig, credential: String) {
+    let mut backoff = Duration::from_secs(1);
+    loop {
+        match run_target_tunnel_connection(&config, &credential).await {
+            Ok(()) => backoff = Duration::from_secs(1),
+            Err(error) => {
+                eprintln!(
+                    "target-agent tunnel disconnected: {}",
+                    safe_diagnostic(&format!("{error:#}"), &credential)
+                );
+            }
+        }
+        sleep(backoff).await;
+        backoff = backoff.saturating_mul(2).min(MAX_RETRY_BACKOFF);
+    }
+}
+
+async fn run_target_tunnel_connection(
+    config: &AgentConfig,
+    credential: &str,
+) -> anyhow::Result<()> {
+    let mut url = host_url(&config.endpoint, "/target-agent/v1/tunnel")?;
+    let websocket_scheme = match url.scheme() {
+        "http" => "ws",
+        "https" => "wss",
+        _ => anyhow::bail!("target tunnel Host endpoint scheme is invalid"),
+    };
+    url.set_scheme(websocket_scheme)
+        .map_err(|_| anyhow::anyhow!("target tunnel Host endpoint scheme could not be set"))?;
+    let mut request = url.as_str().into_client_request()?;
+    request.headers_mut().insert(
+        tokio_tungstenite::tungstenite::http::header::AUTHORIZATION,
+        tokio_tungstenite::tungstenite::http::HeaderValue::from_str(&format!(
+            "YggTarget {credential}"
+        ))?,
+    );
+    let (socket, _) = tokio_tungstenite::connect_async(request)
+        .await
+        .context("target reverse tunnel connection failed")?;
+    let (mut socket_tx, mut socket_rx) = socket.split();
+    let (control_tx, mut control_rx) =
+        mpsc::channel::<TunnelMessage>(TARGET_TUNNEL_CONTROL_QUEUE_CAPACITY);
+    let (data_tx, mut data_rx) = mpsc::channel::<TunnelMessage>(TARGET_TUNNEL_DATA_QUEUE_CAPACITY);
+    let (connection_failed_tx, mut connection_failed_rx) = watch::channel(false);
+    let writer_failed_tx = connection_failed_tx.clone();
+    let writer = tokio::spawn(async move {
+        loop {
+            let message = tokio::select! {
+                biased;
+                message = control_rx.recv() => message,
+                message = data_rx.recv() => message,
+            };
+            let Some(message) = message else {
+                break;
+            };
+            if socket_tx.send(message).await.is_err() {
+                let _ = writer_failed_tx.send(true);
+                break;
+            }
+        }
+    });
+    let streams: AgentTunnelStreams = Arc::new(AsyncMutex::new(HashMap::new()));
+
+    loop {
+        tokio::select! {
+            biased;
+            changed = connection_failed_rx.changed() => {
+                if changed.is_err() || *connection_failed_rx.borrow() {
+                    break;
+                }
+            }
+            message = socket_rx.next() => {
+                let Some(message) = message else { break; };
+                let message = message.context("target reverse tunnel receive failed")?;
+                if !handle_target_tunnel_host_message(
+                    message,
+                    config,
+                    streams.clone(),
+                    control_tx.clone(),
+                    data_tx.clone(),
+                    connection_failed_tx.clone(),
+                )
+                .await
+                {
+                    break;
+                }
+            }
+        }
+    }
+    streams.lock().await.clear();
+    let _ = control_tx.try_send(TunnelMessage::Close(None));
+    writer.abort();
+    let _ = writer.await;
+    Ok(())
+}
+
+async fn handle_target_tunnel_host_message(
+    message: TunnelMessage,
+    config: &AgentConfig,
+    streams: AgentTunnelStreams,
+    control_tx: mpsc::Sender<TunnelMessage>,
+    data_tx: mpsc::Sender<TunnelMessage>,
+    connection_failed_tx: watch::Sender<bool>,
+) -> bool {
+    match message {
+        TunnelMessage::Text(text) => {
+            let Ok(control) = serde_json::from_str::<TargetTunnelHostMessage>(&text) else {
+                return false;
+            };
+            match control {
+                TargetTunnelHostMessage::Open { stream } => {
+                    if !valid_tunnel_stream_id(&stream.stream_id) {
+                        return false;
+                    }
+                    let valid_authority = stream.target_id == config.target_id
+                        && stream.lease_epoch == config.lease_epoch
+                        && stream.policy_epoch == config.policy_epoch
+                        && stream.port > 0;
+                    if !valid_authority {
+                        return send_agent_tunnel_control(
+                            &control_tx,
+                            TargetTunnelAgentMessage::Rejected {
+                                stream_id: stream.stream_id,
+                            },
+                        );
+                    }
+                    let reservation = Arc::new(());
+                    {
+                        let mut active_streams = streams.lock().await;
+                        if active_streams.contains_key(&stream.stream_id) {
+                            return true;
+                        }
+                        if active_streams.len() >= TARGET_TUNNEL_MAX_STREAMS {
+                            drop(active_streams);
+                            return send_agent_tunnel_control(
+                                &control_tx,
+                                TargetTunnelAgentMessage::Rejected {
+                                    stream_id: stream.stream_id,
+                                },
+                            );
+                        }
+                        active_streams.insert(
+                            stream.stream_id.clone(),
+                            AgentTunnelStreamState::Pending(reservation.clone()),
+                        );
+                    }
+                    tokio::spawn(async move {
+                        open_agent_tunnel_stream(
+                            stream,
+                            reservation,
+                            streams,
+                            control_tx,
+                            data_tx,
+                            connection_failed_tx,
+                        )
+                        .await;
+                    });
+                    true
+                }
+                TargetTunnelHostMessage::Close { stream_id } => {
+                    if !valid_tunnel_stream_id(&stream_id) {
+                        return false;
+                    }
+                    streams.lock().await.remove(&stream_id);
+                    true
+                }
+            }
+        }
+        TunnelMessage::Binary(frame) => {
+            let Some((stream_id, data)) = decode_target_tunnel_data(&frame) else {
+                return false;
+            };
+            let active = streams.lock().await.get(&stream_id).and_then(|stream| {
+                if let AgentTunnelStreamState::Active {
+                    reservation,
+                    incoming_tx,
+                } = stream
+                {
+                    Some((reservation.clone(), incoming_tx.clone()))
+                } else {
+                    None
+                }
+            });
+            let Some((reservation, incoming_tx)) = active else {
+                return true;
+            };
+            if incoming_tx.try_send(data.to_vec()).is_ok() {
+                return true;
+            }
+            remove_agent_tunnel_stream(&streams, &stream_id, &reservation).await;
+            send_agent_tunnel_control(&control_tx, TargetTunnelAgentMessage::Closed { stream_id })
+        }
+        TunnelMessage::Ping(data) => control_tx.try_send(TunnelMessage::Pong(data)).is_ok(),
+        TunnelMessage::Pong(_) => true,
+        TunnelMessage::Close(_) | TunnelMessage::Frame(_) => false,
+    }
+}
+
+async fn open_agent_tunnel_stream(
+    stream: TargetTunnelOpen,
+    reservation: Arc<()>,
+    streams: AgentTunnelStreams,
+    control_tx: mpsc::Sender<TunnelMessage>,
+    data_tx: mpsc::Sender<TunnelMessage>,
+    connection_failed_tx: watch::Sender<bool>,
+) {
+    let stream_id = stream.stream_id.clone();
+    let connection = ygg_runtime::open_managed_target_tunnel_stream(
+        &stream.target_id,
+        &stream.route_id,
+        &stream.port_lease_id,
+        &stream.port_name,
+        stream.port,
+    )
+    .await;
+    let Ok(connection) = connection else {
+        if remove_agent_tunnel_stream(&streams, &stream_id, &reservation).await {
+            if !send_agent_tunnel_control(
+                &control_tx,
+                TargetTunnelAgentMessage::Rejected { stream_id },
+            ) {
+                let _ = connection_failed_tx.send(true);
+            }
+        }
+        return;
+    };
+    let (incoming_tx, incoming_rx) = mpsc::channel(TARGET_TUNNEL_STREAM_QUEUE_CAPACITY);
+    let mut active_streams = streams.lock().await;
+    let still_pending = active_streams.get(&stream_id).is_some_and(|state| {
+        matches!(state, AgentTunnelStreamState::Pending(current) if Arc::ptr_eq(current, &reservation))
+    });
+    if !still_pending {
+        drop(active_streams);
+        return;
+    }
+    active_streams.insert(
+        stream_id.clone(),
+        AgentTunnelStreamState::Active {
+            reservation: reservation.clone(),
+            incoming_tx,
+        },
+    );
+    drop(active_streams);
+    let still_active = streams.lock().await.get(&stream_id).is_some_and(|state| {
+        matches!(state, AgentTunnelStreamState::Active { reservation: current, .. } if Arc::ptr_eq(current, &reservation))
+    });
+    if !still_active {
+        return;
+    }
+    if !send_agent_tunnel_control(
+        &control_tx,
+        TargetTunnelAgentMessage::Opened {
+            stream_id: stream_id.clone(),
+        },
+    ) {
+        remove_agent_tunnel_stream(&streams, &stream_id, &reservation).await;
+        let _ = connection_failed_tx.send(true);
+        return;
+    }
+    tokio::spawn(pump_agent_tunnel_stream(
+        stream_id,
+        connection,
+        incoming_rx,
+        streams,
+        reservation,
+        control_tx,
+        data_tx,
+        connection_failed_tx,
+    ));
+}
+
+async fn pump_agent_tunnel_stream(
+    stream_id: String,
+    connection: tokio::net::TcpStream,
+    mut incoming_rx: mpsc::Receiver<Vec<u8>>,
+    streams: AgentTunnelStreams,
+    reservation: Arc<()>,
+    control_tx: mpsc::Sender<TunnelMessage>,
+    data_tx: mpsc::Sender<TunnelMessage>,
+    connection_failed_tx: watch::Sender<bool>,
+) {
+    let (mut reader, mut writer) = connection.into_split();
+    let mut buffer = vec![0u8; TARGET_TUNNEL_DATA_CHUNK_BYTES];
+    loop {
+        tokio::select! {
+            read = reader.read(&mut buffer) => {
+                let Ok(read) = read else { break; };
+                if read == 0 { break; }
+                let Some(frame) = encode_target_tunnel_data(&stream_id, &buffer[..read]) else {
+                    break;
+                };
+                if data_tx.send(TunnelMessage::Binary(frame)).await.is_err() { break; }
+            }
+            incoming = incoming_rx.recv() => {
+                let Some(incoming) = incoming else { break; };
+                if writer.write_all(&incoming).await.is_err() { break; }
+            }
+        }
+    }
+    let _ = writer.shutdown().await;
+    remove_agent_tunnel_stream(&streams, &stream_id, &reservation).await;
+    if !send_agent_tunnel_control(&control_tx, TargetTunnelAgentMessage::Closed { stream_id }) {
+        let _ = connection_failed_tx.send(true);
+    }
+}
+
+async fn remove_agent_tunnel_stream(
+    streams: &AgentTunnelStreams,
+    stream_id: &str,
+    reservation: &Arc<()>,
+) -> bool {
+    let mut streams = streams.lock().await;
+    let matches_reservation = streams.get(stream_id).is_some_and(|state| match state {
+        AgentTunnelStreamState::Pending(current)
+        | AgentTunnelStreamState::Active {
+            reservation: current,
+            ..
+        } => Arc::ptr_eq(current, reservation),
+    });
+    if matches_reservation {
+        streams.remove(stream_id);
+    }
+    matches_reservation
+}
+
+fn send_agent_tunnel_control(
+    outbound_tx: &mpsc::Sender<TunnelMessage>,
+    message: TargetTunnelAgentMessage,
+) -> bool {
+    if let Ok(text) = serde_json::to_string(&message) {
+        return outbound_tx.try_send(TunnelMessage::Text(text)).is_ok();
+    }
+    false
+}
+
+fn valid_tunnel_stream_id(stream_id: &str) -> bool {
+    stream_id.len() == 32
+        && stream_id
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn acquire_run_lock(data_dir: &Path) -> anyhow::Result<std::fs::File> {
@@ -1301,6 +1676,20 @@ mod tests {
         }
     }
 
+    fn tunnel_config() -> AgentConfig {
+        AgentConfig {
+            schema_version: 1,
+            endpoint: "http://127.0.0.1:3000".to_string(),
+            target_id: "remote-1".to_string(),
+            protocol_version: PROTOCOL_VERSION.to_string(),
+            lease_epoch: 1,
+            policy_epoch: 1,
+            reachability: ExecutionTargetReachability::ReverseTunnel,
+            capabilities: vec![ExecutionTargetCapability::Deployment],
+            heartbeat_interval_seconds: 5,
+        }
+    }
+
     #[tokio::test]
     async fn local_ledger_replays_terminal_receipt() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
@@ -1366,6 +1755,79 @@ mod tests {
         assert!(release_artifact(directory.path(), &digest).await?);
         assert!(!release_artifact(directory.path(), &digest).await?);
         assert!(artifact_path(directory.path(), "../../escape").is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn tunnel_close_cancels_a_pending_open() -> anyhow::Result<()> {
+        let stream_id = "a".repeat(32);
+        let reservation = Arc::new(());
+        let streams: AgentTunnelStreams = Arc::new(AsyncMutex::new(HashMap::from([(
+            stream_id.clone(),
+            AgentTunnelStreamState::Pending(reservation.clone()),
+        )])));
+        let (control_tx, _control_rx) = mpsc::channel(1);
+        let (data_tx, _data_rx) = mpsc::channel(1);
+        let (connection_failed_tx, _connection_failed_rx) = watch::channel(false);
+        let close = TunnelMessage::Text(serde_json::to_string(&TargetTunnelHostMessage::Close {
+            stream_id: stream_id.clone(),
+        })?);
+
+        assert!(
+            handle_target_tunnel_host_message(
+                close,
+                &tunnel_config(),
+                streams.clone(),
+                control_tx,
+                data_tx,
+                connection_failed_tx,
+            )
+            .await
+        );
+        assert!(!streams.lock().await.contains_key(&stream_id));
+        assert!(!remove_agent_tunnel_stream(&streams, &stream_id, &reservation).await);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn slow_agent_stream_is_closed_without_blocking_controls() -> anyhow::Result<()> {
+        let stream_id = "b".repeat(32);
+        let reservation = Arc::new(());
+        let (incoming_tx, _incoming_rx) = mpsc::channel(1);
+        incoming_tx.try_send(vec![1])?;
+        let streams: AgentTunnelStreams = Arc::new(AsyncMutex::new(HashMap::from([(
+            stream_id.clone(),
+            AgentTunnelStreamState::Active {
+                reservation,
+                incoming_tx,
+            },
+        )])));
+        let (control_tx, mut control_rx) = mpsc::channel(1);
+        let (data_tx, _data_rx) = mpsc::channel(1);
+        let (connection_failed_tx, _connection_failed_rx) = watch::channel(false);
+        let frame = encode_target_tunnel_data(&stream_id, b"overflow").expect("frame encodes");
+
+        let handled = tokio::time::timeout(
+            Duration::from_millis(100),
+            handle_target_tunnel_host_message(
+                TunnelMessage::Binary(frame),
+                &tunnel_config(),
+                streams.clone(),
+                control_tx,
+                data_tx,
+                connection_failed_tx,
+            ),
+        )
+        .await?;
+        assert!(handled);
+        assert!(!streams.lock().await.contains_key(&stream_id));
+        let TunnelMessage::Text(closed) = control_rx.try_recv()? else {
+            anyhow::bail!("expected closed control");
+        };
+        assert_eq!(
+            serde_json::from_str::<TargetTunnelAgentMessage>(&closed)?,
+            TargetTunnelAgentMessage::Closed { stream_id }
+        );
         Ok(())
     }
 }

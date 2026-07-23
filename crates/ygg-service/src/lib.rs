@@ -26,6 +26,7 @@ use futures::{SinkExt, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
 use tokio::time::{sleep, timeout, Instant};
@@ -35,9 +36,10 @@ use ygg_core::{
 };
 use ygg_runtime::{
     contract_diagnostics, host_info as runtime_host_info, resolve_contract_method,
-    CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest, PackageRecord,
-    ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
-    RegisteredCapability,
+    CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest,
+    ExecutionTargetCapability, ExecutionTargetReachability, ExecutionTargetStatusKind,
+    PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResourceSelector,
+    ProtocolResponse, RegisteredCapability,
 };
 use ygg_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
@@ -65,19 +67,26 @@ pub use host_access::{
     HostAccessResourceSelector, HostAccessScope,
 };
 pub use target_agent::{
-    hydrate_target_agent_control_plane, reconcile_target_deployment_control_plane,
-    target_agent_registry, verify_target_operation_authority, ClaimTargetEnrollmentRequest,
-    ClaimTargetEnrollmentResponse, CreateTargetOperationRequest, CreateTargetOperationResponse,
-    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetAgentHeartbeatRequest,
-    TargetAgentHeartbeatResponse, TargetAgentRegistry, TargetDeploymentDescriptor,
-    TargetDeploymentRef, TargetOperationAuthority, TargetOperationEffect,
-    TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
-    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+    decode_target_tunnel_data, encode_target_tunnel_data, hydrate_target_agent_control_plane,
+    reconcile_target_deployment_control_plane, target_agent_registry,
+    verify_target_operation_authority, ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse,
+    CreateTargetOperationRequest, CreateTargetOperationResponse, DeclarativeVerifierDescriptor,
+    NextTargetOperationResponse, TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse,
+    TargetAgentRegistry, TargetDeploymentDescriptor, TargetDeploymentRef, TargetOperationAuthority,
+    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
+    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
+    TargetOperationStatusKind, TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen,
+    TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const PROXY_RESPONSE_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 const PROXY_WEBSOCKET_FRAME_LIMIT_BYTES: usize = 16 * 1024 * 1024;
+const PROXY_WEBSOCKET_SUBPROTOCOL_LIMIT: usize = 32;
+const PROXY_WEBSOCKET_SUBPROTOCOL_BYTES: usize = 128;
+const TARGET_TUNNEL_BRIDGE_HEADER: &str = "x-yggdrasil-tunnel-bridge";
+const TARGET_TUNNEL_BRIDGE_HEADER_LIMIT_BYTES: usize = 64 * 1024;
+const TARGET_TUNNEL_BRIDGE_LIMIT: usize = 256;
 const DEPLOY_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 const DEPLOY_READINESS_INTERVAL: Duration = Duration::from_millis(500);
 const DEPLOY_READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
@@ -6908,12 +6917,10 @@ where
                 )
                     .into_response();
             }
-        } else if identity.kind == HostAccessIdentityKind::Device
-            && !identity.allows_all(HostAccessResourceKind::Project)
-        {
+        } else if identity.kind == HostAccessIdentityKind::Device {
             return (
                 StatusCode::FORBIDDEN,
-                "project-scoped devices cannot access an unowned route",
+                "device grants cannot access an unowned route",
             )
                 .into_response();
         }
@@ -6926,6 +6933,24 @@ where
             )
                 .into_response();
         }
+        let request_headers = request.headers().clone();
+        let vhost_authority = match access_mode {
+            ProxyAccessMode::Vhost => request_headers
+                .get(header::HOST)
+                .and_then(|value| value.to_str().ok())
+                .and_then(normalize_host_authority),
+            ProxyAccessMode::PathPrefix => None,
+        };
+        let subprotocols = match requested_websocket_subprotocols(&request_headers) {
+            Ok(protocols) => protocols,
+            Err(response) => return response,
+        };
+        let origin = request_headers.get(header::ORIGIN).cloned();
+        let (mut parts, _) = request.into_parts();
+        let upgrade = match WebSocketUpgrade::from_request_parts(&mut parts, &state).await {
+            Ok(upgrade) => upgrade,
+            Err(rejection) => return rejection.into_response(),
+        };
         let resolved = match resolve_proxy_upstream(&state, &route_id).await {
             Ok(resolved) => resolved,
             Err(response) => return response,
@@ -6938,14 +6963,31 @@ where
                 .into_response();
         }
 
-        let target_url = loopback_websocket_url(resolved.port, &path, uri.query());
-        let (mut parts, _) = request.into_parts();
-        let upgrade = match WebSocketUpgrade::from_request_parts(&mut parts, &state).await {
-            Ok(upgrade) => upgrade,
-            Err(rejection) => return rejection.into_response(),
+        let connection = match proxy_connect_port(&state, &resolved).await {
+            Ok(connection) => connection,
+            Err(response) => return response,
+        };
+        let target_url = loopback_websocket_url(connection.port, &path, uri.query());
+        let upstream_port = resolved.port;
+        let (upstream, selected_protocol) = match connect_proxy_websocket(
+            target_url,
+            connection.bridge_token.as_deref(),
+            upstream_port,
+            vhost_authority.as_deref(),
+            origin,
+            &subprotocols,
+        )
+        .await
+        {
+            Ok(connection) => connection,
+            Err(response) => return response,
+        };
+        let upgrade = match selected_protocol {
+            Some(protocol) => upgrade.protocols([protocol]),
+            None => upgrade,
         };
         return upgrade
-            .on_upgrade(move |socket| tunnel_websocket(socket, target_url))
+            .on_upgrade(move |socket| tunnel_websocket(socket, upstream))
             .into_response();
     }
 
@@ -6981,9 +7023,21 @@ where
         }
     };
 
-    let target_url = loopback_proxy_url(resolved.port, &path, uri.query());
+    let connection = match proxy_connect_port(&state, &resolved).await {
+        Ok(connection) => connection,
+        Err(response) => return response,
+    };
+    let target_url = loopback_proxy_url(connection.port, &path, uri.query());
     let client = hardened_proxy_client();
-    let mut upstream = client.request(method, target_url).body(body);
+    let mut upstream = client
+        .request(method, target_url)
+        .header(header::CONNECTION, "close")
+        .body(body);
+    if let Some(bridge_token) = &connection.bridge_token {
+        upstream = upstream
+            .header(TARGET_TUNNEL_BRIDGE_HEADER, bridge_token)
+            .header(header::HOST, format!("127.0.0.1:{}", resolved.port));
+    }
     for (name, value) in request_headers.iter() {
         if should_forward_request_header(name) {
             upstream = upstream.header(name, value);
@@ -7018,6 +7072,12 @@ where
 struct ResolvedProxyUpstream {
     protocol: ProxyProtocol,
     port: u16,
+    transport: ResolvedProxyTransport,
+}
+
+enum ResolvedProxyTransport {
+    Local,
+    TargetTunnel(TargetTunnelOpen),
 }
 
 async fn resolve_proxy_upstream<S>(
@@ -7066,20 +7126,301 @@ where
         return Err((StatusCode::BAD_GATEWAY, "proxy upstream must be tcp").into_response());
     }
 
+    let target = state
+        .runtime
+        .config()
+        .target_registry
+        .status(&lease.target_id)
+        .await
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "proxy target not found").into_response())?;
+    let transport = if lease.target_id == "local" {
+        if target.status != ExecutionTargetStatusKind::Available
+            || target.reachability != ExecutionTargetReachability::LocalHost
+        {
+            return Err(
+                (StatusCode::SERVICE_UNAVAILABLE, "proxy target unavailable").into_response(),
+            );
+        }
+        ResolvedProxyTransport::Local
+    } else {
+        if target.status != ExecutionTargetStatusKind::Available
+            || target.reachability != ExecutionTargetReachability::ReverseTunnel
+            || !target
+                .capabilities
+                .contains(&ExecutionTargetCapability::Deployment)
+            || !state.target_agents.tunnel_connected(&target.id)
+        {
+            return Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                "proxy target tunnel unavailable",
+            )
+                .into_response());
+        }
+        ResolvedProxyTransport::TargetTunnel(TargetTunnelOpen {
+            stream_id: String::new(),
+            target_id: target.id,
+            route_id: route.id.clone(),
+            port_lease_id: lease.id.clone(),
+            port_name: lease.port_name.clone(),
+            port: lease.port,
+            lease_epoch: target.lease_epoch,
+            policy_epoch: target.policy_epoch,
+        })
+    };
+
     Ok(ResolvedProxyUpstream {
         protocol: route.protocol,
         port: lease.port,
+        transport,
     })
 }
 
-async fn tunnel_websocket(downstream: WebSocket, target_url: String) {
-    let Ok(request) = target_url.as_str().into_client_request() else {
-        return;
-    };
-    let Ok((upstream, _)) = tokio_tungstenite::connect_async(request).await else {
-        return;
-    };
+struct ProxyConnection {
+    port: u16,
+    bridge_token: Option<String>,
+}
 
+async fn proxy_connect_port<S>(
+    state: &AppState<S>,
+    resolved: &ResolvedProxyUpstream,
+) -> Result<ProxyConnection, Response>
+where
+    S: EventStore,
+{
+    let ResolvedProxyTransport::TargetTunnel(stream) = &resolved.transport else {
+        return Ok(ProxyConnection {
+            port: resolved.port,
+            bridge_token: None,
+        });
+    };
+    let permit = target_tunnel_bridge_semaphore()
+        .try_acquire_owned()
+        .map_err(|_| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "proxy target tunnel bridge limit reached",
+            )
+                .into_response()
+        })?;
+    let stream = state
+        .target_agents
+        .open_tunnel_stream(stream.clone())
+        .await
+        .map_err(|_| {
+            (StatusCode::BAD_GATEWAY, "proxy target tunnel stream failed").into_response()
+        })?;
+    expose_tunnel_stream_on_loopback(stream, permit)
+        .await
+        .map_err(|_| (StatusCode::BAD_GATEWAY, "proxy target tunnel bridge failed").into_response())
+}
+
+async fn expose_tunnel_stream_on_loopback(
+    mut tunnel: tokio::io::DuplexStream,
+    permit: OwnedSemaphorePermit,
+) -> anyhow::Result<ProxyConnection> {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await?;
+    let port = listener.local_addr()?.port();
+    let bridge_token = uuid::Uuid::new_v4().simple().to_string();
+    let task_token = bridge_token.clone();
+    tokio::spawn(async move {
+        let _permit = permit;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+                return;
+            };
+            let accepted = tokio::time::timeout(remaining, listener.accept()).await;
+            let Ok(Ok((mut local, _))) = accepted else {
+                return;
+            };
+            let authenticated = tokio::time::timeout(
+                remaining.min(Duration::from_secs(1)),
+                authenticate_tunnel_bridge_request(&mut local, &task_token),
+            )
+            .await;
+            let Ok(Ok(initial_request)) = authenticated else {
+                continue;
+            };
+            if tunnel.write_all(&initial_request).await.is_err() {
+                return;
+            }
+            let _ = tokio::io::copy_bidirectional(&mut local, &mut tunnel).await;
+            return;
+        }
+    });
+    Ok(ProxyConnection {
+        port,
+        bridge_token: Some(bridge_token),
+    })
+}
+
+fn target_tunnel_bridge_semaphore() -> Arc<Semaphore> {
+    static BRIDGES: OnceLock<Arc<Semaphore>> = OnceLock::new();
+    BRIDGES
+        .get_or_init(|| Arc::new(Semaphore::new(TARGET_TUNNEL_BRIDGE_LIMIT)))
+        .clone()
+}
+
+async fn authenticate_tunnel_bridge_request(
+    local: &mut TcpStream,
+    expected_token: &str,
+) -> anyhow::Result<Vec<u8>> {
+    let mut request = Vec::new();
+    let header_end = loop {
+        anyhow::ensure!(
+            request.len() < TARGET_TUNNEL_BRIDGE_HEADER_LIMIT_BYTES,
+            "target tunnel bridge request headers are too large"
+        );
+        let mut chunk = [0u8; 4096];
+        let read = local.read(&mut chunk).await?;
+        anyhow::ensure!(
+            read > 0,
+            "target tunnel bridge request ended before headers"
+        );
+        request.extend_from_slice(&chunk[..read]);
+        if let Some(end) = request.windows(4).position(|window| window == b"\r\n\r\n") {
+            break end + 4;
+        }
+    };
+    let headers = std::str::from_utf8(&request[..header_end])?;
+    let mut authenticated = false;
+    let mut credential_seen = false;
+    let mut forwarded = Vec::with_capacity(request.len());
+    for line in headers[..headers.len() - 2].split("\r\n") {
+        if let Some((name, value)) = line.split_once(':') {
+            if name.eq_ignore_ascii_case(TARGET_TUNNEL_BRIDGE_HEADER) {
+                anyhow::ensure!(
+                    !credential_seen,
+                    "duplicate target tunnel bridge credential"
+                );
+                credential_seen = true;
+                authenticated = host_access::constant_time_eq(
+                    value.trim().as_bytes(),
+                    expected_token.as_bytes(),
+                );
+                continue;
+            }
+        }
+        forwarded.extend_from_slice(line.as_bytes());
+        forwarded.extend_from_slice(b"\r\n");
+    }
+    anyhow::ensure!(authenticated, "invalid target tunnel bridge credential");
+    forwarded.extend_from_slice(b"\r\n");
+    forwarded.extend_from_slice(&request[header_end..]);
+    Ok(forwarded)
+}
+
+type ProxyUpstreamWebSocket =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>;
+
+fn requested_websocket_subprotocols(headers: &HeaderMap) -> Result<Vec<String>, Response> {
+    let mut protocols = Vec::new();
+    for value in headers.get_all(header::SEC_WEBSOCKET_PROTOCOL).iter() {
+        let value = value.to_str().map_err(|_| {
+            (StatusCode::BAD_REQUEST, "invalid websocket subprotocol").into_response()
+        })?;
+        for protocol in value.split(',').map(str::trim) {
+            if protocol.is_empty()
+                || protocol.len() > PROXY_WEBSOCKET_SUBPROTOCOL_BYTES
+                || !protocol
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte))
+            {
+                return Err(
+                    (StatusCode::BAD_REQUEST, "invalid websocket subprotocol").into_response()
+                );
+            }
+            if !protocols.iter().any(|current| current == protocol) {
+                if protocols.len() >= PROXY_WEBSOCKET_SUBPROTOCOL_LIMIT {
+                    return Err((StatusCode::BAD_REQUEST, "too many websocket subprotocols")
+                        .into_response());
+                }
+                protocols.push(protocol.to_string());
+            }
+        }
+    }
+    Ok(protocols)
+}
+
+async fn connect_proxy_websocket(
+    target_url: String,
+    bridge_token: Option<&str>,
+    upstream_port: u16,
+    upstream_authority: Option<&str>,
+    origin: Option<HeaderValue>,
+    subprotocols: &[String],
+) -> Result<(ProxyUpstreamWebSocket, Option<String>), Response> {
+    let mut request = target_url
+        .as_str()
+        .into_client_request()
+        .map_err(|_| (StatusCode::BAD_GATEWAY, "proxy websocket request failed").into_response())?;
+    if let Some(bridge_token) = bridge_token {
+        let value = HeaderValue::from_str(bridge_token).map_err(|_| {
+            (StatusCode::BAD_GATEWAY, "proxy websocket request failed").into_response()
+        })?;
+        request.headers_mut().insert(
+            header::HeaderName::from_static(TARGET_TUNNEL_BRIDGE_HEADER),
+            value,
+        );
+    }
+    let upstream_authority = upstream_authority
+        .map(str::to_string)
+        .or_else(|| bridge_token.map(|_| format!("127.0.0.1:{upstream_port}")));
+    if let Some(upstream_authority) = upstream_authority {
+        let host = HeaderValue::from_str(&upstream_authority).map_err(|_| {
+            (StatusCode::BAD_GATEWAY, "proxy websocket request failed").into_response()
+        })?;
+        request.headers_mut().insert(header::HOST, host);
+    }
+    if let Some(origin) = origin {
+        request.headers_mut().insert(header::ORIGIN, origin);
+    }
+    if !subprotocols.is_empty() {
+        let protocols = HeaderValue::from_str(&subprotocols.join(", ")).map_err(|_| {
+            (StatusCode::BAD_REQUEST, "invalid websocket subprotocol").into_response()
+        })?;
+        request
+            .headers_mut()
+            .insert(header::SEC_WEBSOCKET_PROTOCOL, protocols);
+    }
+    let (upstream, response) = timeout(
+        Duration::from_secs(10),
+        tokio_tungstenite::connect_async(request),
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::BAD_GATEWAY,
+            "proxy websocket handshake timed out",
+        )
+            .into_response()
+    })?
+    .map_err(|_| (StatusCode::BAD_GATEWAY, "proxy websocket handshake failed").into_response())?;
+    let selected_protocol = response
+        .headers()
+        .get(header::SEC_WEBSOCKET_PROTOCOL)
+        .map(|value| {
+            let value = value.to_str().map_err(|_| {
+                (
+                    StatusCode::BAD_GATEWAY,
+                    "invalid upstream websocket subprotocol",
+                )
+                    .into_response()
+            })?;
+            if !subprotocols.iter().any(|protocol| protocol == value) {
+                return Err((
+                    StatusCode::BAD_GATEWAY,
+                    "upstream selected an unrequested websocket subprotocol",
+                )
+                    .into_response());
+            }
+            Ok(value.to_string())
+        })
+        .transpose()?;
+    Ok((upstream, selected_protocol))
+}
+
+async fn tunnel_websocket(downstream: WebSocket, upstream: ProxyUpstreamWebSocket) {
     let (mut downstream_tx, mut downstream_rx) = downstream.split();
     let (mut upstream_tx, mut upstream_rx) = upstream.split();
 
@@ -9934,6 +10275,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn tunnel_loopback_bridge_requires_and_strips_its_one_time_credential(
+    ) -> anyhow::Result<()> {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let accepted = tokio::spawn(async move {
+            let (mut server, _) = listener.accept().await?;
+            authenticate_tunnel_bridge_request(&mut server, "bridge-token").await
+        });
+        let mut client = TcpStream::connect(address).await?;
+        client
+            .write_all(
+                b"POST /preview HTTP/1.1\r\nhost: 127.0.0.1\r\nx-yggdrasil-tunnel-bridge: bridge-token\r\ncontent-length: 4\r\n\r\nbody",
+            )
+            .await?;
+        let forwarded = accepted.await??;
+        let forwarded = String::from_utf8(forwarded)?;
+        assert!(forwarded.starts_with("POST /preview HTTP/1.1\r\n"));
+        assert!(!forwarded.contains(TARGET_TUNNEL_BRIDGE_HEADER));
+        assert!(forwarded.ends_with("\r\n\r\nbody"));
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn proxy_route_requires_ready_before_forwarding() -> anyhow::Result<()> {
         let upstream = Router::new().fallback(any(|| async { "ready upstream" }));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
@@ -10596,13 +10960,33 @@ mod tests {
     #[tokio::test]
     async fn websocket_proxy_echoes_text_and_strips_access_token() -> anyhow::Result<()> {
         let observed = Arc::new(Mutex::new(
-            None::<(String, Option<String>, Option<String>, Option<String>)>,
+            None::<(
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+            )>,
         ));
         let upstream_observed = observed.clone();
         let upstream = Router::new()
             .fallback(any(
                 move |State(observed): State<
-                    Arc<Mutex<Option<(String, Option<String>, Option<String>, Option<String>)>>>,
+                    Arc<
+                        Mutex<
+                            Option<(
+                                String,
+                                Option<String>,
+                                Option<String>,
+                                Option<String>,
+                                Option<String>,
+                                Option<String>,
+                                Option<String>,
+                            )>,
+                        >,
+                    >,
                 >,
                       ws: WebSocketUpgrade,
                       OriginalUri(uri): OriginalUri,
@@ -10615,17 +10999,33 @@ mod tests {
                         .get(header::COOKIE)
                         .and_then(|value| value.to_str().ok())
                         .map(str::to_string);
+                    let origin = headers
+                        .get(header::ORIGIN)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
+                    let subprotocol = headers
+                        .get(header::SEC_WEBSOCKET_PROTOCOL)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
+                    let host = headers
+                        .get(header::HOST)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_string);
                     *observed.lock().await = Some((
                         uri.path().to_string(),
                         uri.query().map(str::to_string),
                         authorization,
                         cookie,
+                        origin,
+                        subprotocol,
+                        host,
                     ));
-                    ws.on_upgrade(|mut socket| async move {
-                        if let Some(Ok(message)) = socket.recv().await {
-                            let _ = socket.send(message).await;
-                        }
-                    })
+                    ws.protocols(["ygg.test"])
+                        .on_upgrade(|mut socket| async move {
+                            if let Some(Ok(message)) = socket.recv().await {
+                                let _ = socket.send(message).await;
+                            }
+                        })
                 },
             ))
             .with_state(upstream_observed);
@@ -10693,8 +11093,23 @@ mod tests {
         request
             .headers_mut()
             .insert(header::COOKIE, HeaderValue::from_static("session=secret"));
+        request.headers_mut().insert(
+            header::ORIGIN,
+            HeaderValue::from_static("https://client.example"),
+        );
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static("ygg.test, ygg.fallback"),
+        );
         let stream = TcpStream::connect(proxy_addr).await?;
-        let (mut socket, _) = tokio_tungstenite::client_async(request, stream).await?;
+        let (mut socket, response) = tokio_tungstenite::client_async(request, stream).await?;
+        assert_eq!(
+            response
+                .headers()
+                .get(header::SEC_WEBSOCKET_PROTOCOL)
+                .and_then(|value| value.to_str().ok()),
+            Some("ygg.test")
+        );
         socket.send(Message::Text("hello ws".into())).await?;
 
         match socket.next().await.transpose()? {
@@ -10711,6 +11126,12 @@ mod tests {
         assert_eq!(observed.1.as_deref(), Some("keep=1"));
         assert!(observed.2.is_none());
         assert!(observed.3.is_none());
+        assert_eq!(observed.4.as_deref(), Some("https://client.example"));
+        assert_eq!(observed.5.as_deref(), Some("ygg.test, ygg.fallback"));
+        assert_eq!(
+            observed.6.as_deref(),
+            Some(format!("127.0.0.1:{}", upstream_addr.port()).as_str())
+        );
         Ok(())
     }
 

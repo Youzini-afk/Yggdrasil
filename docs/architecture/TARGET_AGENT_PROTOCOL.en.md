@@ -81,7 +81,9 @@ Revoke fails closed for new work and new accepted/running transitions. The linea
 
 Operation authority binds target, operation, step, project, effect, artifacts, lease/policy epochs, expiry, nonce, and request digest. Remote Agent authority is MACed with the epoch-scoped, domain-separated enrollment credential digest, and the Agent independently recomputes that MAC from the credential it received once. A local-driver journal record uses a stable domain-separated key confined to the Host and does not treat that key as a network identity. The native client disables redirects, requires HTTPS for a remote Host, never persists the credential in config or ledger, and reads it only from `YGG_TARGET_AGENT_CREDENTIAL`; loopback HTTP is confined to the same machine.
 
-Phase 4C now routes local versus agent drivers from `ExecutionTargetReachability`; no caller-provided network address can act as a driver fallback. Local and Agent deployment operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/project/deployment/route/lease/operation ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, project, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way. Authenticated tunnel/private preview remains a later slice, and the Host loopback upstream boundary is unchanged.
+Phase 4C now routes local versus agent drivers from `ExecutionTargetReachability`; no caller-provided network address can act as a driver fallback. Local and Agent deployment operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/project/deployment/route/lease/operation ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, project, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
+
+The Candidate authenticated reverse-tunnel/private-preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Deployment capability initiates `GET /target-agent/v1/tunnel` with its existing `YggTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden.
 
 ## Transport session
 
@@ -100,7 +102,7 @@ CancelRequest / CancelReceipt
 ArtifactRequest / ArtifactChunk / ArtifactReceipt
 ```
 
-V1 selects one transport. Direct mTLS HTTP/2 and reverse tunnel may later be connection adapters without changing operation semantics. Reconnect resumes from a durable receipt cursor.
+Current V1 keeps durable operation control out of the volatile traffic tunnel. Identity, heartbeat, operation, receipt, and artifact flows use versioned HTTP routes; the Agent separately initiates a `YggTarget`-authenticated WebSocket that carries only multiplexed byte streams authorized by Host routes. Operation recovery uses the Host journal and Agent ledger, never an in-memory tunnel channel. Direct mTLS HTTP/2 may later replace a connection adapter without changing authority, receipt, or fencing semantics.
 
 ## Typed operations
 
@@ -143,15 +145,15 @@ Journals and artifacts carry only `secret_ref`. The Host creates a short-lived e
 
 ## Network and ingress
 
-The Host loopback-only upstream rule remains a security boundary. Remote routing uses an authenticated target tunnel:
+The Host loopback-only upstream rule remains a security boundary. The implemented first-stage remote route uses an authenticated target tunnel:
 
 1. Agent actually reserves a target-loopback port;
 2. Controller registers a target-aware route;
-3. Host proxy opens a stream through the authenticated tunnel;
-4. Agent validates route, lease, generation, and epoch before dialing loopback;
+3. Host proxy opens a bounded stream through the authenticated tunnel;
+4. Agent validates route, lease, port name, actual port, ownership labels, and epochs before dialing target loopback only;
 5. Host route policy continues to decide public versus Host-authenticated access.
 
-Target-side public ingress, ACME, and edge identity are later adapters, not a hidden relaxation in v1.
+An internally bounded one-use loopback bridge credential lets the existing HTTP/WebSocket proxy consume that stream and is stripped before the workload sees the request. Client Authorization/Cookie headers are not forwarded; WebSocket forwarding is limited to Origin, the negotiated subprotocol, and validated vhost authority. Target-side public ingress, ACME, and edge identity remain later adapters, not a hidden relaxation in v1.
 
 ## Failure behavior
 

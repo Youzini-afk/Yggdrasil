@@ -406,6 +406,91 @@ pub async fn count_managed_target_deployments(target_id: &str) -> anyhow::Result
     Ok(u64::try_from(containers.len()).unwrap_or(u64::MAX))
 }
 
+pub async fn open_managed_target_tunnel_stream(
+    target_id: &str,
+    route_id: &str,
+    port_lease_id: &str,
+    port_name: &str,
+    host_port: u16,
+) -> anyhow::Result<tokio::net::TcpStream> {
+    for (name, value) in [
+        ("target_id", target_id),
+        ("route_id", route_id),
+        ("port_lease_id", port_lease_id),
+        ("port_name", port_name),
+    ] {
+        validate_label_value(name, value)?;
+    }
+    anyhow::ensure!(host_port > 0, "target tunnel port must be non-zero");
+    let docker = docker().await?;
+    let filters = HashMap::from([(
+        "label".to_string(),
+        vec![
+            format!("yggdrasil.target_driver={DRIVER_ID}"),
+            format!("yggdrasil.target_id={target_id}"),
+            format!("yggdrasil.route_id={route_id}"),
+            format!("yggdrasil.port_lease_id={port_lease_id}"),
+            format!("yggdrasil.port_name={port_name}"),
+        ],
+    )]);
+    let options = ListContainersOptionsBuilder::default()
+        .all(true)
+        .filters(&filters)
+        .build();
+    let containers =
+        tokio::time::timeout(DOCKER_EFFECT_TIMEOUT, docker.list_containers(Some(options)))
+            .await
+            .context("docker target tunnel lookup timed out")??;
+    anyhow::ensure!(
+        containers.len() == 1,
+        "target tunnel lease does not resolve to exactly one managed deployment"
+    );
+    let container = &containers[0];
+    let labels = container
+        .labels
+        .as_ref()
+        .context("target tunnel deployment has no ownership labels")?;
+    for (key, expected) in [
+        ("managed-by", "yggdrasil"),
+        ("yggdrasil.target_driver", DRIVER_ID),
+        ("yggdrasil.target_id", target_id),
+        ("yggdrasil.route_id", route_id),
+        ("yggdrasil.port_lease_id", port_lease_id),
+        ("yggdrasil.port_name", port_name),
+    ] {
+        anyhow::ensure!(
+            labels.get(key).map(String::as_str) == Some(expected),
+            "target tunnel deployment ownership label mismatch"
+        );
+    }
+    anyhow::ensure!(
+        matches!(container.state, Some(ContainerSummaryStateEnum::RUNNING)),
+        "target tunnel deployment is not running"
+    );
+    let container_port = labels
+        .get("yggdrasil.container_port")
+        .context("target tunnel deployment has no container port label")?
+        .parse::<u16>()?;
+    let matching_port = container
+        .ports
+        .as_ref()
+        .into_iter()
+        .flatten()
+        .find(|port| port.private_port == container_port && port.public_port == Some(host_port))
+        .context("target tunnel port is not published by the managed deployment")?;
+    anyhow::ensure!(
+        matching_port.ip.as_deref() == Some(BIND_HOST),
+        "target tunnel port is not loopback-only"
+    );
+    tokio::time::timeout(
+        DOCKER_CONNECT_TIMEOUT,
+        tokio::net::TcpStream::connect((BIND_HOST, host_port)),
+    )
+    .await
+    .context("target tunnel loopback connect timed out")?
+    .context("target tunnel loopback connect failed")
+}
+
 impl ManagedTargetDeploymentApply {
     fn reference(&self) -> ManagedTargetDeploymentRef {
         ManagedTargetDeploymentRef {

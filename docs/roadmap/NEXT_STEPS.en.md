@@ -16,10 +16,9 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
 
 The dependency order among project authority, reliable deployment, operational safety, remote targets, and unified clients is fixed in
-[`HOST_OPERATIONS_IMPLEMENTATION.en.md`](HOST_OPERATIONS_IMPLEMENTATION.en.md). Implementation must satisfy project isolation and local recovery gates
-before enabling remote targets; real-project pressure still drives this work, and none of it becomes kernel content ontology.
+[`HOST_OPERATIONS_IMPLEMENTATION.en.md`](HOST_OPERATIONS_IMPLEMENTATION.en.md). Implementation satisfied project-isolation and local-recovery gates before enabling the Remote Target Candidate; real-project pressure still drives this work, and none of it becomes kernel content ontology.
 
-As of 2026-07-23, the Phase 0 design contracts and Phase 1 Candidate project-authority implementation are complete. The main line is now Phase 2: lifting the existing deployment jobs into a restart-recoverable local controller with leases, receipts, and observed-state reconciliation.
+As of 2026-07-24, the Phase 0–3 Candidates are complete. The main line is closing Phase 4: durable Target Agent identity and operation ledgers, artifact/verifier work, equivalent local/Agent Docker deployment, actual-port lease projection, and the authenticated reverse-tunnel/private-preview baseline are implemented. The next gate moves remote HTTP/WebSocket, reconnect, revoke, backpressure, stale-epoch, and explicit-public-route matrices into GitHub CI before Phase 5 unifies clients and the development-to-deployment loop.
 
 > “Complete” here means current v1 operational closure, not that every `kernel.v1.*`
 > boundary is permanent constitutional substrate. The long-term layering candidate is
@@ -79,7 +78,7 @@ These are known to-dos. Priority follows real friction.
 - Development-artifact read authority, encryption/retention policy, reachability GC, and more declarative verifier / sandbox backends.
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
 - Deployment descriptor polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and external-project wizard generation.
-- Remote execution targets: ports currently bind to loopback only. Multi-client control of one Host and explicit public vhosts are complete, but neither is a remote target nor an application identity system.
+- Remote Target Agent closure: remote HTTP/WebSocket acceptance, disconnect/reconnect/revoke/backpressure/stale-epoch fault matrices, explicit-public-route acceptance, and Phase 5 Project Console/development-to-deployment wiring. Target ports remain loopback-only and traffic crosses only the authenticated tunnel; this is neither an application identity system nor an arbitrary network proxy.
 
 ### Models and outbound
 

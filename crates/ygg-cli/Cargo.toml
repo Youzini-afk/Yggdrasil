@@ -29,6 +29,7 @@ console = "0.15"
 dialoguer = "0.11"
 dirs = "5"
 fs2 = "0.4"
+futures.workspace = true
 heck = "0.5"
 jsonschema.workspace = true
 prettyplease = "0.2"
@@ -42,6 +43,7 @@ sequoia-openpgp = { version = "1.21", default-features = false, features = ["com
 syn = "2"
 tempfile = "3"
 tokio.workspace = true
+tokio-tungstenite = "0.24"
 tracing-subscriber.workspace = true
 typify = "0.6"
 toml.workspace = true

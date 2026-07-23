@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
+use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Extension, Path, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::{self, Next};
@@ -22,6 +23,7 @@ use crate::{require_identity_target, AppState, ServiceError};
 
 mod driver;
 mod operation;
+mod tunnel;
 
 pub use operation::{
     verify_target_operation_authority, CreateTargetOperationRequest, CreateTargetOperationResponse,
@@ -29,6 +31,11 @@ pub use operation::{
     TargetDeploymentRef, TargetOperationAuthority, TargetOperationEffect,
     TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
     TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+};
+pub use tunnel::{
+    decode_target_tunnel_data, encode_target_tunnel_data, TargetTunnelAgentMessage,
+    TargetTunnelHostMessage, TargetTunnelOpen, TARGET_TUNNEL_DATA_CHUNK_BYTES,
+    TARGET_TUNNEL_MAX_STREAMS,
 };
 
 const JOURNAL_SESSION: &str = "host_control_target_agents";
@@ -99,6 +106,7 @@ struct TargetAgentState {
 pub struct TargetAgentRegistry {
     state: Mutex<TargetAgentState>,
     operations: Mutex<operation::TargetOperationState>,
+    tunnels: tunnel::TargetTunnelRegistry,
 }
 
 pub fn target_agent_registry() -> Arc<TargetAgentRegistry> {
@@ -106,6 +114,17 @@ pub fn target_agent_registry() -> Arc<TargetAgentRegistry> {
 }
 
 impl TargetAgentRegistry {
+    pub(crate) fn tunnel_connected(&self, target_id: &str) -> bool {
+        self.tunnels.connected(target_id)
+    }
+
+    pub(crate) async fn open_tunnel_stream(
+        &self,
+        stream: TargetTunnelOpen,
+    ) -> anyhow::Result<tokio::io::DuplexStream> {
+        self.tunnels.open(stream).await
+    }
+
     fn next_sequence(&self) -> EventSequence {
         self.state
             .lock()
@@ -372,8 +391,82 @@ where
     Router::new()
         .route("/target-agent/v1/enroll", post(claim_enrollment::<S>))
         .route("/target-agent/v1/heartbeat", post(heartbeat::<S>))
+        .route("/target-agent/v1/tunnel", get(connect_tunnel::<S>))
         .merge(operation::agent_routes::<S>())
         .layer(middleware::from_fn(target_agent_response_headers))
+}
+
+async fn connect_tunnel<S>(
+    State(state): State<AppState<S>>,
+    headers: HeaderMap,
+    upgrade: WebSocketUpgrade,
+) -> Result<Response, ServiceError>
+where
+    S: EventStore,
+{
+    let credential = target_credential(&headers).ok_or_else(target_unauthorized)?;
+    sync_target_agent_journal(
+        state.runtime.store().as_ref(),
+        state.target_agents.as_ref(),
+        state.runtime.config().target_registry.as_ref(),
+    )
+    .await
+    .map_err(target_internal_error)?;
+    let agent = state
+        .target_agents
+        .authenticate_agent(credential)
+        .ok_or_else(target_unauthorized)?;
+    let live_target = state
+        .runtime
+        .config()
+        .target_registry
+        .status(&agent.target.id)
+        .await
+        .ok_or_else(target_unauthorized)?;
+    if live_target.status != ExecutionTargetStatusKind::Available
+        || live_target.reachability != ExecutionTargetReachability::ReverseTunnel
+        || live_target.identity_ref != agent.target.identity_ref
+        || live_target.lease_epoch != agent.target.lease_epoch
+        || live_target.policy_epoch != agent.target.policy_epoch
+        || !live_target
+            .capabilities
+            .contains(&ExecutionTargetCapability::Deployment)
+        || state.target_agents.tunnels.claimed(&live_target.id)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "target must be live, reverse-tunnel reachable, and have no active tunnel",
+        ));
+    }
+    let registration = state
+        .target_agents
+        .tunnels
+        .register(&live_target.id)
+        .map_err(|_| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "target must be live, reverse-tunnel reachable, and have no active tunnel",
+            )
+        })?;
+    if !tunnel::target_tunnel_identity_is_live(&state, &agent).await {
+        state
+            .target_agents
+            .tunnels
+            .remove(&live_target.id, registration.connection_id());
+        return Err(target_unauthorized());
+    }
+    let cleanup_target_id = live_target.id.clone();
+    let cleanup_connection_id = registration.connection_id().to_string();
+    let cleanup_registry = state.target_agents.clone();
+    Ok(upgrade
+        .max_frame_size(TARGET_TUNNEL_DATA_CHUNK_BYTES + 32)
+        .max_message_size(TARGET_TUNNEL_DATA_CHUNK_BYTES + 32)
+        .on_failed_upgrade(move |_| {
+            cleanup_registry
+                .tunnels
+                .remove(&cleanup_target_id, &cleanup_connection_id);
+        })
+        .on_upgrade(move |socket| tunnel::serve_target_tunnel(state, agent, registration, socket)))
 }
 
 async fn target_agent_response_headers(request: axum::extract::Request, next: Next) -> Response {
@@ -521,6 +614,7 @@ where
     )
     .await
     .map_err(target_conflict_error)?;
+    state.target_agents.tunnels.disconnect(&target.id);
     if let Err(error) = operation::reconcile_target_deployment_projections(&state, &target.id).await
     {
         tracing::warn!(target_id = %target.id, error = %error, "target deployment projection could not fence revoked target routes");
