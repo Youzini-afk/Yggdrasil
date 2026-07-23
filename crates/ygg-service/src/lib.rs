@@ -51,11 +51,12 @@ mod host_access;
 
 pub use development::{
     acquire_development_host_lease, development_registry, hydrate_development_control_plane,
-    release_development_host_lease, spawn_development_host_lease_heartbeat,
-    DevelopmentChangeRecord, DevelopmentChangeStatus, DevelopmentDraftRequest,
-    DevelopmentFileOperationRequest, DevelopmentHostLease, DevelopmentManagedPromotion,
-    DevelopmentNetworkMode, DevelopmentRecoveryKind, DevelopmentRegistry,
-    DevelopmentVerificationPlan, DevelopmentVerificationResult, DevelopmentWorkspaceOwnership,
+    release_development_host_lease, release_owned_development_host_lease,
+    spawn_development_host_lease_heartbeat, DevelopmentChangeRecord, DevelopmentChangeStatus,
+    DevelopmentDraftRequest, DevelopmentFileOperationRequest, DevelopmentHostLease,
+    DevelopmentManagedPromotion, DevelopmentNetworkMode, DevelopmentRecoveryKind,
+    DevelopmentRegistry, DevelopmentVerificationPlan, DevelopmentVerificationResult,
+    DevelopmentWorkspaceOwnership,
 };
 pub use host_access::{
     host_access_registry, hydrate_host_access_control_plane, HostAccessGrantView,
@@ -346,8 +347,10 @@ where
         ));
 
     Router::new()
+        .route("/livez", get(health))
         .route("/health", get(health))
         .route("/healthz", get(health))
+        .route("/readyz", get(readiness::<S>))
         .route(
             "/surface-assets/:lease_id/:prefix/*file",
             get(surface_asset_file::<S>),
@@ -375,6 +378,118 @@ where
 
 async fn health() -> &'static str {
     "ok"
+}
+
+#[derive(Debug, Serialize)]
+struct HostReadinessResponse {
+    status: &'static str,
+    ready: bool,
+    components: HostReadinessComponents,
+}
+
+#[derive(Debug, Serialize)]
+struct HostReadinessComponents {
+    event_store: HostReadinessComponent,
+    control_plane_lease: HostReadinessComponent,
+    deployments: HostDeploymentReadiness,
+}
+
+#[derive(Debug, Serialize)]
+struct HostReadinessComponent {
+    status: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct HostDeploymentReadiness {
+    status: &'static str,
+    durable: usize,
+    ready: usize,
+    degraded: usize,
+}
+
+async fn readiness<S>(State(state): State<AppState<S>>) -> Response
+where
+    S: EventStore,
+{
+    let store_ready = state
+        .runtime
+        .store()
+        .list_session_range(&DEPLOYMENT_JOURNAL_SESSION.to_string(), None, Some(1))
+        .await
+        .is_ok();
+    let lease_ready = store_ready
+        && development::verify_host_control_plane_lease_if_installed(
+            state.runtime.store().as_ref(),
+            state.development.as_ref(),
+        )
+        .await
+        .is_ok();
+
+    let durable_routes = state.build_jobs.durable_routes();
+    let mut ready_routes = 0usize;
+    for durable in &durable_routes {
+        let route_ready = state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status(&durable.route_id)
+            .await
+            .is_some_and(|route| {
+                route.status == ProxyRouteStatusKind::Active
+                    && route.ready
+                    && route.upstream.port_lease_id == durable.port_lease_id
+            });
+        let lease_ready = state
+            .runtime
+            .config()
+            .port_lease_registry
+            .status(&durable.port_lease_id)
+            .await
+            .is_some_and(|lease| lease.status == PortLeaseStatusKind::Active);
+        if route_ready && lease_ready {
+            ready_routes += 1;
+        }
+    }
+    let degraded_routes = durable_routes.len().saturating_sub(ready_routes);
+    let ready = store_ready && lease_ready;
+    let status = if !ready {
+        "unready"
+    } else if degraded_routes > 0 {
+        "degraded"
+    } else {
+        "ready"
+    };
+    let response = HostReadinessResponse {
+        status,
+        ready,
+        components: HostReadinessComponents {
+            event_store: HostReadinessComponent {
+                status: if store_ready { "ok" } else { "failed" },
+            },
+            control_plane_lease: HostReadinessComponent {
+                status: if lease_ready { "ok" } else { "failed" },
+            },
+            deployments: HostDeploymentReadiness {
+                status: if degraded_routes == 0 {
+                    "ok"
+                } else {
+                    "degraded"
+                },
+                durable: durable_routes.len(),
+                ready: ready_routes,
+                degraded: degraded_routes,
+            },
+        },
+    };
+    (
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(response),
+    )
+        .into_response()
 }
 
 async fn require_access_token<S>(
@@ -8934,6 +9049,90 @@ mod tests {
             .oneshot(Request::builder().uri("/healthz").body(Body::empty())?)
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn readyz_reports_component_readiness_without_resource_ids() -> anyhow::Result<()> {
+        let response = app()
+            .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: Value = serde_json::from_slice(&body)?;
+        assert_eq!(value["status"], "ready");
+        assert_eq!(value["ready"], true);
+        assert_eq!(value["components"]["event_store"]["status"], "ok");
+        assert_eq!(value["components"]["control_plane_lease"]["status"], "ok");
+        assert_eq!(value["components"]["deployments"]["durable"], 0);
+        assert!(!String::from_utf8(body.to_vec())?.contains("route_id"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn readyz_is_unready_after_control_plane_lease_loss() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let development = development_registry();
+        let lease = acquire_development_host_lease(store.clone(), development.clone()).await?;
+        release_development_host_lease(store.clone(), &lease).await?;
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let response = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: build_deploy_job_registry(),
+            development,
+            host_access: host_access_registry(),
+        })
+        .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
+        .await?;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: Value = serde_json::from_slice(&body)?;
+        assert_eq!(value["status"], "unready");
+        assert_eq!(value["ready"], false);
+        assert_eq!(
+            value["components"]["control_plane_lease"]["status"],
+            "failed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn readyz_keeps_host_ready_when_a_workload_is_degraded() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let build_jobs = build_deploy_job_registry();
+        build_jobs.register_direct_route_owner(DeploymentDirectRouteOwned {
+            route_id: "private-route".to_string(),
+            project_id: ProjectId::new("project-readyz")?,
+            port_name: "http".to_string(),
+            route_access: ProxyRouteAccess::HostAuthenticated,
+            port_lease_id: "private-lease".to_string(),
+            container_id: "private-container".to_string(),
+            timestamp_ms: 1,
+            authority: None,
+        });
+        let response = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs,
+            development: development_registry(),
+            host_access: host_access_registry(),
+        })
+        .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
+        .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await?;
+        let value: Value = serde_json::from_slice(&body)?;
+        assert_eq!(value["status"], "degraded");
+        assert_eq!(value["ready"], true);
+        assert_eq!(value["components"]["deployments"]["durable"], 1);
+        assert_eq!(value["components"]["deployments"]["degraded"], 1);
+        assert!(!String::from_utf8(body.to_vec())?.contains("private-route"));
         Ok(())
     }
 

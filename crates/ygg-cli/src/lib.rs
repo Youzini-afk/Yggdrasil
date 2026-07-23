@@ -71,6 +71,14 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                     commands::host_access::revoke(&endpoint, &access_token, &grant_id).await
                 }
             },
+            HostCommand::Backup {
+                data_dir,
+                profile,
+                output,
+            } => commands::host_data::backup(data_dir, profile, output).await,
+            HostCommand::Restore { backup, data_dir } => {
+                commands::host_data::restore(backup, data_dir).await
+            }
         },
         Command::HostStdio => host::host_stdio().await,
         Command::Manifest { command } => match command {

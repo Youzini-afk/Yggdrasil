@@ -324,6 +324,27 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: HostAccessCommand,
     },
+    /// Create a consistent, checksummed offline snapshot of a SQLite-backed Host.
+    Backup {
+        /// Host data directory to snapshot.
+        #[arg(long, env = "YGG_DATA_DIR")]
+        data_dir: PathBuf,
+        /// Host profile inside the data directory. Its SQLite path must be relative.
+        #[arg(long)]
+        profile: PathBuf,
+        /// New backup directory. It must not already exist.
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Verify and atomically restore a Host backup into a new data directory.
+    Restore {
+        /// Backup directory created by `ygg host backup`.
+        #[arg(long)]
+        backup: PathBuf,
+        /// New data directory. It must not already exist.
+        #[arg(long, env = "YGG_DATA_DIR")]
+        data_dir: PathBuf,
+    },
 }
 
 #[derive(Debug, Subcommand)]

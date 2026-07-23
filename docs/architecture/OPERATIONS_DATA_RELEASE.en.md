@@ -2,7 +2,20 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-Status: **pre-implementation design contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required before a Host carries real projects and remote targets.
+Status: **Phase 3 baseline implemented; remaining hardening stays governed by this contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required before a Host carries real projects and remote targets.
+
+## Current implementation status (2026-07-23)
+
+Implemented:
+
+- An Install Lab store schema mismatch no longer deletes data. The old store is atomically moved to a versioned, uniquely suffixed preservation directory before a fresh store receives the current marker.
+- `ygg host backup` creates an offline directory snapshot for a SQLite Host profile whose relative database path is inside the data directory. It first acquires the durable Host control-plane lease, excludes the explicit `cache`, uses SQLite's online backup API, and writes a SHA-256 manifest for secrets, keys, objects, projects, profiles, and journals copied under the same lease boundary.
+- `ygg host restore` only targets a nonexistent data directory. It rejects traversal, symlinks, duplicate entries, checksum/schema mismatches, verifies SQLite integrity in staging, and only then atomically publishes the restored directory.
+- `/livez`, `/health`, and `/healthz` are compatibility liveness endpoints. `/readyz` returns structured status without resource identifiers: event-store or Host control-plane lease failure is `503/unready`; an unhealthy durable deployment is `200/degraded`.
+- `host.diagnostics` includes the Host version and aggregate runtime counts without adding project, route, or lease identifiers.
+- A tag release explicitly reuses the complete CI workflow, strictly validates tag/commit/Cargo/npm/Tauri version identity, and then runs platform builds. Each platform publishes SHA-256 checksums and an SPDX SBOM and records GitHub OIDC/Sigstore provenance and SBOM attestations. Only the build job receives release permissions.
+
+Still pending: a general migration ledger, PostgreSQL backup references, separate `backup inspect/verify` commands, authenticated `/host/v1/status` and diagnostics export, active object/secret probes, one continuous HTTP health-policy parser, clean-runner installer startup smoke, reviewed-SHA pinning for Actions/toolchains, and platform signing/notarization. Releases remain drafts and must not be represented as signed when signing is not configured.
 
 ## Classify data before migrating it
 

@@ -45,6 +45,7 @@ tracing-subscriber.workspace = true
 typify = "0.6"
 toml.workspace = true
 url.workspace = true
+uuid.workspace = true
 ygg-core.workspace = true
 ygg-runtime.workspace = true
 ygg-service.workspace = true

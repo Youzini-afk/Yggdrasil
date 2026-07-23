@@ -312,6 +312,22 @@ pub struct DevelopmentHostLease {
     expires_at_ms: Arc<AtomicI64>,
 }
 
+impl DevelopmentHostLease {
+    /// Check the locally observed lease state. Durable ownership is kept fresh
+    /// by the heartbeat; a heartbeat failure invalidates this handle.
+    pub fn ensure_active(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.valid.load(Ordering::Acquire),
+            "development host lease is no longer active"
+        );
+        anyhow::ensure!(
+            self.expires_at_ms.load(Ordering::Acquire) > Utc::now().timestamp_millis(),
+            "development host lease expired"
+        );
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct DevelopmentHostLeaseEvent {
     owner_id: String,
@@ -463,6 +479,31 @@ pub async fn release_development_host_lease<S>(
 where
     S: EventStore,
 {
+    release_development_host_lease_inner(store, lease, false).await
+}
+
+/// Release the lease only if this handle is still the durable owner.
+///
+/// This stricter form is used when a successful release authorizes a later
+/// effect, such as publishing a backup captured under the lease.
+pub async fn release_owned_development_host_lease<S>(
+    store: Arc<S>,
+    lease: &DevelopmentHostLease,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    release_development_host_lease_inner(store, lease, true).await
+}
+
+async fn release_development_host_lease_inner<S>(
+    store: Arc<S>,
+    lease: &DevelopmentHostLease,
+    require_ownership: bool,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
     lease.valid.store(false, Ordering::Release);
     lease
         .expires_at_ms
@@ -470,9 +511,20 @@ where
     for _ in 0..4 {
         let (expected_next, current) = development_host_lease_tail(store.as_ref()).await?;
         let Some(current) = current else {
+            anyhow::ensure!(
+                !require_ownership,
+                "development host lease disappeared before strict release"
+            );
             return Ok(());
         };
-        if current.owner_id != lease.owner_id || current.released {
+        if current.owner_id != lease.owner_id {
+            anyhow::ensure!(
+                !require_ownership,
+                "development host lease ownership changed before strict release"
+            );
+            return Ok(());
+        }
+        if current.released {
             return Ok(());
         }
         let payload = DevelopmentHostLeaseEvent {
@@ -507,15 +559,7 @@ impl DevelopmentRegistry {
             .expect("development host lease lock poisoned")
             .clone()
             .ok_or_else(|| anyhow::anyhow!("development Host lease was not installed"))?;
-        anyhow::ensure!(
-            lease.valid.load(Ordering::Acquire),
-            "development host lease is no longer active"
-        );
-        anyhow::ensure!(
-            lease.expires_at_ms.load(Ordering::Acquire) > Utc::now().timestamp_millis(),
-            "development host lease expired"
-        );
-        Ok(())
+        lease.ensure_active()
     }
 
     fn has_host_lease(&self) -> bool {
@@ -3929,6 +3973,20 @@ mod tests {
         );
         release_development_host_lease(store.clone(), &first).await?;
         let second = acquire_development_host_lease(store.clone(), second_registry).await?;
+        release_development_host_lease(store, &second).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn strict_development_host_lease_release_rejects_a_new_owner() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let first = acquire_development_host_lease(store.clone(), development_registry()).await?;
+        release_development_host_lease(store.clone(), &first).await?;
+        let second = acquire_development_host_lease(store.clone(), development_registry()).await?;
+
+        assert!(release_owned_development_host_lease(store.clone(), &first)
+            .await
+            .is_err());
         release_development_host_lease(store, &second).await?;
         Ok(())
     }

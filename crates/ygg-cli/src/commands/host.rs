@@ -260,8 +260,15 @@ fn ensure_host_store_schema(data_dir: &Path) -> Result<()> {
         .with_context(|| format!("failed to ensure store schema under {}", data_dir.display()))?
     {
         println!(
-            "kernel/v1/host.store_schema_migrated: from={:?} to={} wiped_paths_count={}",
-            migration.from, migration.to, migration.wiped_paths_count
+            "kernel/v1/host.store_schema_migrated: from={:?} to={} preserved_paths_count={} preserved_path={}",
+            migration.from,
+            migration.to,
+            migration.preserved_paths_count,
+            migration
+                .preserved_path
+                .as_deref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "none".to_string())
         );
     }
     Ok(())
@@ -942,7 +949,7 @@ where
     Ok(())
 }
 
-fn resolve_profile_path(profile_path: &std::path::Path, path: PathBuf) -> PathBuf {
+pub(crate) fn resolve_profile_path(profile_path: &std::path::Path, path: PathBuf) -> PathBuf {
     if path.is_absolute() {
         path
     } else {

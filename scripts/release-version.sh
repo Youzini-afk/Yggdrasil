@@ -60,15 +60,33 @@ stamp_cargo_package_version crates/ygg-core/Cargo.toml
 stamp_cargo_package_version crates/ygg-runtime/Cargo.toml
 stamp_cargo_package_version crates/ygg-service/Cargo.toml
 stamp_cargo_package_version crates/ygg-cli/Cargo.toml
+stamp_cargo_package_version sdk/rust/yg-kernel-sdk/Cargo.toml
 stamp_cargo_package_version clients/desktop/src-tauri/Cargo.toml
+stamp_cargo_package_version integrations/tdb/rust-adapter/Cargo.toml
+stamp_cargo_package_version integrations/tdb/rust-adapter-real-crate/Cargo.toml
 
 # 3. JavaScript package manifests.
 stamp_json_version clients/web/package.json
 stamp_json_version clients/web/package-lock.json
 stamp_json_version clients/desktop/package.json
 stamp_json_version clients/desktop/package-lock.json
+stamp_json_version sdk/typescript/agentic-forge/package.json
+stamp_json_version sdk/typescript/experience-runtime/package.json
+stamp_json_version sdk/typescript/experience-runtime/package-lock.json
+stamp_json_version sdk/typescript/inference-capability/package.json
+stamp_json_version sdk/typescript/kernel-sdk/package.json
+stamp_json_version sdk/typescript/kernel-sdk/package-lock.json
+stamp_json_version sdk/typescript/subprocess/package.json
+stamp_json_version sdk/typescript/subprocess/package-lock.json
 
 # 4. Tauri app version.
 stamp_json_version clients/desktop/src-tauri/tauri.conf.json
+
+# 5. Refresh Rust lockfiles after changing first-party package versions.
+cargo metadata --no-deps --format-version 1 >/dev/null
+cargo metadata --no-deps --format-version 1 \
+  --manifest-path integrations/tdb/rust-adapter/Cargo.toml >/dev/null
+cargo metadata --no-deps --format-version 1 \
+  --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml >/dev/null
 
 echo "Done. Review changes with 'git diff' and commit."

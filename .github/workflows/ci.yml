@@ -1,6 +1,13 @@
 name: ci
 
 on:
+  workflow_call:
+    inputs:
+      release_version:
+        description: Optional release tag whose version must match every first-party package.
+        required: false
+        type: string
+        default: ""
   push:
     branches: [main]
   pull_request:
@@ -38,6 +45,13 @@ jobs:
 
       - name: Verify generated files are committed
         run: test -z "$(git status --porcelain -- docs/spec/v1/schemas sdk)"
+
+      - name: Verify release identity and versions
+        if: inputs.release_version != ''
+        run: |
+          test "$GITHUB_REF" = "refs/tags/${{ inputs.release_version }}"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          bash scripts/check-release-version.sh "${{ inputs.release_version }}"
 
       - name: Upload regenerated files when verification fails
         if: failure()
@@ -94,6 +108,19 @@ jobs:
 
       - name: ygg conformance
         run: cargo run -p ygg-cli --release -- conformance
+
+  host-data-windows:
+    name: Windows Host backup + restore
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Exercise private ACL backup and restore
+        run: cargo test -p ygg-cli backup_and_restore_preserve_data_and_verify_sqlite
 
   web:
     name: Web typecheck + test + build

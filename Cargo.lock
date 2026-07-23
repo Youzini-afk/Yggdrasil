@@ -9135,6 +9135,7 @@ dependencies = [
  "tracing-subscriber",
  "typify",
  "url",
+ "uuid",
  "ygg-core",
  "ygg-runtime",
  "ygg-service",

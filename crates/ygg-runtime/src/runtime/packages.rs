@@ -299,13 +299,27 @@ where
     }
 
     pub async fn host_diagnostics(&self) -> Value {
-        let packages = self.list_packages().await;
-        let capabilities = self.discover_capabilities().await;
-        let hooks = self.extensions.list_all_hooks().await;
+        let (packages, capabilities, hooks, execs, targets, port_leases, proxy_routes) = tokio::join!(
+            self.list_packages(),
+            self.discover_capabilities(),
+            self.extensions.list_all_hooks(),
+            self.config.exec_registry.list(),
+            self.config.target_registry.list(),
+            self.config.port_lease_registry.list(),
+            self.config.proxy_route_registry.list(),
+        );
         json!({
+            "host_version": env!("CARGO_PKG_VERSION"),
             "package_count": packages.len(),
             "capability_provider_count": capabilities.len(),
             "hook_subscription_count": hooks.len(),
+            "runtime": {
+                "execution_count": execs.len(),
+                "target_count": targets.len(),
+                "port_lease_count": port_leases.len(),
+                "proxy_route_count": proxy_routes.len(),
+                "ready_proxy_route_count": proxy_routes.iter().filter(|route| route.ready).count(),
+            },
             "packages": packages,
         })
     }

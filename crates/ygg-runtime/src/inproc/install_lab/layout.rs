@@ -13,7 +13,8 @@ const STORE_SCHEMA_MARKER: &str = ".schema_version";
 pub struct StoreSchemaMigration {
     pub from: Option<u32>,
     pub to: u32,
-    pub wiped_paths_count: usize,
+    pub preserved_path: Option<PathBuf>,
+    pub preserved_paths_count: usize,
 }
 
 pub(super) fn ensure_layout(data_dir_override: Option<&str>) -> Result<()> {
@@ -53,27 +54,44 @@ fn ensure_store_schema_at(store: &Path) -> Result<Option<StoreSchemaMigration>> 
         return Ok(None);
     }
 
-    let mut wiped_paths_count = 0usize;
+    let mut preserved_paths_count = 0usize;
     for entry in fs::read_dir(store)? {
         let entry = entry?;
         if entry.file_name() == STORE_SCHEMA_MARKER {
             continue;
         }
-        let path = entry.path();
-        let metadata = fs::symlink_metadata(&path)?;
-        if metadata.is_dir() && !metadata.file_type().is_symlink() {
-            fs::remove_dir_all(&path)?;
-        } else {
-            fs::remove_file(&path)?;
-        }
-        wiped_paths_count += 1;
+        preserved_paths_count += 1;
     }
+
+    let marker_exists = marker.try_exists()?;
+    let preserved_path = if marker_exists || preserved_paths_count > 0 {
+        let parent = store
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("install store has no parent directory"))?;
+        let store_name = store
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("store");
+        let from = current
+            .map(|version| format!("v{version}"))
+            .unwrap_or_else(|| "unknown".to_string());
+        let preserved = parent.join(format!(
+            "{store_name}.preserved-{from}-{}",
+            Uuid::new_v4().simple()
+        ));
+        fs::rename(store, &preserved)?;
+        fs::create_dir_all(store)?;
+        Some(preserved)
+    } else {
+        None
+    };
 
     atomic_write(&marker, TREE_HASH_SCHEMA_VERSION.to_string().as_bytes())?;
     Ok(Some(StoreSchemaMigration {
         from: current,
         to: TREE_HASH_SCHEMA_VERSION,
-        wiped_paths_count,
+        preserved_path,
+        preserved_paths_count,
     }))
 }
 
@@ -152,7 +170,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schema_migration_wipes_store_contents_preserves_marker_and_is_idempotent() -> Result<()> {
+    fn schema_migration_preserves_store_contents_and_is_idempotent() -> Result<()> {
         let tmp = tempfile::tempdir()?;
         let data = tmp.path();
         let store = data.join("store");
@@ -164,9 +182,21 @@ mod tests {
         let migrated = ensure_store_schema(data)?.expect("schema should migrate");
         assert_eq!(migrated.from, Some(1));
         assert_eq!(migrated.to, TREE_HASH_SCHEMA_VERSION);
-        assert_eq!(migrated.wiped_paths_count, 2);
+        assert_eq!(migrated.preserved_paths_count, 2);
         assert!(!store.join("sha256-old").exists());
         assert!(!store.join("loose-file").exists());
+        let preserved = migrated
+            .preserved_path
+            .expect("old store should be preserved");
+        assert_eq!(
+            fs::read_to_string(preserved.join("sha256-old/manifest.yaml"))?,
+            "id: old\n"
+        );
+        assert_eq!(fs::read_to_string(preserved.join("loose-file"))?, "stale");
+        assert_eq!(
+            fs::read_to_string(preserved.join(STORE_SCHEMA_MARKER))?,
+            "1\n"
+        );
         assert_eq!(
             fs::read_to_string(store.join(STORE_SCHEMA_MARKER))?,
             TREE_HASH_SCHEMA_VERSION.to_string()
@@ -178,6 +208,20 @@ mod tests {
         assert!(store.join("sha256-current").is_dir());
         assert_eq!(
             fs::read_to_string(store.join(STORE_SCHEMA_MARKER))?,
+            TREE_HASH_SCHEMA_VERSION.to_string()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn first_schema_marker_does_not_quarantine_an_empty_store() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let migration = ensure_store_schema(tmp.path())?.expect("schema should initialize");
+        assert_eq!(migration.from, None);
+        assert_eq!(migration.preserved_path, None);
+        assert_eq!(migration.preserved_paths_count, 0);
+        assert_eq!(
+            fs::read_to_string(tmp.path().join("store").join(STORE_SCHEMA_MARKER))?,
             TREE_HASH_SCHEMA_VERSION.to_string()
         );
         Ok(())

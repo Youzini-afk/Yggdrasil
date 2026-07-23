@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rusqlite::{params, Connection, TransactionBehavior};
+use rusqlite::{params, Connection, TransactionBehavior, MAIN_DB};
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, RwLock};
 use ygg_core::{EventEnvelope, EventKind, EventSequence, PackageId, SessionId};
@@ -238,6 +238,29 @@ impl SqliteEventStore {
             conn: Arc::new(Mutex::new(conn)),
             tx,
         })
+    }
+
+    /// Create a transactionally consistent SQLite snapshot without exposing
+    /// SQLite details through the backend-neutral [`EventStore`] contract.
+    pub async fn backup_to(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+        let path = path.as_ref();
+        anyhow::ensure!(
+            !path.exists(),
+            "event store backup destination already exists"
+        );
+        self.conn.lock().await.backup(MAIN_DB, path, None)?;
+        Ok(())
+    }
+
+    /// Verify that SQLite can read every page and index in this event store.
+    pub async fn verify_integrity(&self) -> anyhow::Result<()> {
+        let result: String =
+            self.conn
+                .lock()
+                .await
+                .query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+        anyhow::ensure!(result == "ok", "event store integrity check failed");
+        Ok(())
     }
 }
 
