@@ -4899,6 +4899,28 @@ components:
       - partial
       - failed
       type: string
+    ProtocolAuthorityContext:
+      properties:
+        actions:
+          default: []
+          items:
+            type: string
+          type: array
+        delegation_chain:
+          default: []
+          items:
+            type: string
+          type: array
+        grant_id:
+          type: string
+        resources:
+          default: []
+          items:
+            $ref: '#/components/schemas/ProtocolResourceSelector'
+          type: array
+      required:
+      - grant_id
+      type: object
     ProtocolAuthorityRequirement:
       properties:
         authority:
@@ -4950,12 +4972,21 @@ components:
     ProtocolContext:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
+        authority:
+          anyOf:
+          - $ref: '#/components/schemas/ProtocolAuthorityContext'
+          - type: 'null'
+          description: 'Authenticated Host authority carried by transport adapters. This is additive so older callers remain source- and wire-compatible. Device calls use the existing anonymous V1 principal as a fail-closed sentinel: old runtimes ignore this field and deny the call, while new runtimes require the scoped authority below.'
         correlation_id:
           default: null
           format: uuid
           type:
           - string
           - 'null'
+        host_operation:
+          anyOf:
+          - $ref: '#/components/schemas/ProtocolHostOperationContext'
+          - type: 'null'
         parent_invocation_id:
           default: null
           format: uuid
@@ -5059,6 +5090,19 @@ components:
       required:
       - code
       - message
+      type: object
+    ProtocolHostOperationContext:
+      description: Request-specific Host operation facts established by a trusted transport adapter after it has parsed and authorized the request. Unlike authority, this is never populated from the request body itself.
+      properties:
+        action:
+          type: string
+        resources:
+          default: []
+          items:
+            $ref: '#/components/schemas/ProtocolResourceSelector'
+          type: array
+      required:
+      - action
       type: object
     ProtocolImplementationClaim:
       properties:
@@ -5231,6 +5275,21 @@ components:
       - profile
       - protocol_id
       - version
+      type: object
+    ProtocolResourceSelector:
+      properties:
+        id:
+          description: An omitted id selects every resource of this owner/kind. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.
+          type:
+          - string
+          - 'null'
+        kind:
+          type: string
+        owner:
+          type: string
+      required:
+      - kind
+      - owner
       type: object
     ProtocolResponse:
       $schema: https://json-schema.org/draft/2020-12/schema

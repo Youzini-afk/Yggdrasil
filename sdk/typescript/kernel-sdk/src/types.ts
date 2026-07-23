@@ -1877,6 +1877,13 @@ export interface ProposalRecord {
 
 export type ProposalStatus = "created" | "approved" | "applying" | "rejected" | "applied" | "partial" | "failed";
 
+export interface ProtocolAuthorityContext {
+  "actions"?: Array<string>;
+  "delegation_chain"?: Array<string>;
+  "grant_id": string;
+  "resources"?: Array<ProtocolResourceSelector>;
+}
+
 export interface ProtocolAuthorityRequirement {
   "authority": string;
   "operations": Array<string>;
@@ -1898,7 +1905,12 @@ export interface ProtocolConformanceVector {
 }
 
 export interface ProtocolContext {
+  /**
+   * Authenticated Host authority carried by transport adapters. This is additive so older callers remain source- and wire-compatible. Device calls use the existing anonymous V1 principal as a fail-closed sentinel: old runtimes ignore this field and deny the call, while new runtimes require the scoped authority below.
+   */
+  "authority"?: ProtocolAuthorityContext | null;
   "correlation_id"?: null | string;
+  "host_operation"?: ProtocolHostOperationContext | null;
   "parent_invocation_id"?: null | string;
   "principal": ProtocolPrincipal;
   /**
@@ -1935,6 +1947,14 @@ export interface ProtocolError {
   "code": string;
   "details"?: unknown;
   "message": string;
+}
+
+/**
+ * Request-specific Host operation facts established by a trusted transport adapter after it has parsed and authorized the request. Unlike authority, this is never populated from the request body itself.
+ */
+export interface ProtocolHostOperationContext {
+  "action": string;
+  "resources"?: Array<ProtocolResourceSelector>;
 }
 
 export interface ProtocolImplementationClaim {
@@ -1995,6 +2015,15 @@ export interface ProtocolProfilePin {
   "profile": string;
   "protocol_id": string;
   "version": string;
+}
+
+export interface ProtocolResourceSelector {
+  /**
+   * An omitted id selects every resource of this owner/kind. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.
+   */
+  "id"?: null | string;
+  "kind": string;
+  "owner": string;
 }
 
 export interface ProtocolResponse {

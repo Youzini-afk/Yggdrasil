@@ -15669,6 +15669,57 @@ impl ::std::convert::TryFrom<::std::string::String> for ProposalStatus {
         value.parse()
     }
 }
+///`ProtocolAuthorityContext`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolAuthorityContext",
+///  "type": "object",
+///  "required": [
+///    "grant_id"
+///  ],
+///  "properties": {
+///    "actions": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "delegation_chain": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "grant_id": {
+///      "type": "string"
+///    },
+///    "resources": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolResourceSelector"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolAuthorityContext {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub actions: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub delegation_chain: ::std::vec::Vec<::std::string::String>,
+    pub grant_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub resources: ::std::vec::Vec<ProtocolResourceSelector>,
+}
 ///`ProtocolAuthorityRequirement`
 ///
 /// <details><summary>JSON schema</summary>
@@ -15800,6 +15851,17 @@ pub struct ProtocolConformanceVector {
 ///    "transport"
 ///  ],
 ///  "properties": {
+///    "authority": {
+///      "description": "Authenticated Host authority carried by transport adapters. This is additive so older callers remain source- and wire-compatible. Device calls use the existing anonymous V1 principal as a fail-closed sentinel: old runtimes ignore this field and deny the call, while new runtimes require the scoped authority below.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProtocolAuthorityContext"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "correlation_id": {
 ///      "default": null,
 ///      "type": [
@@ -15807,6 +15869,16 @@ pub struct ProtocolConformanceVector {
 ///        "null"
 ///      ],
 ///      "format": "uuid"
+///    },
+///    "host_operation": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ProtocolHostOperationContext"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
 ///    },
 ///    "parent_invocation_id": {
 ///      "default": null,
@@ -15837,8 +15909,13 @@ pub struct ProtocolConformanceVector {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ProtocolContext {
+    ///Authenticated Host authority carried by transport adapters. This is additive so older callers remain source- and wire-compatible. Device calls use the existing anonymous V1 principal as a fail-closed sentinel: old runtimes ignore this field and deny the call, while new runtimes require the scoped authority below.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub authority: ::std::option::Option<ProtocolAuthorityContext>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub correlation_id: ::std::option::Option<::uuid::Uuid>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub host_operation: ::std::option::Option<ProtocolHostOperationContext>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub parent_invocation_id: ::std::option::Option<::uuid::Uuid>,
     pub principal: ProtocolPrincipal,
@@ -16028,6 +16105,40 @@ pub struct ProtocolError {
     #[serde(default = "defaults::protocol_error_details")]
     pub details: ::serde_json::Value,
     pub message: ::std::string::String,
+}
+///Request-specific Host operation facts established by a trusted transport adapter after it has parsed and authorized the request. Unlike authority, this is never populated from the request body itself.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolHostOperationContext",
+///  "description": "Request-specific Host operation facts established by a trusted transport adapter after it has parsed and authorized the request. Unlike authority, this is never populated from the request body itself.",
+///  "type": "object",
+///  "required": [
+///    "action"
+///  ],
+///  "properties": {
+///    "action": {
+///      "type": "string"
+///    },
+///    "resources": {
+///      "default": [],
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolResourceSelector"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolHostOperationContext {
+    pub action: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub resources: ::std::vec::Vec<ProtocolResourceSelector>,
 }
 ///`ProtocolImplementationClaim`
 ///
@@ -16562,6 +16673,45 @@ pub struct ProtocolProfilePin {
     pub profile: ::std::string::String,
     pub protocol_id: ::std::string::String,
     pub version: ::std::string::String,
+}
+///`ProtocolResourceSelector`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolResourceSelector",
+///  "type": "object",
+///  "required": [
+///    "kind",
+///    "owner"
+///  ],
+///  "properties": {
+///    "id": {
+///      "description": "An omitted id selects every resource of this owner/kind. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.",
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "kind": {
+///      "type": "string"
+///    },
+///    "owner": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolResourceSelector {
+    ///An omitted id selects every resource of this owner/kind. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub id: ::std::option::Option<::std::string::String>,
+    pub kind: ::std::string::String,
+    pub owner: ::std::string::String,
 }
 ///`ProtocolResponse`
 ///
