@@ -7638,9 +7638,10 @@ mod tests {
             response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
             Some(&HeaderValue::from_static("*"))
         );
-        assert!(
-            response.headers().get(header::CACHE_CONTROL).is_none(),
-            "generic static assets should not inherit surface bundle cache policy"
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL),
+            Some(&HeaderValue::from_static("public, max-age=3600")),
+            "generic static assets should use the short-lived shell cache policy"
         );
         Ok(())
     }
