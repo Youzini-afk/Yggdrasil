@@ -87,17 +87,23 @@ sandbox surface frame 是 opaque origin，不能安全携带 Host Cookie 或 Bea
 
 CLI 使用与 Web/PWA 相同的 Host API，不直接读写 grant journal：
 
-CLI 只允许 loopback 使用明文 HTTP；非 loopback Host 必须使用 HTTPS，并且 Host access 请求不跟随重定向，避免 Bearer credential 被转发到另一 origin。
+CLI 只允许 loopback 使用明文 HTTP；非 loopback Host 必须使用 HTTPS，Host origin 不能包含路径或凭据，并且 Host access 请求不跟随重定向。保存的连接配置只包含显示名称、endpoint 和按 Host 隔离的 project/target context；access token 仍只来自显式参数或环境变量。
 
 ```bash
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" me
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" list
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+ygg host connection save workshop --endpoint https://host.example.com
+ygg host connection context --project my-project__abc12345 --target remote-builder
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" me
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" projects
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" project-status
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" target-status
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   pair --device-name phone --scopes observe,project_operate,deploy \
   --project my-project__abc12345 --target local
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
 ```
+
+`--endpoint` / `YGG_HOST_URL` 仍可为单次命令覆盖当前连接；`ygg host connection local` 返回默认 loopback Host。
 
 ## HTTPS 与同源要求
 
@@ -110,7 +116,7 @@ YGG_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
   ygg host serve --http 0.0.0.0:8787 --static-dir clients/web/dist
 ```
 
-裸 HTTP 端口必须由防火墙限制在代理/overlay 内；外部 origin 例如 `https://host.example.com`。代理必须保留原始 `Host`，并让浏览器的 `Origin` 到达 Host。Cookie 认证的 `POST` / `PUT` / `PATCH` / `DELETE` 若携带的 Origin 与 Host 不一致会返回 403；没有 Origin 的原生客户端仍可使用 Bearer token。系统不提供跨源 CORS 控制 API。
+裸 HTTP 端口必须由防火墙限制在代理/overlay 内；外部 origin 例如 `https://host.example.com`。代理必须保留原始 `Host`，并让浏览器的 `Origin` 到达 Host。Cookie pairing 仍保持同源，系统不启用携带凭据的跨源 CORS。共享 Web/PWA/Desktop 客户端可使用按 Host 隔离的 Bearer token 跨源调用用户显式选择的远程 Host；control route 只允许 `GET`/`POST` 与 `Authorization`/`Content-Type`，且绝不启用 credentialed request，proxy 与 raw surface-bundle route 不发出这项 CORS policy。项目 surface 的 sandbox frame 与衰减 asset 从所选 Host 加载，因此需要渲染 surface 的 Host 必须提供匹配版本的 Web 静态 bundle。
 
 ## 应用 route 暴露
 

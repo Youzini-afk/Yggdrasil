@@ -87,17 +87,23 @@ Routes:
 
 The CLI uses the same Host API as Web/PWA and never writes the grant journal directly:
 
-The CLI permits plaintext HTTP only for loopback. Non-loopback Hosts require HTTPS, and Host-access requests do not follow redirects, preventing a bearer credential from being forwarded to another origin.
+The CLI permits plaintext HTTP only for loopback. Non-loopback Hosts require HTTPS, Host origins cannot contain paths or credentials, and Host-access requests do not follow redirects. Saved connection profiles contain only a display name, endpoint, and per-Host project/target context; the access token remains an explicit argument or environment variable.
 
 ```bash
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" me
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" list
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+ygg host connection save workshop --endpoint https://host.example.com
+ygg host connection context --project my-project__abc12345 --target remote-builder
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" me
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" projects
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" project-status
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" target-status
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   pair --device-name phone --scopes observe,project_operate,deploy \
   --project my-project__abc12345 --target local
-yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
 ```
+
+`--endpoint` / `YGG_HOST_URL` still overrides the selected connection for one command. `ygg host connection local` returns to the default loopback Host.
 
 ## HTTPS and same-origin requirements
 
@@ -110,7 +116,7 @@ YGG_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
   ygg host serve --http 0.0.0.0:8787 --static-dir clients/web/dist
 ```
 
-Firewall the plaintext port so only the proxy/overlay can reach it; expose an origin such as `https://host.example.com`. The proxy must preserve the original `Host` and allow the browser's `Origin` to reach the Host. Cookie-authenticated `POST` / `PUT` / `PATCH` / `DELETE` requests with an Origin that does not match Host receive 403. Native clients that omit Origin may still use a Bearer token. There is no cross-origin CORS control API.
+Firewall the plaintext port so only the proxy/overlay can reach it; expose an origin such as `https://host.example.com`. The proxy must preserve the original `Host` and allow the browser's `Origin` to reach the Host. Cookie pairing remains same-origin and credentialed cross-origin CORS is disabled. The shared Web/PWA/Desktop client may call an explicitly selected remote Host cross-origin with a Host-scoped Bearer token; control routes permit only `GET`/`POST` plus `Authorization`/`Content-Type` and never enable credentialed requests. Proxy and raw surface-bundle routes do not emit this CORS policy. Browser tokens are isolated per Host connection. Project surfaces load their sandbox frame and attenuated assets from the selected Host, so a Host used for surface rendering must serve the matching Web static bundle.
 
 ## Application route exposure
 

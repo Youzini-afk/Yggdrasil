@@ -66,6 +66,8 @@ Gate: crashes, duplicates, reordering, reconnect, revoke, corruption, and stale 
 
 Slices: Host connection profiles and project/target context in shared client-core; desktop local default plus explicit remote Host; shared Web/PWA UI and only a thin native-mobile wrapper when needed; CLI over the same API/grant; Project Console operations/revisions/logs/rollback; Verified Artifact as deployment-preview input with approval/provenance.
 
+Client/context result (2026-07-24): the shared Web/PWA/Desktop client now has explicit HTTPS Host connections, per-Host credentials, per-project target context, remote-safe surface loading, and a managed-local fallback. The CLI persists only non-secret connection/context metadata and uses the selected endpoint plus the same Bearer grant for project/target observation. Project Console operations and the Verified Artifact deployment bridge remain in progress.
+
 Gate: one real external project completes propose→verify→preview→approve→activate→recover→rollback from different clients without a client-only bypass.
 
 ## Explicit non-goals

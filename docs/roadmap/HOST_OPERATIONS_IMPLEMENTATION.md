@@ -120,6 +120,8 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 5. Project Console 接入 target、operation、revision、logs、rollback；
 6. Development Verified Artifact 成为 deployment preview 的输入，保留审批/provenance。
 
+客户端/context 结果（2026-07-24）：共享 Web/PWA/Desktop 客户端已经支持显式 HTTPS Host 连接、按 Host 隔离凭据、按项目保存 target context、远程安全 surface 加载与 managed-local fallback。CLI 只持久化非密钥连接/context 元数据，并用当前 endpoint 与同一 Bearer grant 观察 project/target。Project Console operation 与 Verified Artifact 部署桥仍在实施中。
+
 门槛：同一真实外部项目可从不同客户端完成 propose→verify→preview→approve→activate→recover→rollback，不存在客户端专属旁路。
 
 ## 明确不做

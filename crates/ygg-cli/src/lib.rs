@@ -7,8 +7,8 @@ pub mod templates;
 
 use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, ContractCommand,
-    HostAccessCommand, HostCommand, ManifestCommand, PackageCommand, PerfCommand,
-    TargetAgentCommand, WorldBundleCommand,
+    HostAccessCommand, HostCommand, HostConnectionCommand, ManifestCommand, PackageCommand,
+    PerfCommand, TargetAgentCommand, WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
@@ -44,32 +44,83 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                 endpoint,
                 access_token,
                 command,
-            } => match command {
-                HostAccessCommand::Me => commands::host_access::me(&endpoint, &access_token).await,
-                HostAccessCommand::List => {
-                    commands::host_access::list(&endpoint, &access_token).await
-                }
-                HostAccessCommand::Pair {
-                    device_name,
-                    scopes,
-                    projects,
-                    targets,
-                    grant_days,
-                } => {
-                    commands::host_access::pair(
-                        &endpoint,
-                        &access_token,
+            } => {
+                let context = commands::host_connection::resolve(endpoint.as_deref())?;
+                match command {
+                    HostAccessCommand::Me => {
+                        commands::host_access::me(&context.endpoint, &access_token).await
+                    }
+                    HostAccessCommand::List => {
+                        commands::host_access::list(&context.endpoint, &access_token).await
+                    }
+                    HostAccessCommand::Pair {
                         device_name,
                         scopes,
                         projects,
                         targets,
                         grant_days,
-                    )
-                    .await
+                    } => {
+                        commands::host_access::pair(
+                            &context.endpoint,
+                            &access_token,
+                            device_name,
+                            scopes,
+                            projects,
+                            targets,
+                            grant_days,
+                        )
+                        .await
+                    }
+                    HostAccessCommand::Revoke { grant_id } => {
+                        commands::host_access::revoke(&context.endpoint, &access_token, &grant_id)
+                            .await
+                    }
+                    HostAccessCommand::Projects => {
+                        commands::host_access::projects(&context.endpoint, &access_token).await
+                    }
+                    HostAccessCommand::Targets => {
+                        commands::host_access::targets(&context.endpoint, &access_token).await
+                    }
+                    HostAccessCommand::ProjectStatus { project } => {
+                        let project_id = project.or(context.project_id).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "project id is required; pass --project or select `host connection context`"
+                        )
+                    })?;
+                        commands::host_access::project_status(
+                            &context.endpoint,
+                            &access_token,
+                            &project_id,
+                        )
+                        .await
+                    }
+                    HostAccessCommand::TargetStatus { target } => {
+                        let target_id = target.or(context.target_id).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "target id is required; pass --target or select `host connection context`"
+                        )
+                    })?;
+                        commands::host_access::target_status(
+                            &context.endpoint,
+                            &access_token,
+                            &target_id,
+                        )
+                        .await
+                    }
                 }
-                HostAccessCommand::Revoke { grant_id } => {
-                    commands::host_access::revoke(&endpoint, &access_token, &grant_id).await
+            }
+            HostCommand::Connection { command } => match command {
+                HostConnectionCommand::List => commands::host_connection::list(),
+                HostConnectionCommand::Save { name, endpoint } => {
+                    commands::host_connection::save(&name, &endpoint)
                 }
+                HostConnectionCommand::Use { name } => commands::host_connection::select(&name),
+                HostConnectionCommand::Local => commands::host_connection::local(),
+                HostConnectionCommand::Remove { name } => commands::host_connection::remove(&name),
+                HostConnectionCommand::Context { project, target } => {
+                    commands::host_connection::set_context(&project, &target)
+                }
+                HostConnectionCommand::ClearContext => commands::host_connection::clear_context(),
             },
             HostCommand::Backup {
                 data_dir,

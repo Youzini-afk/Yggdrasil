@@ -103,6 +103,69 @@ pub async fn revoke(endpoint: &str, access_token: &str, grant_id: &str) -> anyho
     print_json(request(endpoint, access_token, Method::POST, &path, Some(json!({}))).await?)
 }
 
+pub async fn projects(endpoint: &str, access_token: &str) -> anyhow::Result<()> {
+    print_json(rpc(endpoint, access_token, "host.project.list", json!({})).await?)
+}
+
+pub async fn targets(endpoint: &str, access_token: &str) -> anyhow::Result<()> {
+    print_json(rpc(endpoint, access_token, "host.target.list", json!({})).await?)
+}
+
+pub async fn project_status(
+    endpoint: &str,
+    access_token: &str,
+    project_id: &str,
+) -> anyhow::Result<()> {
+    print_json(
+        rpc(
+            endpoint,
+            access_token,
+            "host.project.status",
+            json!({"project_id": project_id}),
+        )
+        .await?,
+    )
+}
+
+pub async fn target_status(
+    endpoint: &str,
+    access_token: &str,
+    target_id: &str,
+) -> anyhow::Result<()> {
+    print_json(
+        rpc(
+            endpoint,
+            access_token,
+            "host.target.status",
+            json!({"target_id": target_id}),
+        )
+        .await?,
+    )
+}
+
+async fn rpc(
+    endpoint: &str,
+    access_token: &str,
+    method: &str,
+    params: Value,
+) -> anyhow::Result<Value> {
+    let response = request(
+        endpoint,
+        access_token,
+        Method::POST,
+        "/rpc",
+        Some(json!({"id": "cli", "method": method, "params": params})),
+    )
+    .await?;
+    if let Some(error) = response.get("error") {
+        anyhow::bail!("Host RPC returned an error: {error}");
+    }
+    response
+        .get("result")
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("Host RPC response is missing result"))
+}
+
 fn normalized_ids(ids: Vec<String>, kind: &str) -> anyhow::Result<Vec<String>> {
     let mut normalized = ids
         .into_iter()
@@ -151,10 +214,9 @@ async fn request(
     serde_json::from_slice(&bytes).context("Host returned invalid JSON")
 }
 
-pub(crate) fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
-    let endpoint = endpoint.trim_end_matches('/');
-    let url = url::Url::parse(&format!("{endpoint}{path}"))
-        .with_context(|| format!("invalid Host endpoint '{endpoint}'"))?;
+pub(crate) fn normalize_host_endpoint(endpoint: &str) -> anyhow::Result<String> {
+    let url = url::Url::parse(endpoint.trim())
+        .with_context(|| format!("invalid Host endpoint '{}'", endpoint.trim()))?;
     anyhow::ensure!(
         matches!(url.scheme(), "http" | "https"),
         "Host endpoint must use http or https"
@@ -166,6 +228,11 @@ pub(crate) fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
             && url.fragment().is_none(),
         "Host endpoint must not contain userinfo, query, or fragment components"
     );
+    anyhow::ensure!(
+        url.path() == "/",
+        "Host endpoint must be an origin without a path"
+    );
+    anyhow::ensure!(url.port() != Some(0), "Host endpoint port must be non-zero");
     if url.scheme() == "http" {
         let loopback = match url.host() {
             Some(Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
@@ -178,7 +245,18 @@ pub(crate) fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
             "remote Host access requires https; http is allowed only for loopback"
         );
     }
-    Ok(url)
+    Ok(url.origin().ascii_serialization())
+}
+
+pub(crate) fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
+    anyhow::ensure!(
+        path.starts_with('/') && !path.starts_with("//"),
+        "Host API path must be origin-relative"
+    );
+    let endpoint = normalize_host_endpoint(endpoint)?;
+    url::Url::parse(&endpoint)?
+        .join(path)
+        .context("failed to resolve Host API URL")
 }
 
 fn print_json(value: Value) -> anyhow::Result<()> {
@@ -188,7 +266,7 @@ fn print_json(value: Value) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::host_url;
+    use super::{host_url, normalize_host_endpoint};
 
     #[test]
     fn host_access_http_is_loopback_only() {
@@ -199,5 +277,12 @@ mod tests {
         assert!(host_url("https://example.test", "/host/v1/access/me").is_ok());
         assert!(host_url("https://user:secret@example.test", "/host/v1/access/me").is_err());
         assert!(host_url("https://example.test?token=secret", "/host/v1/access/me").is_err());
+        assert!(host_url("https://example.test/api", "/host/v1/access/me").is_err());
+        assert!(host_url("https://example.test:0", "/host/v1/access/me").is_err());
+        assert!(host_url("https://example.test", "//attacker.test/path").is_err());
+        assert_eq!(
+            normalize_host_endpoint("https://example.test:443/").unwrap(),
+            "https://example.test"
+        );
     }
 }

@@ -48,6 +48,8 @@ stages it as Tauri's `ygg-host` external binary. On launch Desktop:
 
 Existing custom autoload entries are preserved when the generated profile is refreshed. The bundled profile enables the package capabilities needed for installation and deployment, but it does not enable unrestricted local execution or outbound access; those remain deny-all unless a user-owned profile explicitly grants them.
 
+The managed loopback Host remains the default and continues serving the Desktop UI. From Settings → Host connections, the shared client can explicitly select an HTTPS remote Host; credentials and project/target preferences are isolated per Host, and an unreachable or invalid remote can always fall back to the managed Host. Remote project surfaces are sandboxed using the selected Host's `surface-frame.html`, so that Host must serve a matching Web static bundle when surface rendering is required.
+
 Run `npm run smoke:sidecar` after staging to verify the handshake, health route,
 unauthenticated denial, and authenticated RPC against the real child process.
 

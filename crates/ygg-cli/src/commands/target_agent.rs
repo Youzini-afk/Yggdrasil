@@ -34,7 +34,7 @@ use ygg_service::{
     TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
 };
 
-use super::host_access::host_url;
+use super::host_access::{host_url, normalize_host_endpoint};
 
 const CONFIG_FILE: &str = "agent.json";
 const LEDGER_FILE: &str = "ledger.sqlite3";
@@ -151,9 +151,7 @@ fn parse_capabilities(values: Vec<String>) -> anyhow::Result<Vec<ExecutionTarget
 }
 
 fn normalize_endpoint(endpoint: &str) -> anyhow::Result<String> {
-    let endpoint = endpoint.trim_end_matches('/');
-    host_url(endpoint, "/target-agent/v1/heartbeat")?;
-    Ok(endpoint.to_string())
+    normalize_host_endpoint(endpoint)
 }
 
 fn hardened_client() -> anyhow::Result<Client> {

@@ -322,12 +322,18 @@ pub enum HostCommand {
     },
     /// Manage a running Host through the same authenticated HTTP API used by Web/PWA.
     Access {
-        #[arg(long, default_value = "http://127.0.0.1:8787", env = "YGG_HOST_URL")]
-        endpoint: String,
+        /// Host origin. Falls back to the selected `host connection` profile, then loopback.
+        #[arg(long, env = "YGG_HOST_URL")]
+        endpoint: Option<String>,
         #[arg(long, env = "YGG_HTTP_ACCESS_TOKEN", hide_env_values = true)]
         access_token: String,
         #[command(subcommand)]
         command: HostAccessCommand,
+    },
+    /// Manage non-secret Host connection and project/target context.
+    Connection {
+        #[command(subcommand)]
+        command: HostConnectionCommand,
     },
     /// Create a consistent, checksummed offline snapshot of a SQLite-backed Host.
     Backup {
@@ -375,6 +381,47 @@ pub enum HostAccessCommand {
     },
     /// Revoke a device grant.
     Revoke { grant_id: String },
+    /// List projects visible to this Host grant.
+    Projects,
+    /// List execution targets visible to this Host grant.
+    Targets,
+    /// Read one project status, defaulting to the selected connection context.
+    ProjectStatus {
+        #[arg(long)]
+        project: Option<String>,
+    },
+    /// Read one execution target status, defaulting to the selected connection context.
+    TargetStatus {
+        #[arg(long)]
+        target: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum HostConnectionCommand {
+    /// Show saved connections, the active Host, and its project/target context.
+    List,
+    /// Save and select a Host origin. Access tokens are never persisted here.
+    Save {
+        name: String,
+        #[arg(long)]
+        endpoint: String,
+    },
+    /// Select a saved Host connection.
+    Use { name: String },
+    /// Return to the default loopback Host.
+    Local,
+    /// Remove a saved Host connection.
+    Remove { name: String },
+    /// Select the current project and execution target for the active Host.
+    Context {
+        #[arg(long)]
+        project: String,
+        #[arg(long)]
+        target: String,
+    },
+    /// Clear project/target context for the active Host.
+    ClearContext,
 }
 
 #[derive(Debug, Subcommand)]
