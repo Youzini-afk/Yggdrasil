@@ -67,6 +67,15 @@ export interface HostContractInfo {
 
 import { resolveBrowserAccessToken } from "@/client-core/credentials";
 
+export function resolveManagedProfile(): string {
+  if (typeof window === "undefined") return "default";
+  const injected = window.__YGG_RUNTIME__?.profile?.trim();
+  if (injected) return injected;
+  const platform = window.__YGG_RUNTIME__?.platform
+    ?? new URLSearchParams(window.location.search).get("ygg_platform");
+  return platform === "desktop" ? "desktop" : "default";
+}
+
 export {
   BROWSER_ACCESS_TOKEN_STORAGE_KEY,
   clearBrowserAccessToken,
@@ -502,6 +511,7 @@ export interface HostBuildDeployRequest {
   build_id?: string;
   runtime_env?: RuntimeEnvSpec[];
   runtime_mounts?: RuntimeMountSpec[];
+  idempotency_key?: string;
 }
 
 export interface RuntimeEnvSummary {
@@ -552,6 +562,8 @@ export interface BuildDeployJobStatusResponse {
   result?: HostBuildDeployResult | null;
   error?: string | null;
   events_url: string;
+  idempotency_key?: string | null;
+  operation: DeploymentOperation;
 }
 
 export interface BuildDeployJobEvent {
@@ -566,6 +578,55 @@ export interface BuildDeployCancelResponse {
   job_id: string;
   state: BuildDeployJobState;
   cancelled: boolean;
+}
+
+export type DeploymentOperation = "build_deploy" | "recover" | "rollback";
+
+export interface PersistedRuntimeEnvSpec {
+  name: string;
+  secret_ref: string;
+}
+
+export interface DeploymentRevision {
+  revision_id: string;
+  project_id: string;
+  job_id?: string | null;
+  operation: DeploymentOperation;
+  parent_revision_id?: string | null;
+  created_at_ms: number;
+  source_url: string;
+  ref_name: string;
+  dockerfile?: string | null;
+  container_port: number;
+  port_name: string;
+  route_id: string;
+  health_path?: string | null;
+  image: string;
+  build_id: string;
+  source_commit: string;
+  build_descriptor_hash: string;
+  strategy: string;
+  runtime_env: PersistedRuntimeEnvSpec[];
+  recoverable: boolean;
+  recovery_blockers: string[];
+  receipt: HostBuildDeployResult;
+}
+
+export interface ProjectDeploymentsResponse {
+  project_id: string;
+  active_revision_id?: string | null;
+  active_revision?: DeploymentRevision | null;
+  recovery_required: boolean;
+  runtime_ready: boolean;
+  jobs: BuildDeployJobStatusResponse[];
+  revisions: DeploymentRevision[];
+}
+
+export interface DeploymentActionResponse {
+  operation: DeploymentOperation;
+  previous_revision_id?: string | null;
+  revision: DeploymentRevision;
+  warnings: string[];
 }
 
 export interface ExecutionTarget {
@@ -943,6 +1004,20 @@ export class YggProtocolClient {
     return this.fetchHostJson(`/host/v1/build-deploy/${encodeURIComponent(jobId)}/cancel`, {});
   }
 
+  getProjectDeployments(projectId: string): Promise<ProjectDeploymentsResponse> {
+    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments`);
+  }
+
+  recoverProjectDeployment(projectId: string): Promise<DeploymentActionResponse> {
+    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments/recover`, {});
+  }
+
+  rollbackProjectDeployment(projectId: string, revisionId: string): Promise<DeploymentActionResponse> {
+    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments/rollback`, {
+      revision_id: revisionId,
+    });
+  }
+
   subscribeBuildDeployJob(jobId: string, onEvent: (event: BuildDeployJobEvent) => void, onError?: (error: Event) => void) {
     const source = new EventSource(this.buildDeployJobEventsUrl(jobId));
     source.addEventListener("build_deploy", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
@@ -984,7 +1059,7 @@ export class YggProtocolClient {
       approved_network_hosts: plan.permissions_summary.new_network_hosts,
       approved_secret_refs: plan.permissions_summary.new_secret_refs,
     },
-    profile = "default",
+    profile = resolveManagedProfile(),
   ): Promise<InstallExecuteResult> {
     return await this.invokeInstallLab<InstallExecuteResult>(INSTALL_LAB_CAPABILITIES.executePlan, {
       plan,
@@ -993,7 +1068,7 @@ export class YggProtocolClient {
     });
   }
 
-  async uninstallProject(projectId: string, profile = "default"): Promise<InstallUninstallResult> {
+  async uninstallProject(projectId: string, profile = resolveManagedProfile()): Promise<InstallUninstallResult> {
     return await this.invokeInstallLab<InstallUninstallResult>(INSTALL_LAB_CAPABILITIES.uninstall, {
       project_id: projectId,
       profile,
@@ -1001,14 +1076,14 @@ export class YggProtocolClient {
     });
   }
 
-  async checkProjectUpdates(projectId: string, profile = "default"): Promise<UpdateCheckResult> {
+  async checkProjectUpdates(projectId: string, profile = resolveManagedProfile()): Promise<UpdateCheckResult> {
     return await this.invokeInstallLab<UpdateCheckResult>(INSTALL_LAB_CAPABILITIES.checkForUpdates, {
       project_id: projectId,
       profile,
     });
   }
 
-  async updateProject(projectId: string, profile = "default", force = false): Promise<ProjectUpdateResult> {
+  async updateProject(projectId: string, profile = resolveManagedProfile(), force = false): Promise<ProjectUpdateResult> {
     return await this.invokeInstallLab<ProjectUpdateResult>(INSTALL_LAB_CAPABILITIES.updateProject, {
       project_id: projectId,
       profile,

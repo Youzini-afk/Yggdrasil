@@ -54,11 +54,11 @@ project:
 
 ### external_wrapped
 
-An external project, such as an ordinary git or npm repository, wrapped by an adapter package. If install chooses "wrap with adapter", Yggdrasil uses `adapter-generator-lab` to generate an adapter package and connect the external project.
+An external project, such as an ordinary git or npm repository, wrapped by an adapter package that actually exists. The current installer never fabricates an adapter manifest. `--wrap-as-adapter` fails closed and points to the later ChangeSet-approved adapter-authoring flow.
 
 ### external_workspace
 
-An external project connected as an agent workspace, without wrapping. This fits temporary use and agent-assisted modification. It is the default when there is no TTY and no explicit flag.
+An external project connected as an agent workspace, without wrapping. This fits temporary use and agent-assisted modification. The default is a host-owned managed copy; a local directory may instead use `--link-local` for an explicit user-owned mutable reference. Neither mode executes project code during intake.
 
 ## ProjectDescriptor
 
@@ -77,6 +77,7 @@ Common fields:
 | `optional_packages` | Optional package manifest paths. |
 | `required_surfaces` | Surface ids the project expects to exist. |
 | `secret_policy` | Project secret resolution policy. |
+| `external` | External source, ref, workspace root, `source_kind`, `workspace_ownership`, and optional `source_digest`. |
 
 `entry_surface_id` should match a package manifest surface with `slot: experience_entry`.
 For example, YdlTavern uses `ydltavern/play`.
@@ -91,6 +92,14 @@ For example, YdlTavern uses `ydltavern/play`.
 ├── state/                # project-level state packages may use
 └── lockfile.toml         # package versions locked for this project
 ```
+
+A managed external workspace is stored separately:
+
+```text
+~/.yggdrasil/workspaces/external/<project_id>/<content_digest>/
+```
+
+The descriptor's `workspace_ownership` controls uninstall authority. A `managed` path must be contained under that host-owned root before it can be archived/deleted. A `linked_local` source is always preserved.
 
 Permissions: 0700 directories, 0600 files on Unix.
 Encryption: the same master key, from `~/.yggdrasil/secret-store.key` or the OS keyring.
@@ -126,9 +135,11 @@ Starting → Running
 Stopping → Stopped
   ↓ yg uninstall
 (ask what to do with data)
-  ├─ Keep: move to ~/.yggdrasil/projects/.archived/<id>/
-  └─ Delete: rm -rf immediately
+  ├─ Keep: archive project data under ~/.yggdrasil/projects/.archived/<id>/ and archive a managed workspace
+  └─ Delete: remove project data and a containment-verified managed workspace
 ```
+
+A linked-local source does not belong to Yggdrasil, so neither uninstall choice modifies it.
 
 Any state can fail → Failed.
 
@@ -137,8 +148,9 @@ Any state can fail → Failed.
 ```bash
 # Install projects
 yg install github.com/user/repo
-yg install github.com/user/repo --wrap-as-adapter   # external project: wrap
 yg install github.com/user/repo --workspace-only    # external project: workspace
+yg install ./existing-source --link-local           # local external project: keep user ownership
+yg install github.com/user/repo --wrap-as-adapter   # currently fails closed; never fabricates a manifest
 
 # Inspect projects
 yg project list
@@ -180,7 +192,7 @@ Status indicators:
 
 Clicking Play calls `kernel.v1.project.start`, then navigates to the project's `entry_surface`.
 
-The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `kernel.v1.capability.invoke` path.
+The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics, plus host-plane durable job / revision / recovery state. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `kernel.v1.capability.invoke` path.
 
 ## Play flow
 
@@ -208,7 +220,7 @@ Note: this `sessionId` is then used for:
 
 `project.start` does not start external processes. It only opens a project session and marks the project Running.
 
-If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the web shell acts as a host broker:
+If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the `ygg-service` host broker runs the chain while the browser remains a thin client:
 
 1. `kernel.v1.port.lease` leases a loopback port.
 2. `official/docker-runtime-lab/start_container` starts the container.
@@ -259,13 +271,14 @@ In the future, one composition template can instantiate multiple projects with d
 
 ## Install detection
 
-`yg install <url>` first checks the repository root for `project.yaml`.
+`yg install <url>` detects source and project kind before deciding whether to resolve a package manifest.
 
 - Present with `type: yggdrasil_native`: install as a native project.
-- Absent: enter the external-project wizard.
+- A valid package manifest: resolve and install as a package source.
+- No project/package manifest: invoke `official/install-lab/prepare_external_intake` and create an `external_workspace`.
 - Present but invalid: fail closed and require descriptor fixes.
 
-Without a TTY and without explicit flags, an external project defaults to `external_workspace` to avoid generating wrapper code implicitly.
+An external project defaults to a managed `external_workspace`, copied/fetched into a host workspace isolated by project id and content digest. `--link-local` is local-source-only and explicitly preserves user ownership. Reinstalling the same source/content is idempotent, and intake never generates wrapper code or executes project scripts.
 
 ## Non-goals (deferred)
 

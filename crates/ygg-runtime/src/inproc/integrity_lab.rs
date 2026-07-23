@@ -35,6 +35,24 @@ const EXCLUDED_NAMES: &[&str] = &[
     "target",
     "__pycache__",
 ];
+const EXTERNAL_WORKSPACE_PROFILE: &str = "external_workspace_v1";
+const EXTERNAL_WORKSPACE_EXCLUDED_NAMES: &[&str] = &[
+    ".git",
+    ".hg",
+    ".svn",
+    ".DS_Store",
+    "node_modules",
+    "target",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+];
+const EXTERNAL_WORKSPACE_MAX_FILES: u64 = 25_000;
+const EXTERNAL_WORKSPACE_MAX_DIRECTORIES: u64 = 25_000;
+const EXTERNAL_WORKSPACE_MAX_BYTES: u64 = 256 * 1024 * 1024;
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
@@ -85,9 +103,29 @@ fn compute_tree_hash(request: &InprocInvocation) -> Result<Value> {
     let dir = PathBuf::from(input_str(&request.input, "dir")?);
     anyhow::ensure!(dir.is_absolute(), "dir must be an absolute path");
     anyhow::ensure!(dir.is_dir(), "dir must exist and be a directory");
+    let external_workspace = request
+        .input
+        .get("profile")
+        .and_then(Value::as_str)
+        .is_some_and(|profile| profile == EXTERNAL_WORKSPACE_PROFILE);
+    let excluded_names = if external_workspace {
+        EXTERNAL_WORKSPACE_EXCLUDED_NAMES
+    } else {
+        EXCLUDED_NAMES
+    };
+    let root = fs::canonicalize(&dir)
+        .with_context(|| format!("failed to canonicalize tree root {}", dir.display()))?;
 
     let mut entries = Vec::new();
-    collect_tree_entries(&dir, &dir, &mut entries)?;
+    let mut external_stats = external_workspace.then(ExternalTreeStats::default);
+    collect_tree_entries(
+        &root,
+        &root,
+        &mut entries,
+        excluded_names,
+        external_workspace,
+        &mut external_stats,
+    )?;
     entries.sort_by(|a, b| a.relative.cmp(&b.relative));
 
     let mut hasher = Sha256::new();
@@ -143,28 +181,76 @@ enum TreeEntryKind {
     Symlink { target: PathBuf },
 }
 
-fn collect_tree_entries(root: &Path, dir: &Path, out: &mut Vec<TreeEntry>) -> Result<()> {
+#[derive(Default)]
+struct ExternalTreeStats {
+    files: u64,
+    directories: u64,
+    bytes: u64,
+}
+
+fn collect_tree_entries(
+    root: &Path,
+    dir: &Path,
+    out: &mut Vec<TreeEntry>,
+    excluded_names: &[&str],
+    require_contained_symlinks: bool,
+    external_stats: &mut Option<ExternalTreeStats>,
+) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
         let entry = entry?;
         let path = entry.path();
         let name = entry.file_name();
         if let Some(name) = name.to_str() {
-            if EXCLUDED_NAMES.contains(&name) {
+            if excluded_names.contains(&name) {
                 continue;
             }
         }
 
         let metadata = fs::symlink_metadata(&path)?;
         if metadata.file_type().is_symlink() {
+            let target = fs::read_link(&path)?;
+            if require_contained_symlinks {
+                anyhow::ensure!(
+                    !target.is_absolute(),
+                    "external workspace contains an absolute symlink: {}",
+                    path.display()
+                );
+                let resolved = fs::canonicalize(path.parent().unwrap_or(root).join(&target))
+                    .with_context(|| {
+                        format!(
+                            "external workspace contains a dangling symlink: {}",
+                            path.display()
+                        )
+                    })?;
+                anyhow::ensure!(
+                    resolved.starts_with(root),
+                    "external workspace symlink escapes its root: {}",
+                    path.display()
+                );
+            }
+            if let Some(stats) = external_stats.as_mut() {
+                add_external_tree_file(stats, target.as_os_str().len() as u64)?;
+            }
             out.push(TreeEntry {
                 relative: relative_path(root, &path)?,
-                kind: TreeEntryKind::Symlink {
-                    target: fs::read_link(&path)?,
-                },
+                kind: TreeEntryKind::Symlink { target },
             });
         } else if metadata.is_dir() {
-            collect_tree_entries(root, &path, out)?;
+            if let Some(stats) = external_stats.as_mut() {
+                add_external_tree_directory(stats)?;
+            }
+            collect_tree_entries(
+                root,
+                &path,
+                out,
+                excluded_names,
+                require_contained_symlinks,
+                external_stats,
+            )?;
         } else if metadata.is_file() {
+            if let Some(stats) = external_stats.as_mut() {
+                add_external_tree_file(stats, metadata.len())?;
+            }
             out.push(TreeEntry {
                 relative: relative_path(root, &path)?,
                 kind: TreeEntryKind::File {
@@ -174,6 +260,29 @@ fn collect_tree_entries(root: &Path, dir: &Path, out: &mut Vec<TreeEntry>) -> Re
             });
         }
     }
+    Ok(())
+}
+
+fn add_external_tree_directory(stats: &mut ExternalTreeStats) -> Result<()> {
+    stats.directories = stats.directories.saturating_add(1);
+    anyhow::ensure!(
+        stats.directories <= EXTERNAL_WORKSPACE_MAX_DIRECTORIES,
+        "external workspace directory count limit exceeded"
+    );
+    Ok(())
+}
+
+fn add_external_tree_file(stats: &mut ExternalTreeStats, bytes: u64) -> Result<()> {
+    stats.files = stats.files.saturating_add(1);
+    stats.bytes = stats.bytes.saturating_add(bytes);
+    anyhow::ensure!(
+        stats.files <= EXTERNAL_WORKSPACE_MAX_FILES,
+        "external workspace file count limit exceeded"
+    );
+    anyhow::ensure!(
+        stats.bytes <= EXTERNAL_WORKSPACE_MAX_BYTES,
+        "external workspace byte limit exceeded"
+    );
     Ok(())
 }
 
@@ -409,6 +518,54 @@ mod tests {
         assert_ne!(first["sha256"], second["sha256"]);
         assert_eq!(first["files_hashed"], serde_json::json!(2));
         assert_eq!(second["files_hashed"], serde_json::json!(2));
+        Ok(())
+    }
+
+    #[test]
+    fn external_workspace_hash_includes_gitignore_and_excludes_dependency_caches() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let workspace = tmp.path().join("workspace");
+        fs::create_dir_all(workspace.join("node_modules"))?;
+        fs::write(workspace.join("app.ts"), "export const version = 1;\n")?;
+        fs::write(workspace.join(".gitignore"), "dist/\n")?;
+        fs::write(workspace.join("node_modules/dependency.js"), "one\n")?;
+        let hash = || {
+            compute_tree_hash(&request(
+                "integrity.compute_tree_hash",
+                serde_json::json!({
+                    "dir": workspace,
+                    "profile": EXTERNAL_WORKSPACE_PROFILE,
+                }),
+            ))
+        };
+
+        let first = hash()?;
+        fs::write(workspace.join("node_modules/dependency.js"), "two\n")?;
+        let cache_changed = hash()?;
+        assert_eq!(first["sha256"], cache_changed["sha256"]);
+        fs::write(workspace.join(".gitignore"), "dist/\n.env\n")?;
+        let gitignore_changed = hash()?;
+        assert_ne!(first["sha256"], gitignore_changed["sha256"]);
+        assert_eq!(gitignore_changed["files_hashed"], serde_json::json!(2));
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_workspace_hash_rejects_symlinks_that_escape_root() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let workspace = tmp.path().join("workspace");
+        fs::create_dir(&workspace)?;
+        fs::write(tmp.path().join("outside.txt"), "outside\n")?;
+        std::os::unix::fs::symlink("../outside.txt", workspace.join("escape"))?;
+        let result = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({
+                "dir": workspace,
+                "profile": EXTERNAL_WORKSPACE_PROFILE,
+            }),
+        ));
+        assert!(result.unwrap_err().to_string().contains("escapes its root"));
         Ok(())
     }
 

@@ -7,6 +7,7 @@ export interface HostEndpointProvider {
 export interface YggRuntimeBootstrap {
   hostBaseUrl?: string;
   platform?: "web" | "desktop" | "pwa";
+  profile?: string;
 }
 
 declare global {

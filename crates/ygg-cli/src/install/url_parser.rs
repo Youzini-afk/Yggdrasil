@@ -69,7 +69,8 @@ pub fn parse_install_url(input: &str) -> Result<InstallUrl> {
 }
 
 fn is_local_path(input: &str) -> bool {
-    Path::new(input).is_absolute()
+    Path::new(input).exists()
+        || Path::new(input).is_absolute()
         || input.starts_with("./")
         || input.starts_with("../")
         || input.starts_with("~/")

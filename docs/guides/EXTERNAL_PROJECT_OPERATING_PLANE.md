@@ -19,6 +19,21 @@ External Project Operating Plane 说明 Yggdrasil 不必只接入已经适配清
 
 ## 已实现包
 
+### `official/install-lab` 的 external intake
+
+`ygg install` 现在先检测项目类型，再决定是否解析包清单。没有 `project.yaml` / package manifest 的本地目录和 git source 不再因为“缺少 manifest”而提前失败，而是调用 `official/install-lab/prepare_external_intake` 生成一个零包、可审计的 `external_workspace` 安装计划。
+
+当前支持两种明确所有权：
+
+- `managed`（默认）：本地目录或 git tree 复制/获取到 `<data>/workspaces/external/<project_id>/<content_digest>`。安装计划记录内容 digest，重复安装同一来源和内容是幂等的；卸载只会归档/删除这个 host-owned 根，不会触碰用户源目录。
+- `linked_local`（CLI `--link-local`）：workspace 直接指向 canonical 本地源目录，descriptor 明确标记为用户拥有。它是可变引用，不伪造 content digest；卸载永远只移除 Ygg 项目记录，不删除或归档源目录。
+
+managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目录、`node_modules`、`target`、虚拟环境和常见语言缓存；工作树上限为 25,000 个文件、25,000 个目录和 256 MiB。绝对、悬空或逃逸 workspace root 的 symlink 会被拒绝；托管存储的每一级祖先都必须是 canonical data root 下的真实目录。HTTPS git tree 接受同一套有界 materialization、hash、大小和 symlink 校验；submodule entry 等不支持的 tree mode 会明确失败。这些上限约束写入 workspace 的选定 tree，不约束当前 Git transport 下载的临时 bare repository；仓库级 fetch budget 仍是需要 fail-closed 收紧的 transport hardening 项。内联凭据和 query 参数会被拒绝，认证只能由 Host 带外提供，绝不嵌入 descriptor。
+
+项目 ID 由安全 slug 加 96-bit source identity hash 构成，因此同名但不同路径/URL 的来源不会碰撞。descriptor 还记录 `source_kind`、`workspace_ownership` 和可用时的 `source_digest`。相同 ID 若已有不兼容 descriptor 会 fail-closed；并发 materialization 只会复用 digest 完全一致的胜者。
+
+这一步只 materialize 源码和写项目 descriptor，不运行 install/build/test/script，不把 external project 注册成 capability provider。`--wrap-as-adapter` 也不再生成一个并不存在的假 manifest；真实 adapter authoring 留给带 ChangeSet 审批的后续开发流程。
+
 ### `official/project-intake-lab`
 
 普通官方包，无内核特权。提供以下能力：
@@ -106,7 +121,7 @@ cargo run -p ygg-cli -- conformance --tag workspace_lab
 
 ## 后续方向
 
-当前能力刻意停在计划和预览。后续若要进入真实部署与维护，需要补上：
+external intake 已能建立真实、所有权清晰的 managed/linked workspace，但危险动作仍刻意停在计划和预览。后续若要进入真实开发、部署与维护，需要补上：
 
 - host 控制的沙箱和 workspace executor。
 - clone/install/run/test/stop/logs 的真实执行边界。

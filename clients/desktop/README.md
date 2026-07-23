@@ -37,11 +37,16 @@ uses a built Web bundle so its random-port, same-origin behavior matches release
 `scripts/stage-sidecar.mjs` builds the CLI for the selected Rust target and
 stages it as Tauri's `ygg-host` external binary. On launch Desktop:
 
+- creates or merges a writable `<data>/profiles/desktop.yaml` instead of using the transient in-memory Host defaults;
+- configures a profile-relative SQLite event store (`desktop-events.sqlite`) so sessions, runtime projections, deployment jobs, and revisions survive Desktop restarts;
+- copies bundled official manifests into `<data>/desktop/official-packages/` and autoloads git, integrity, install, Docker runtime, project intake, secret store, and workspace labs in dependency-safe order;
 - binds the Host to an OS-assigned `127.0.0.1` port;
 - supplies a per-launch token through the child environment, never argv;
 - waits for the stable listen handshake and `/healthz`;
 - navigates the hidden window to the Host with a one-time bootstrap token;
 - terminates the child when the application exits.
+
+Existing custom autoload entries are preserved when the generated profile is refreshed. The bundled profile enables the package capabilities needed for installation and deployment, but it does not enable unrestricted local execution or outbound access; those remain deny-all unless a user-owned profile explicitly grants them.
 
 Run `npm run smoke:sidecar` after staging to verify the handshake, health route,
 unauthenticated denial, and authenticated RPC against the real child process.

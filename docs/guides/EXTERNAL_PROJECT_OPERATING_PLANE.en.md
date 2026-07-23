@@ -19,6 +19,21 @@ This avoids the old plugin-host trap. An external project can remain unchanged w
 
 ## Implemented packages
 
+### External intake in `official/install-lab`
+
+`ygg install` now detects project kind before attempting package-manifest resolution. A local directory or git source without `project.yaml` / a package manifest no longer fails early with “manifest missing.” Instead, it invokes `official/install-lab/prepare_external_intake` to produce an auditable, zero-package `external_workspace` install plan.
+
+Two ownership modes are explicit:
+
+- `managed` (default): copy a local directory or fetch a git tree into `<data>/workspaces/external/<project_id>/<content_digest>`. The plan records the content digest, so reinstalling the same source and content is idempotent. Uninstall may archive/delete only that host-owned root and never touches the user's source directory.
+- `linked_local` (CLI `--link-local`): point the workspace at the canonical local source directory and mark it as user-owned in the descriptor. This is a mutable reference and does not invent a content digest. Uninstall removes only the Ygg project record; it never deletes or archives the linked source.
+
+A managed local copy preserves source metadata such as `.gitignore` while skipping VCS directories, `node_modules`, `target`, virtual environments, and common language caches. A materialized tree is bounded to 25,000 files, 25,000 directories, and 256 MiB. Absolute, dangling, or root-escaping symlinks fail closed. Managed storage ancestors must be real directories under the canonical data root. HTTPS Git trees receive the same bounded materialization, hash, size, and symlink checks; unsupported tree modes such as submodule entries fail explicitly. These limits apply to the selected tree written into the workspace, not to the temporary bare repository downloaded by the current Git transport; repository-wide fetch budgeting remains a fail-closed transport hardening item. Inline credentials and query parameters are rejected, so any authentication must be supplied out of band by the host and is never embedded in the descriptor.
+
+Project IDs combine a safe slug with a 96-bit source-identity hash, so same-name sources at different paths/URLs do not collide. Descriptors also record `source_kind`, `workspace_ownership`, and `source_digest` when available. An incompatible descriptor at the same ID fails closed; concurrent materialization only reuses a winner whose digest exactly matches.
+
+This step only materializes source and writes a project descriptor. It never runs install/build/test/scripts and never registers the external project as a capability provider. `--wrap-as-adapter` also no longer fabricates a manifest path that does not exist; real adapter authoring is reserved for the later ChangeSet-approved development flow.
+
 ### `official/project-intake-lab`
 
 Ordinary official package, no kernel privilege. It exposes these capabilities:
@@ -106,7 +121,7 @@ cargo run -p ygg-cli -- conformance --tag workspace_lab
 
 ## Next directions
 
-The current capabilities deliberately stop at plans and previews. Real deployment and maintenance need more boundaries:
+External intake can now establish real managed/linked workspaces with explicit ownership, while dangerous actions still deliberately stop at plans and previews. Real development, deployment, and maintenance need more boundaries:
 
 - Host-controlled sandbox/workspace executor.
 - Real clone/install/run/test/stop/log execution boundaries.

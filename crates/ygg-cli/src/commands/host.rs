@@ -822,6 +822,12 @@ where
         .load_from_projects_dir(&projects_dir)
         .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?;
     println!("  projects loaded: {count}");
+    let build_jobs = ygg_service::build_deploy_job_registry();
+    let deployment_events =
+        ygg_service::hydrate_deployment_control_plane(runtime.store(), build_jobs.clone())
+            .await
+            .context("failed to hydrate durable deployment control plane")?;
+    println!("  deployment journal events loaded: {deployment_events}");
     let listener = tokio::net::TcpListener::bind(http).await?;
     let bound_http = listener.local_addr()?;
     println!("{}", managed_host_listen_line(bound_http));
@@ -854,7 +860,7 @@ where
         static_dir,
         access_token,
         app_base_domain,
-        build_jobs: ygg_service::build_deploy_job_registry(),
+        build_jobs,
     };
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
     let bootstrap_token = std::env::var("YGG_HTTP_BOOTSTRAP_TOKEN")

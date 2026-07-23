@@ -12,6 +12,7 @@ use super::InprocInvocation;
 mod executor;
 mod fs_copy;
 mod gc;
+mod intake;
 mod layout;
 mod planner;
 mod project_kind;
@@ -45,6 +46,9 @@ pub async fn try_handle(request: &mut InprocInvocation) -> Option<Result<Value>>
         ),
         "install.detect_kind" | "official/install-lab/detect_kind" => {
             Some(project_kind::detect_kind(std::mem::take(&mut request.input)).await)
+        }
+        "install.prepare_external_intake" | "official/install-lab/prepare_external_intake" => {
+            Some(intake::prepare_external_intake(std::mem::take(&mut request.input)).await)
         }
         "install.register_project" | "official/install-lab/register_project" => {
             Some(executor::register_project_capability(std::mem::take(&mut request.input)).await)

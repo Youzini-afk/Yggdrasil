@@ -9,6 +9,46 @@ permissions:
   contents: read
 
 jobs:
+  contracts:
+    name: Contract schemas + generated SDKs
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Regenerate schemas and SDKs
+        run: bash scripts/regen-sdks.sh
+
+      - name: Validate schema compatibility
+        run: |
+          base_sha="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -n "$base_sha" ] && git cat-file -e "$base_sha:docs/spec/v1/schemas" 2>/dev/null; then
+            rm -rf /tmp/ygg-base-schemas
+            mkdir -p /tmp/ygg-base-schemas
+            git archive "$base_sha" docs/spec/v1/schemas | tar -x -C /tmp/ygg-base-schemas
+            BASE_SCHEMA_DIR=/tmp/ygg-base-schemas/docs/spec/v1/schemas bash scripts/validate-schemas.sh
+          else
+            bash scripts/validate-schemas.sh
+          fi
+
+      - name: Verify generated files are committed
+        run: test -z "$(git status --porcelain -- docs/spec/v1/schemas sdk)"
+
+      - name: Upload regenerated files when verification fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-contracts-${{ github.sha }}
+          path: |
+            docs/spec/v1/schemas
+            sdk
+          retention-days: 3
+
   rust:
     name: Rust check + test + conformance
     runs-on: ubuntu-22.04
@@ -35,6 +75,9 @@ jobs:
       - name: cargo test ygg-runtime
         run: cargo test -p ygg-runtime --lib
 
+      - name: cargo test ygg-service
+        run: cargo test -p ygg-service --lib
+
       - name: cargo test ygg-cli
         run: cargo test -p ygg-cli
 
@@ -46,20 +89,6 @@ jobs:
 
       - name: ygg conformance
         run: cargo run -p ygg-cli --release -- conformance
-
-      - name: schemas and SDKs up to date
-        run: |
-          bash scripts/regen-sdks.sh
-          base_sha="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if [ -n "$base_sha" ] && git cat-file -e "$base_sha:docs/spec/v1/schemas" 2>/dev/null; then
-            rm -rf /tmp/ygg-base-schemas
-            mkdir -p /tmp/ygg-base-schemas
-            git archive "$base_sha" docs/spec/v1/schemas | tar -x -C /tmp/ygg-base-schemas
-            BASE_SCHEMA_DIR=/tmp/ygg-base-schemas/docs/spec/v1/schemas bash scripts/validate-schemas.sh
-          else
-            bash scripts/validate-schemas.sh
-          fi
-          test -z "$(git status --porcelain -- docs/spec/v1/schemas sdk)"
 
   web:
     name: Web typecheck + test + build

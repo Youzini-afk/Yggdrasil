@@ -55,14 +55,25 @@ const MAX_RUNTIME_ENV_ENTRIES: usize = 128;
 const MAX_RUNTIME_ENV_VALUE_LEN: usize = 8192;
 const MAX_RUNTIME_ENV_TOTAL_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_MOUNTS: usize = 32;
+const DEPLOYMENT_WORKSPACE_MAX_FILES: u64 = 100_000;
+const DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES: u64 = 100_000;
+const DEPLOYMENT_WORKSPACE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 const DOCKER_RUNTIME_PACKAGE_ID: &str = "official/docker-runtime-lab";
 const BUILD_DEPLOY_MAX_GLOBAL_ACTIVE: usize = 2;
 const BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE: usize = 1;
 const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
+const BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT: usize = 64;
 const BUILD_DEPLOY_LOG_RING: usize = 256;
 const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 const HOST_SESSION_COOKIE: &str = "ygg_host_session";
 const DESKTOP_BOOTSTRAP_PATH: &str = "/host/bootstrap";
+const DEPLOYMENT_JOURNAL_PREFIX: &str = "host/control/v1/deployment.";
+const DEPLOYMENT_JOB_SNAPSHOT_EVENT: &str = "host/control/v1/deployment.job.snapshot";
+const DEPLOYMENT_REVISION_ACTIVATED_EVENT: &str = "host/control/v1/deployment.revision.activated";
+const DEPLOYMENT_REVISION_DEACTIVATED_EVENT: &str =
+    "host/control/v1/deployment.revision.deactivated";
+const DEPLOYMENT_JOURNAL_SESSION: &str = "host_control_deployments";
+const DEPLOYMENT_JOURNAL_WRITER: &str = "host/control-plane";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProxyAccessMode {
@@ -213,6 +224,18 @@ where
         .route(
             "/host/v1/build-deploy/:job_id/cancel",
             post(cancel_build_deploy_job::<S>),
+        )
+        .route(
+            "/host/v1/projects/:project_id/deployments",
+            get(project_deployments::<S>),
+        )
+        .route(
+            "/host/v1/projects/:project_id/deployments/recover",
+            post(recover_project_deployment::<S>),
+        )
+        .route(
+            "/host/v1/projects/:project_id/deployments/rollback",
+            post(rollback_project_deployment::<S>),
         )
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
@@ -894,7 +917,7 @@ pub struct HostDeployStopResponse {
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HostBuildDeployRequest {
     pub project_id: ProjectId,
@@ -918,6 +941,8 @@ pub struct HostBuildDeployRequest {
     pub runtime_env: Vec<RuntimeEnvSpec>,
     #[serde(default)]
     pub runtime_mounts: Vec<RuntimeMountSpec>,
+    #[serde(default)]
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -984,13 +1009,13 @@ impl fmt::Debug for RuntimeEnvSpec {
     }
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeEnvSummary {
     pub name: String,
     pub source: RuntimeEnvSourceKind,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeMountSummary {
     pub container_path: String,
     pub mode: RuntimeMountMode,
@@ -1020,7 +1045,7 @@ impl BuildDeployJobState {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildDeployJobEvent {
     pub job_id: String,
     pub sequence: u64,
@@ -1029,7 +1054,7 @@ pub struct BuildDeployJobEvent {
     pub timestamp_ms: u128,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildDeployJobStatusResponse {
     pub job_id: String,
     pub project_id: ProjectId,
@@ -1041,6 +1066,9 @@ pub struct BuildDeployJobStatusResponse {
     pub result: Option<HostBuildDeployResponse>,
     pub error: Option<String>,
     pub events_url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
+    pub operation: DeploymentOperation,
 }
 
 #[derive(Debug, Serialize)]
@@ -1071,14 +1099,14 @@ pub struct BuildDeployCancelResponse {
     pub cancelled: bool,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeEnvSourceKind {
     Plain,
     SecretRef,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostBuildDeployResponse {
     pub route_id: String,
     pub public_url: String,
@@ -1095,24 +1123,69 @@ pub struct HostBuildDeployResponse {
     pub warnings: Vec<String>,
 }
 
-impl Clone for HostBuildDeployResponse {
-    fn clone(&self) -> Self {
-        Self {
-            route_id: self.route_id.clone(),
-            public_url: self.public_url.clone(),
-            port_lease_id: self.port_lease_id.clone(),
-            container_id: self.container_id.clone(),
-            container_name: self.container_name.clone(),
-            image: self.image.clone(),
-            build_id: self.build_id.clone(),
-            source_commit: self.source_commit.clone(),
-            build_descriptor_hash: self.build_descriptor_hash.clone(),
-            strategy: self.strategy.clone(),
-            runtime_env: self.runtime_env.clone(),
-            runtime_mounts: self.runtime_mounts.clone(),
-            warnings: self.warnings.clone(),
-        }
-    }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentOperation {
+    BuildDeploy,
+    Recover,
+    Rollback,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PersistedRuntimeEnvSpec {
+    pub name: String,
+    pub secret_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeploymentRevision {
+    pub revision_id: String,
+    pub project_id: ProjectId,
+    pub job_id: Option<String>,
+    pub operation: DeploymentOperation,
+    pub parent_revision_id: Option<String>,
+    pub created_at_ms: u128,
+    pub source_url: String,
+    pub ref_name: String,
+    pub dockerfile: Option<String>,
+    pub container_port: u16,
+    pub port_name: String,
+    pub route_id: String,
+    pub health_path: Option<String>,
+    pub image: String,
+    pub build_id: String,
+    pub source_commit: String,
+    pub build_descriptor_hash: String,
+    pub strategy: String,
+    pub runtime_env: Vec<PersistedRuntimeEnvSpec>,
+    pub recoverable: bool,
+    pub recovery_blockers: Vec<String>,
+    pub receipt: HostBuildDeployResponse,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectDeploymentsResponse {
+    pub project_id: ProjectId,
+    pub active_revision_id: Option<String>,
+    pub active_revision: Option<DeploymentRevision>,
+    pub recovery_required: bool,
+    pub runtime_ready: bool,
+    pub jobs: Vec<BuildDeployJobStatusResponse>,
+    pub revisions: Vec<DeploymentRevision>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeploymentRollbackRequest {
+    pub revision_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeploymentActionResponse {
+    pub operation: DeploymentOperation,
+    pub previous_revision_id: Option<String>,
+    pub revision: DeploymentRevision,
+    pub warnings: Vec<String>,
 }
 
 struct ResolvedRuntimeEnv {
@@ -1175,6 +1248,47 @@ struct BuildDeployJobRecord {
     events: VecDeque<BuildDeployJobEvent>,
     next_sequence: u64,
     cancel: Arc<AtomicBool>,
+    idempotency_key: Option<String>,
+    request_fingerprint: String,
+    operation: DeploymentOperation,
+}
+
+#[derive(Debug, Default)]
+struct DeploymentProjection {
+    revisions: HashMap<ProjectId, Vec<DeploymentRevision>>,
+    active_revisions: HashMap<ProjectId, String>,
+}
+
+#[derive(Debug)]
+struct CreateBuildDeployJobResult {
+    job_id: String,
+    created: bool,
+    state: BuildDeployJobState,
+    permit: Option<OwnedSemaphorePermit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeploymentJobSnapshot {
+    status: BuildDeployJobStatusResponse,
+    event: Option<BuildDeployJobEvent>,
+    #[serde(default)]
+    request_fingerprint: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeploymentRevisionActivated {
+    revision: DeploymentRevision,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    job: Option<DeploymentJobSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeploymentRevisionDeactivated {
+    project_id: ProjectId,
+    revision_id: String,
+    route_id: String,
+    reason: String,
+    timestamp_ms: u128,
 }
 
 #[derive(Debug)]
@@ -1183,6 +1297,7 @@ pub struct BuildDeployJobRegistry {
     notifier: broadcast::Sender<BuildDeployJobEvent>,
     global_sem: Arc<Semaphore>,
     project_active: Mutex<HashSet<ProjectId>>,
+    deployment: Mutex<DeploymentProjection>,
 }
 
 impl Default for BuildDeployJobRegistry {
@@ -1193,6 +1308,7 @@ impl Default for BuildDeployJobRegistry {
             notifier,
             global_sem: Arc::new(Semaphore::new(BUILD_DEPLOY_MAX_GLOBAL_ACTIVE)),
             project_active: Mutex::new(HashSet::new()),
+            deployment: Mutex::new(DeploymentProjection::default()),
         }
     }
 }
@@ -1202,12 +1318,35 @@ pub fn build_deploy_job_registry() -> Arc<BuildDeployJobRegistry> {
 }
 
 impl BuildDeployJobRegistry {
-    fn create_job(&self, request: &HostBuildDeployRequest) -> anyhow::Result<String> {
-        let permit = self.global_sem.clone().try_acquire_owned().ok();
-        if permit.is_none() {
-            anyhow::bail!("build-deploy global concurrency limit reached");
+    fn create_job(
+        &self,
+        request: &HostBuildDeployRequest,
+    ) -> anyhow::Result<CreateBuildDeployJobResult> {
+        let request_fingerprint = build_deploy_request_fingerprint(request);
+        if let Some(idempotency_key) = request.idempotency_key.as_deref() {
+            let jobs = self.jobs.lock().expect("jobs lock poisoned");
+            if let Some(existing) = jobs.values().find(|job| {
+                job.project_id == request.project_id
+                    && job.idempotency_key.as_deref() == Some(idempotency_key)
+            }) {
+                if existing.request_fingerprint != request_fingerprint {
+                    anyhow::bail!(
+                        "idempotency_key was already used for a different build-deploy request"
+                    );
+                }
+                return Ok(CreateBuildDeployJobResult {
+                    job_id: existing.job_id.clone(),
+                    created: false,
+                    state: existing.state,
+                    permit: None,
+                });
+            }
         }
-        drop(permit);
+        let permit = self
+            .global_sem
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| anyhow::anyhow!("build-deploy global concurrency limit reached"))?;
         {
             let mut active = self.project_active.lock().expect("project lock poisoned");
             if active.contains(&request.project_id) {
@@ -1218,7 +1357,11 @@ impl BuildDeployJobRegistry {
             active.insert(request.project_id.clone());
         }
         let now = now_millis();
-        let job_id = format!("bdj-{now}-{}", sanitize_container_name(&request.route_id));
+        let job_id = format!(
+            "bdj-{now}-{}-{}",
+            &uuid::Uuid::new_v4().simple().to_string()[..8],
+            sanitize_container_name(&request.route_id)
+        );
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         jobs.insert(
             job_id.clone(),
@@ -1235,12 +1378,20 @@ impl BuildDeployJobRegistry {
                 events: VecDeque::new(),
                 next_sequence: 1,
                 cancel: Arc::new(AtomicBool::new(false)),
+                idempotency_key: request.idempotency_key.clone(),
+                request_fingerprint,
+                operation: DeploymentOperation::BuildDeploy,
             },
         );
         drop(jobs);
         self.push_event(&job_id, BuildDeployJobState::Queued, "job queued");
         self.prune();
-        Ok(job_id)
+        Ok(CreateBuildDeployJobResult {
+            job_id,
+            created: true,
+            state: BuildDeployJobState::Queued,
+            permit: Some(permit),
+        })
     }
 
     fn status(&self, job_id: &str) -> Option<BuildDeployJobStatusResponse> {
@@ -1282,11 +1433,32 @@ impl BuildDeployJobRegistry {
         Ok(permit)
     }
 
+    async fn acquire_project_operation(
+        &self,
+        project_id: &ProjectId,
+    ) -> anyhow::Result<OwnedSemaphorePermit> {
+        let permit = self.acquire(project_id).await?;
+        let mut active = self.project_active.lock().expect("project lock poisoned");
+        if !active.insert(project_id.clone()) {
+            anyhow::bail!(
+                "deployment project concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE})"
+            );
+        }
+        Ok(permit)
+    }
+
     fn release_project(&self, project_id: &ProjectId) {
         self.project_active
             .lock()
             .expect("project lock poisoned")
             .remove(project_id);
+    }
+
+    fn discard_job(&self, job_id: &str) {
+        let removed = self.jobs.lock().expect("jobs lock poisoned").remove(job_id);
+        if let Some(job) = removed {
+            self.release_project(&job.project_id);
+        }
     }
 
     fn cancel_flag(&self, job_id: &str) -> Option<Arc<AtomicBool>> {
@@ -1371,6 +1543,207 @@ impl BuildDeployJobRegistry {
             jobs.remove(&id);
         }
     }
+
+    fn job_snapshot(&self, job_id: &str) -> Option<DeploymentJobSnapshot> {
+        let jobs = self.jobs.lock().expect("jobs lock poisoned");
+        let job = jobs.get(job_id)?;
+        Some(DeploymentJobSnapshot {
+            status: job_status_response(job),
+            event: job.events.back().cloned(),
+            request_fingerprint: job.request_fingerprint.clone(),
+        })
+    }
+
+    fn ready_snapshot(
+        &self,
+        job_id: &str,
+        result: &HostBuildDeployResponse,
+    ) -> Option<DeploymentJobSnapshot> {
+        let jobs = self.jobs.lock().expect("jobs lock poisoned");
+        let job = jobs.get(job_id)?;
+        let timestamp_ms = now_millis();
+        let event = BuildDeployJobEvent {
+            job_id: job_id.to_string(),
+            sequence: job.next_sequence,
+            state: BuildDeployJobState::Ready,
+            message: "deployment ready".to_string(),
+            timestamp_ms,
+        };
+        let mut status = job_status_response(job);
+        status.state = BuildDeployJobState::Ready;
+        status.updated_at_ms = timestamp_ms;
+        status.build_id = Some(result.build_id.clone());
+        status.result = Some(result.clone());
+        status.error = None;
+        Some(DeploymentJobSnapshot {
+            status,
+            event: Some(event),
+            request_fingerprint: job.request_fingerprint.clone(),
+        })
+    }
+
+    fn restore_job_snapshot(&self, snapshot: DeploymentJobSnapshot) {
+        let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
+        let request_fingerprint = snapshot.request_fingerprint;
+        let status = snapshot.status;
+        let record = jobs
+            .entry(status.job_id.clone())
+            .or_insert_with(|| BuildDeployJobRecord {
+                job_id: status.job_id.clone(),
+                project_id: status.project_id.clone(),
+                route_id: status.route_id.clone(),
+                build_id: status.build_id.clone(),
+                state: status.state,
+                created_at_ms: status.created_at_ms,
+                updated_at_ms: status.updated_at_ms,
+                result: status.result.clone(),
+                error: status.error.clone(),
+                events: VecDeque::new(),
+                next_sequence: 1,
+                cancel: Arc::new(AtomicBool::new(false)),
+                idempotency_key: status.idempotency_key.clone(),
+                request_fingerprint: request_fingerprint.clone(),
+                operation: status.operation,
+            });
+        record.project_id = status.project_id;
+        record.route_id = status.route_id;
+        record.build_id = status.build_id;
+        record.state = status.state;
+        record.created_at_ms = status.created_at_ms;
+        record.updated_at_ms = status.updated_at_ms;
+        record.result = status.result;
+        record.error = status.error;
+        record.idempotency_key = status.idempotency_key;
+        record.request_fingerprint = request_fingerprint;
+        record.operation = status.operation;
+        if let Some(event) = snapshot.event {
+            if !record
+                .events
+                .iter()
+                .any(|existing| existing.sequence == event.sequence)
+            {
+                record.next_sequence = record.next_sequence.max(event.sequence + 1);
+                record.events.push_back(event);
+                while record.events.len() > BUILD_DEPLOY_LOG_RING {
+                    record.events.pop_front();
+                }
+            }
+        }
+    }
+
+    fn interrupt_incomplete_jobs(&self) -> Vec<String> {
+        let ids = {
+            let jobs = self.jobs.lock().expect("jobs lock poisoned");
+            jobs.values()
+                .filter(|job| !job.state.terminal())
+                .map(|job| job.job_id.clone())
+                .collect::<Vec<_>>()
+        };
+        for job_id in &ids {
+            self.complete_error(
+                job_id,
+                BuildDeployJobState::Failed,
+                "host restarted before the deployment job completed".to_string(),
+            );
+        }
+        ids
+    }
+
+    fn register_revision(&self, revision: DeploymentRevision) {
+        let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
+        let revisions = deployment
+            .revisions
+            .entry(revision.project_id.clone())
+            .or_default();
+        if !revisions
+            .iter()
+            .any(|existing| existing.revision_id == revision.revision_id)
+        {
+            revisions.push(revision.clone());
+            if revisions.len() > BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT {
+                let excess = revisions.len() - BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT;
+                revisions.drain(..excess);
+            }
+        }
+        deployment
+            .active_revisions
+            .insert(revision.project_id.clone(), revision.revision_id.clone());
+    }
+
+    fn deactivate_revision(&self, deactivation: &DeploymentRevisionDeactivated) {
+        let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
+        if deployment
+            .active_revisions
+            .get(&deactivation.project_id)
+            .is_some_and(|revision_id| revision_id == &deactivation.revision_id)
+        {
+            deployment.active_revisions.remove(&deactivation.project_id);
+        }
+    }
+
+    fn active_revision(&self, project_id: &ProjectId) -> Option<DeploymentRevision> {
+        let deployment = self.deployment.lock().expect("deployment lock poisoned");
+        let revision_id = deployment.active_revisions.get(project_id)?;
+        deployment
+            .revisions
+            .get(project_id)?
+            .iter()
+            .find(|revision| &revision.revision_id == revision_id)
+            .cloned()
+    }
+
+    fn revision(&self, project_id: &ProjectId, revision_id: &str) -> Option<DeploymentRevision> {
+        self.deployment
+            .lock()
+            .expect("deployment lock poisoned")
+            .revisions
+            .get(project_id)?
+            .iter()
+            .find(|revision| revision.revision_id == revision_id)
+            .cloned()
+    }
+
+    fn revisions(&self, project_id: &ProjectId) -> Vec<DeploymentRevision> {
+        let mut revisions = self
+            .deployment
+            .lock()
+            .expect("deployment lock poisoned")
+            .revisions
+            .get(project_id)
+            .cloned()
+            .unwrap_or_default();
+        revisions.sort_by_key(|revision| std::cmp::Reverse(revision.created_at_ms));
+        revisions
+    }
+
+    fn jobs_for_project(&self, project_id: &ProjectId) -> Vec<BuildDeployJobStatusResponse> {
+        let jobs = self.jobs.lock().expect("jobs lock poisoned");
+        let mut statuses = jobs
+            .values()
+            .filter(|job| &job.project_id == project_id)
+            .map(job_status_response)
+            .collect::<Vec<_>>();
+        statuses.sort_by_key(|status| std::cmp::Reverse(status.created_at_ms));
+        statuses
+    }
+
+    fn active_by_route(&self, route_id: &str) -> Option<DeploymentRevision> {
+        let deployment = self.deployment.lock().expect("deployment lock poisoned");
+        deployment
+            .active_revisions
+            .iter()
+            .find_map(|(project_id, revision_id)| {
+                deployment
+                    .revisions
+                    .get(project_id)?
+                    .iter()
+                    .find(|revision| {
+                        revision.revision_id == revision_id.as_str()
+                            && revision.route_id == route_id
+                    })
+                    .cloned()
+            })
+    }
 }
 
 fn job_status_response(job: &BuildDeployJobRecord) -> BuildDeployJobStatusResponse {
@@ -1385,7 +1758,138 @@ fn job_status_response(job: &BuildDeployJobRecord) -> BuildDeployJobStatusRespon
         result: job.result.clone(),
         error: job.error.clone(),
         events_url: format!("/host/v1/build-deploy/{}/events", job.job_id),
+        idempotency_key: job.idempotency_key.clone(),
+        operation: job.operation,
     }
+}
+
+async fn append_deployment_journal_event<S, T>(
+    store: &S,
+    kind: &str,
+    payload: &T,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+    T: Serialize,
+{
+    store
+        .append_with_sequence(
+            DEPLOYMENT_JOURNAL_SESSION.to_string(),
+            DEPLOYMENT_JOURNAL_WRITER.to_string(),
+            kind.to_string(),
+            1,
+            serde_json::to_value(payload)?,
+            serde_json::json!({ "owner": "host_control_plane", "redacted": true }),
+        )
+        .await?;
+    Ok(())
+}
+
+async fn persist_job_snapshot<S>(state: &AppState<S>, job_id: &str) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let snapshot = state
+        .build_jobs
+        .job_snapshot(job_id)
+        .ok_or_else(|| anyhow::anyhow!("build-deploy job disappeared before persistence"))?;
+    append_deployment_journal_event(
+        state.runtime.store().as_ref(),
+        DEPLOYMENT_JOB_SNAPSHOT_EVENT,
+        &snapshot,
+    )
+    .await
+}
+
+async fn persist_revision_activation<S>(
+    state: &AppState<S>,
+    revision: &DeploymentRevision,
+    job: Option<DeploymentJobSnapshot>,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    append_deployment_journal_event(
+        state.runtime.store().as_ref(),
+        DEPLOYMENT_REVISION_ACTIVATED_EVENT,
+        &DeploymentRevisionActivated {
+            revision: revision.clone(),
+            job,
+        },
+    )
+    .await
+}
+
+async fn persist_revision_deactivation<S>(
+    state: &AppState<S>,
+    deactivation: &DeploymentRevisionDeactivated,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    append_deployment_journal_event(
+        state.runtime.store().as_ref(),
+        DEPLOYMENT_REVISION_DEACTIVATED_EVENT,
+        deactivation,
+    )
+    .await
+}
+
+pub async fn hydrate_deployment_control_plane<S>(
+    store: Arc<S>,
+    registry: Arc<BuildDeployJobRegistry>,
+) -> anyhow::Result<usize>
+where
+    S: EventStore,
+{
+    let events = store.list_kind_prefix(DEPLOYMENT_JOURNAL_PREFIX).await?;
+    for event in &events {
+        match event.kind.as_str() {
+            DEPLOYMENT_JOB_SNAPSHOT_EVENT => {
+                registry.restore_job_snapshot(
+                    serde_json::from_value(event.payload.clone()).with_context(|| {
+                        format!("invalid durable deployment job snapshot {}", event.id)
+                    })?,
+                );
+            }
+            DEPLOYMENT_REVISION_ACTIVATED_EVENT => {
+                let activation: DeploymentRevisionActivated =
+                    serde_json::from_value(event.payload.clone()).with_context(|| {
+                        format!(
+                            "invalid durable deployment revision activation {}",
+                            event.id
+                        )
+                    })?;
+                if let Some(job) = activation.job {
+                    registry.restore_job_snapshot(job);
+                }
+                registry.register_revision(activation.revision);
+            }
+            DEPLOYMENT_REVISION_DEACTIVATED_EVENT => {
+                let deactivation: DeploymentRevisionDeactivated =
+                    serde_json::from_value(event.payload.clone()).with_context(|| {
+                        format!(
+                            "invalid durable deployment revision deactivation {}",
+                            event.id
+                        )
+                    })?;
+                registry.deactivate_revision(&deactivation);
+            }
+            _ => {}
+        }
+    }
+    for job_id in registry.interrupt_incomplete_jobs() {
+        if let Some(snapshot) = registry.job_snapshot(&job_id) {
+            append_deployment_journal_event(
+                store.as_ref(),
+                DEPLOYMENT_JOB_SNAPSHOT_EVENT,
+                &snapshot,
+            )
+            .await?;
+        }
+    }
+    registry.prune();
+    Ok(events.len())
 }
 
 impl fmt::Debug for ResolvedRuntimeEnv {
@@ -1591,14 +2095,38 @@ where
     S: EventStore,
 {
     validate_host_build_deploy_request(&request).map_err(redacted_build_deploy_error)?;
-    let job_id = state.build_jobs.create_job(&request).map_err(|error| {
-        ServiceError::with_status(StatusCode::TOO_MANY_REQUESTS, error.to_string())
+    let created = state.build_jobs.create_job(&request).map_err(|error| {
+        let message = error.to_string();
+        let status = if message.contains("idempotency_key") {
+            StatusCode::CONFLICT
+        } else {
+            StatusCode::TOO_MANY_REQUESTS
+        };
+        ServiceError::with_status(status, message)
     })?;
-    let worker_state = state.clone();
-    let worker_job_id = job_id.clone();
-    tokio::spawn(async move {
-        run_build_deploy_job(worker_state, worker_job_id, request).await;
-    });
+    let CreateBuildDeployJobResult {
+        job_id,
+        created,
+        state: created_state,
+        permit,
+    } = created;
+    if created {
+        if let Err(error) = persist_job_snapshot(&state, &job_id).await {
+            state.build_jobs.discard_job(&job_id);
+            let public_error =
+                redacted_failure_message("deployment job intent journal commit", &error);
+            return Err(ServiceError::with_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                public_error,
+            ));
+        }
+        let permit = permit.expect("new build-deploy job reserves global capacity");
+        let worker_state = state.clone();
+        let worker_job_id = job_id.clone();
+        tokio::spawn(async move {
+            run_build_deploy_job(worker_state, worker_job_id, request, permit).await;
+        });
+    }
     if query.wait {
         let status = wait_for_build_job(&state, &job_id, BUILD_DEPLOY_WAIT_TIMEOUT).await;
         return Ok(Json(BuildDeploySubmitOrStatusResponse::Status(status)));
@@ -1607,7 +2135,7 @@ where
         BuildDeployJobSubmitResponse {
             status_url: format!("/host/v1/build-deploy/{job_id}"),
             events_url: format!("/host/v1/build-deploy/{job_id}/events"),
-            state: BuildDeployJobState::Queued,
+            state: created_state,
             job_id,
         },
     )))
@@ -1635,6 +2163,11 @@ where
     let (state_value, cancelled) = state.build_jobs.cancel(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
+    if cancelled {
+        persist_job_snapshot(&state, &job_id)
+            .await
+            .map_err(redacted_build_deploy_error)?;
+    }
     Ok(Json(BuildDeployCancelResponse {
         job_id,
         state: state_value,
@@ -1705,20 +2238,11 @@ async fn run_build_deploy_job<S>(
     state: AppState<S>,
     job_id: String,
     request: HostBuildDeployRequest,
+    permit: OwnedSemaphorePermit,
 ) where
     S: EventStore,
 {
-    let permit = match state.build_jobs.acquire(&request.project_id).await {
-        Ok(permit) => permit,
-        Err(error) => {
-            state.build_jobs.complete_error(
-                &job_id,
-                BuildDeployJobState::Failed,
-                error.to_string(),
-            );
-            return;
-        }
-    };
+    let revision_request = request.clone();
     let result = build_deploy_project_minimal_with_job(&state, &job_id, request).await;
     drop(permit);
     // Project must be released even when cancelled/failed.
@@ -1726,7 +2250,61 @@ async fn run_build_deploy_job<S>(
         state.build_jobs.release_project(&status.project_id);
     }
     match result {
-        Ok(result) => state.build_jobs.complete_ready(&job_id, result),
+        Ok(result) => {
+            if state
+                .build_jobs
+                .cancel_flag(&job_id)
+                .is_some_and(|flag| flag.load(Ordering::SeqCst))
+            {
+                let context = ProtocolContext::host_dev("host_build_deploy_cancel_rollback");
+                rollback_deploy(
+                    &state,
+                    &context,
+                    &result.route_id,
+                    true,
+                    Some(&result.container_id),
+                    Some(&result.port_lease_id),
+                )
+                .await;
+                if let Err(persist_error) = persist_job_snapshot(&state, &job_id).await {
+                    eprintln!("failed to persist cancelled build-deploy job: {persist_error}");
+                }
+                return;
+            }
+            let revision = deployment_revision_from_build(
+                &revision_request,
+                &result,
+                &job_id,
+                state
+                    .build_jobs
+                    .active_revision(&revision_request.project_id)
+                    .map(|revision| revision.revision_id),
+            );
+            let ready_snapshot = state.build_jobs.ready_snapshot(&job_id, &result);
+            if let Err(error) = persist_revision_activation(&state, &revision, ready_snapshot).await
+            {
+                let context = ProtocolContext::host_dev("host_build_deploy_journal_rollback");
+                rollback_deploy(
+                    &state,
+                    &context,
+                    &result.route_id,
+                    true,
+                    Some(&result.container_id),
+                    Some(&result.port_lease_id),
+                )
+                .await;
+                let public_error = redacted_failure_message("deployment journal commit", &error);
+                state
+                    .build_jobs
+                    .complete_error(&job_id, BuildDeployJobState::Failed, public_error);
+                if let Err(persist_error) = persist_job_snapshot(&state, &job_id).await {
+                    eprintln!("failed to persist journal rollback failure: {persist_error}");
+                }
+                return;
+            }
+            state.build_jobs.register_revision(revision);
+            state.build_jobs.complete_ready(&job_id, result);
+        }
         Err(error) => {
             let state_kind = if state
                 .build_jobs
@@ -1737,10 +2315,73 @@ async fn run_build_deploy_job<S>(
             } else {
                 BuildDeployJobState::Failed
             };
+            let public_error = redacted_failure_message("build-deploy", &error);
             state
                 .build_jobs
-                .complete_error(&job_id, state_kind, error.to_string());
+                .complete_error(&job_id, state_kind, public_error);
+            if let Err(persist_error) = persist_job_snapshot(&state, &job_id).await {
+                eprintln!("failed to persist build-deploy terminal state: {persist_error}");
+            }
         }
+    }
+}
+
+fn deployment_revision_from_build(
+    request: &HostBuildDeployRequest,
+    result: &HostBuildDeployResponse,
+    job_id: &str,
+    parent_revision_id: Option<String>,
+) -> DeploymentRevision {
+    let mut recovery_blockers = Vec::new();
+    let mut runtime_env = Vec::new();
+    for env in &request.runtime_env {
+        match (env.value.as_ref(), env.secret_ref.as_ref()) {
+            (None, Some(secret_ref)) => runtime_env.push(PersistedRuntimeEnvSpec {
+                name: env.name.clone(),
+                secret_ref: secret_ref.clone(),
+            }),
+            (Some(_), None) => recovery_blockers.push(format!(
+                "runtime env {} used a non-persisted plain value",
+                env.name
+            )),
+            _ => recovery_blockers.push(format!(
+                "runtime env {} did not have a replay-safe source",
+                env.name
+            )),
+        }
+    }
+    if !request.runtime_mounts.is_empty() {
+        recovery_blockers.push(
+            "host mount paths are intentionally not persisted for automatic recovery".to_string(),
+        );
+    }
+    DeploymentRevision {
+        revision_id: format!(
+            "drv-{}-{}",
+            now_millis(),
+            &uuid::Uuid::new_v4().simple().to_string()[..12]
+        ),
+        project_id: request.project_id.clone(),
+        job_id: Some(job_id.to_string()),
+        operation: DeploymentOperation::BuildDeploy,
+        parent_revision_id,
+        created_at_ms: now_millis(),
+        source_url: request.source_url.clone(),
+        ref_name: request.ref_name.clone(),
+        dockerfile: request.dockerfile.clone(),
+        container_port: request.container_port,
+        port_name: request.port_name.clone(),
+        route_id: request.route_id.clone(),
+        health_path: request.health_path.clone(),
+        image: result.image.clone(),
+        build_id: result.build_id.clone(),
+        source_commit: result.source_commit.clone(),
+        build_descriptor_hash: result.build_descriptor_hash.clone(),
+        strategy: result.strategy.clone(),
+        runtime_env,
+        recoverable: recovery_blockers.is_empty(),
+        recovery_blockers,
+        receipt: result.clone(),
     }
 }
 
@@ -1780,7 +2421,8 @@ where
         job_id,
         BuildDeployJobState::Cloning,
         "cloning source",
-    );
+    )
+    .await;
     let clone = clone_project_workspace_from_git(
         state,
         ProjectWorkspaceCloneRequest {
@@ -1841,7 +2483,8 @@ where
         job_id,
         BuildDeployJobState::Building,
         "building image",
-    );
+    )
+    .await;
     let build_output = invoke_docker_runtime_lab(
         state,
         &context,
@@ -1861,12 +2504,23 @@ where
     .context("docker image build failed")?;
     let image = require_built_image(&build_output)?;
     check_job_cancel(state, job_id)?;
+    let mut replacement_warnings = Vec::new();
+    if let Some(active) = state.build_jobs.active_revision(&request.project_id) {
+        let cleanup = stop_project_deployment_inner(state, &active.route_id).await;
+        if !cleanup.safe_to_redeploy {
+            anyhow::bail!(
+                "existing managed deployment could not be safely stopped before replacement"
+            );
+        }
+        replacement_warnings = cleanup.response.warnings;
+    }
     job_transition(
         state,
         job_id,
         BuildDeployJobState::Starting,
         "starting container",
-    );
+    )
+    .await;
 
     let deploy = deploy_built_image(
         state,
@@ -1896,7 +2550,7 @@ where
         strategy,
         runtime_env: env_summary,
         runtime_mounts: mount_summary,
-        warnings: Vec::new(),
+        warnings: replacement_warnings,
     })
 }
 
@@ -1916,7 +2570,7 @@ where
     Ok(())
 }
 
-fn job_transition<S>(
+async fn job_transition<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
     status: BuildDeployJobState,
@@ -1926,7 +2580,304 @@ fn job_transition<S>(
 {
     if let Some(job_id) = job_id {
         state.build_jobs.transition(job_id, status, message);
+        if let Err(error) = persist_job_snapshot(state, job_id).await {
+            eprintln!("failed to persist build-deploy transition: {error}");
+        }
     }
+}
+
+async fn project_deployments<S>(
+    State(state): State<AppState<S>>,
+    Path(project_id): Path<ProjectId>,
+) -> Json<ProjectDeploymentsResponse>
+where
+    S: EventStore,
+{
+    let active_revision = state.build_jobs.active_revision(&project_id);
+    let runtime_ready = match active_revision.as_ref() {
+        Some(revision) => state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status(&revision.route_id)
+            .await
+            .is_some_and(|route| route.status == ProxyRouteStatusKind::Active && route.ready),
+        None => false,
+    };
+    Json(ProjectDeploymentsResponse {
+        project_id: project_id.clone(),
+        active_revision_id: active_revision
+            .as_ref()
+            .map(|revision| revision.revision_id.clone()),
+        recovery_required: active_revision.is_some() && !runtime_ready,
+        runtime_ready,
+        active_revision,
+        jobs: state.build_jobs.jobs_for_project(&project_id),
+        revisions: state.build_jobs.revisions(&project_id),
+    })
+}
+
+async fn recover_project_deployment<S>(
+    State(state): State<AppState<S>>,
+    Path(project_id): Path<ProjectId>,
+) -> anyhow::Result<Json<DeploymentActionResponse>, ServiceError>
+where
+    S: EventStore,
+{
+    let permit = state
+        .build_jobs
+        .acquire_project_operation(&project_id)
+        .await
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let result = async {
+        let active = state
+            .build_jobs
+            .active_revision(&project_id)
+            .ok_or_else(|| {
+                ServiceError::with_status(
+                    StatusCode::NOT_FOUND,
+                    "project has no active deployment revision to recover",
+                )
+            })?;
+        let runtime_ready = state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status(&active.route_id)
+            .await
+            .is_some_and(|route| route.status == ProxyRouteStatusKind::Active && route.ready);
+        if runtime_ready {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "active deployment is already ready",
+            ));
+        }
+        activate_persisted_revision(&state, Some(&active), &active, DeploymentOperation::Recover)
+            .await
+            .map(Json)
+    }
+    .await;
+    state.build_jobs.release_project(&project_id);
+    drop(permit);
+    result
+}
+
+async fn rollback_project_deployment<S>(
+    State(state): State<AppState<S>>,
+    Path(project_id): Path<ProjectId>,
+    Json(request): Json<DeploymentRollbackRequest>,
+) -> anyhow::Result<Json<DeploymentActionResponse>, ServiceError>
+where
+    S: EventStore,
+{
+    let permit = state
+        .build_jobs
+        .acquire_project_operation(&project_id)
+        .await
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let result = async {
+        let active = state.build_jobs.active_revision(&project_id);
+        let target = state
+            .build_jobs
+            .revision(&project_id, request.revision_id.trim())
+            .ok_or_else(|| {
+                ServiceError::with_status(
+                    StatusCode::NOT_FOUND,
+                    "deployment revision was not found for this project",
+                )
+            })?;
+        if active
+            .as_ref()
+            .is_some_and(|active| target.revision_id == active.revision_id)
+        {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "requested deployment revision is already active",
+            ));
+        }
+        activate_persisted_revision(
+            &state,
+            active.as_ref(),
+            &target,
+            DeploymentOperation::Rollback,
+        )
+        .await
+        .map(Json)
+    }
+    .await;
+    state.build_jobs.release_project(&project_id);
+    drop(permit);
+    result
+}
+
+async fn activate_persisted_revision<S>(
+    state: &AppState<S>,
+    previous: Option<&DeploymentRevision>,
+    target: &DeploymentRevision,
+    operation: DeploymentOperation,
+) -> anyhow::Result<DeploymentActionResponse, ServiceError>
+where
+    S: EventStore,
+{
+    if !target.recoverable {
+        let blockers = if target.recovery_blockers.is_empty() {
+            "revision does not contain replay-safe runtime inputs".to_string()
+        } else {
+            target.recovery_blockers.join("; ")
+        };
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            format!("deployment revision is not recoverable: {blockers}"),
+        ));
+    }
+
+    let replay_request = build_replay_request(target);
+    validate_host_build_deploy_request(&replay_request).map_err(redacted_build_deploy_error)?;
+    let resolved_env = resolve_runtime_env(state, &replay_request)
+        .await
+        .map_err(redacted_build_deploy_error)?;
+    let cleanup = if let Some(previous) = previous {
+        let cleanup = stop_project_deployment_inner(state, &previous.route_id).await;
+        if !cleanup.safe_to_redeploy {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "existing managed container could not be safely stopped; recovery was not attempted",
+            ));
+        }
+        Some(cleanup)
+    } else {
+        None
+    };
+
+    let deploy = deploy_built_image(
+        state,
+        None,
+        &replay_request,
+        &target.image,
+        &target.build_id,
+        &target.source_commit,
+        &resolved_env,
+        &[],
+    )
+    .await
+    .map_err(redacted_build_deploy_error)?;
+    let receipt = HostBuildDeployResponse {
+        route_id: deploy.route_id,
+        public_url: deploy.public_url,
+        port_lease_id: deploy.port_lease_id,
+        container_id: deploy.container_id,
+        container_name: deploy.container_name,
+        image: target.image.clone(),
+        build_id: target.build_id.clone(),
+        source_commit: target.source_commit.clone(),
+        build_descriptor_hash: target.build_descriptor_hash.clone(),
+        strategy: target.strategy.clone(),
+        runtime_env: resolved_env
+            .iter()
+            .map(|env| RuntimeEnvSummary {
+                name: env.name.clone(),
+                source: env.source,
+            })
+            .collect(),
+        runtime_mounts: Vec::new(),
+        warnings: Vec::new(),
+    };
+    let revision = deployment_revision_from_replay(previous, target, operation, receipt);
+    if let Err(error) = persist_revision_activation(state, &revision, None).await {
+        let context = ProtocolContext::host_dev("host_deployment_replay_journal_rollback");
+        rollback_deploy(
+            state,
+            &context,
+            &revision.receipt.route_id,
+            true,
+            Some(&revision.receipt.container_id),
+            Some(&revision.receipt.port_lease_id),
+        )
+        .await;
+        let public_error = redacted_failure_message("deployment revision journal commit", &error);
+        return Err(ServiceError::with_status(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            public_error,
+        ));
+    }
+    state.build_jobs.register_revision(revision.clone());
+    Ok(DeploymentActionResponse {
+        operation,
+        previous_revision_id: previous.map(|revision| revision.revision_id.clone()),
+        revision,
+        warnings: cleanup
+            .map(|cleanup| cleanup.response.warnings)
+            .unwrap_or_default(),
+    })
+}
+
+fn build_replay_request(revision: &DeploymentRevision) -> HostBuildDeployRequest {
+    HostBuildDeployRequest {
+        project_id: revision.project_id.clone(),
+        source_url: revision.source_url.clone(),
+        ref_name: revision.ref_name.clone(),
+        strategy: Some(revision.strategy.clone()),
+        dockerfile: revision.dockerfile.clone(),
+        container_port: revision.container_port,
+        port_name: revision.port_name.clone(),
+        route_id: revision.route_id.clone(),
+        health_path: revision.health_path.clone(),
+        approved: true,
+        source_commit: Some(revision.source_commit.clone()),
+        build_id: Some(revision.build_id.clone()),
+        runtime_env: revision
+            .runtime_env
+            .iter()
+            .map(|env| RuntimeEnvSpec {
+                name: env.name.clone(),
+                value: None,
+                secret_ref: Some(env.secret_ref.clone()),
+            })
+            .collect(),
+        runtime_mounts: Vec::new(),
+        idempotency_key: None,
+    }
+}
+
+fn deployment_revision_from_replay(
+    previous: Option<&DeploymentRevision>,
+    target: &DeploymentRevision,
+    operation: DeploymentOperation,
+    receipt: HostBuildDeployResponse,
+) -> DeploymentRevision {
+    DeploymentRevision {
+        revision_id: format!(
+            "drv-{}-{}",
+            now_millis(),
+            &uuid::Uuid::new_v4().simple().to_string()[..12]
+        ),
+        project_id: target.project_id.clone(),
+        job_id: None,
+        operation,
+        parent_revision_id: Some(previous.unwrap_or(target).revision_id.clone()),
+        created_at_ms: now_millis(),
+        source_url: target.source_url.clone(),
+        ref_name: target.ref_name.clone(),
+        dockerfile: target.dockerfile.clone(),
+        container_port: target.container_port,
+        port_name: target.port_name.clone(),
+        route_id: target.route_id.clone(),
+        health_path: target.health_path.clone(),
+        image: target.image.clone(),
+        build_id: target.build_id.clone(),
+        source_commit: target.source_commit.clone(),
+        build_descriptor_hash: target.build_descriptor_hash.clone(),
+        strategy: target.strategy.clone(),
+        runtime_env: target.runtime_env.clone(),
+        recoverable: target.recoverable,
+        recovery_blockers: target.recovery_blockers.clone(),
+        receipt,
+    }
+}
+
+struct DeploymentCleanupResult {
+    response: HostDeployStopResponse,
+    safe_to_redeploy: bool,
 }
 
 async fn stop_project_deployment<S>(
@@ -1936,20 +2887,54 @@ async fn stop_project_deployment<S>(
 where
     S: EventStore,
 {
+    let route_id = request.route_id.trim().to_string();
+    let active = state.build_jobs.active_by_route(&route_id);
+    let mut cleanup = stop_project_deployment_inner(&state, &route_id).await;
+    if cleanup.safe_to_redeploy {
+        if let Some(revision) = active {
+            let deactivation = DeploymentRevisionDeactivated {
+                project_id: revision.project_id,
+                revision_id: revision.revision_id,
+                route_id: revision.route_id,
+                reason: "explicit_stop".to_string(),
+                timestamp_ms: now_millis(),
+            };
+            match persist_revision_deactivation(&state, &deactivation).await {
+                Ok(()) => state.build_jobs.deactivate_revision(&deactivation),
+                Err(error) => cleanup.response.warnings.push(redacted_failure_message(
+                    "deployment stop journal commit",
+                    &error,
+                )),
+            }
+        }
+    }
+    Json(cleanup.response)
+}
+
+async fn stop_project_deployment_inner<S>(
+    state: &AppState<S>,
+    route_id: &str,
+) -> DeploymentCleanupResult
+where
+    S: EventStore,
+{
     let context = ProtocolContext::host_dev("host_deploy");
     let mut warnings = Vec::new();
-    let route_id = request.route_id.trim().to_string();
+    let route_id = route_id.trim().to_string();
     if !is_safe_route_token(&route_id) {
-        return Json(HostDeployStopResponse {
-            route_id,
-            stopped: false,
-            warnings: vec!["route_id must be label-safe".to_string()],
-        });
+        return DeploymentCleanupResult {
+            response: HostDeployStopResponse {
+                route_id,
+                stopped: false,
+                warnings: vec!["route_id must be label-safe".to_string()],
+            },
+            safe_to_redeploy: false,
+        };
     }
 
     let mut port_lease_id = None;
     match call_host_protocol(
-        &state,
+        state,
         &context,
         "kernel.v1.proxy.status",
         serde_json::json!({ "route_id": route_id }),
@@ -1967,22 +2952,26 @@ where
     }
 
     let mut container_ref = None;
+    let mut safe_to_redeploy = false;
     match invoke_docker_runtime_lab(
-        &state,
+        state,
         &context,
         "official/docker-runtime-lab/list_managed",
         serde_json::json!({}),
     )
     .await
     {
-        Ok(output) => container_ref = find_managed_container_for_route(&output, &route_id),
+        Ok(output) => {
+            container_ref = find_managed_container_for_route(&output, &route_id);
+            safe_to_redeploy = container_ref.is_none();
+        }
         Err(error) => warnings.push(format!("managed container list unavailable: {error}")),
     }
 
     let mut stopped = false;
     if let Some(container) = container_ref.as_ref() {
         match invoke_docker_runtime_lab(
-            &state,
+            state,
             &context,
             "official/docker-runtime-lab/stop_container",
             serde_json::json!({ "container_id": container, "timeout_secs": 10 }),
@@ -2002,6 +2991,8 @@ where
                             .unwrap_or("docker-runtime-lab did not stop the container")
                             .to_string(),
                     );
+                } else {
+                    safe_to_redeploy = true;
                 }
             }
             Err(error) => warnings.push(format!("container stop failed: {error}")),
@@ -2011,7 +3002,7 @@ where
     }
 
     if let Err(error) = call_host_protocol(
-        &state,
+        state,
         &context,
         "kernel.v1.proxy.unregister",
         serde_json::json!({ "route_id": route_id }),
@@ -2023,7 +3014,7 @@ where
 
     if let Some(lease_id) = port_lease_id.as_ref() {
         if let Err(error) = call_host_protocol(
-            &state,
+            state,
             &context,
             "kernel.v1.port.release",
             serde_json::json!({ "lease_id": lease_id }),
@@ -2034,11 +3025,14 @@ where
         }
     }
 
-    Json(HostDeployStopResponse {
-        route_id,
-        stopped,
-        warnings,
-    })
+    DeploymentCleanupResult {
+        response: HostDeployStopResponse {
+            route_id,
+            stopped,
+            warnings,
+        },
+        safe_to_redeploy,
+    }
 }
 
 async fn call_host_protocol<S>(
@@ -2250,7 +3244,8 @@ where
         job_id,
         BuildDeployJobState::RegisteringProxy,
         "registering proxy",
-    );
+    )
+    .await;
     let route = match call_host_protocol(
         state,
         &context,
@@ -2302,7 +3297,8 @@ where
         job_id,
         BuildDeployJobState::Probing,
         "probing readiness",
-    );
+    )
+    .await;
     if let Err(error) =
         wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
     {
@@ -2395,6 +3391,7 @@ where
 {
     validate_workspace_clone_url(&request.source_url)?;
     validate_workspace_clone_ref(&request.ref_name)?;
+    let owned_project_dir = canonical_workspace_project_root(&request.project_id, None)?;
     let invocation = build_project_workspace_clone_invocation(&request, None)?;
     let context = ProtocolContext::host_dev("project_workspace_clone");
 
@@ -2410,20 +3407,14 @@ where
     validate_git_commit_sha(&commit_sha)?;
     validate_workspace_clone_ref(&resolved_ref_name)?;
 
-    if invocation.staging_dir.exists() {
-        std::fs::remove_dir_all(&invocation.staging_dir).with_context(|| {
-            format!(
-                "failed to clear workspace staging dir {}",
-                invocation.staging_dir.display()
-            )
-        })?;
-    }
-    let fetch_params = serde_json::json!({
-        "remote_url": request.source_url,
-        "commit_sha": commit_sha,
-        "ref_name": resolved_ref_name.clone(),
-        "dest_dir": invocation.staging_dir.to_string_lossy(),
-    });
+    remove_owned_workspace_child_if_exists(
+        &owned_project_dir,
+        &invocation.staging_dir,
+        "workspace staging directory",
+    )?;
+    let mut fetch_params = invocation.fetch_tree_params;
+    fetch_params["commit_sha"] = Value::String(commit_sha.clone());
+    fetch_params["ref_name"] = Value::String(resolved_ref_name.clone());
     let fetch_result = async {
         let output = invoke_git_tools_lab(
             state,
@@ -2433,13 +3424,22 @@ where
         )
         .await?;
         validate_workspace_staging_containment(&invocation.workspace_dir, &invocation.staging_dir)?;
-        replace_workspace_from_staging(&invocation.workspace_dir, &invocation.staging_dir)?;
+        replace_workspace_from_staging(
+            &owned_project_dir,
+            &invocation.workspace_dir,
+            &invocation.staging_dir,
+        )?;
         anyhow::Ok(output)
     }
     .await;
 
     if fetch_result.is_err() {
-        std::fs::remove_dir_all(&invocation.staging_dir).ok();
+        remove_owned_workspace_child_if_exists(
+            &owned_project_dir,
+            &invocation.staging_dir,
+            "workspace staging directory",
+        )
+        .ok();
     }
     let output = fetch_result?;
 
@@ -2501,6 +3501,9 @@ fn build_project_workspace_clone_invocation(
             "remote_url": request.source_url,
             "ref_name": request.ref_name,
             "dest_dir": staging_dir.to_string_lossy(),
+            "max_files": DEPLOYMENT_WORKSPACE_MAX_FILES,
+            "max_directories": DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES,
+            "max_total_bytes": DEPLOYMENT_WORKSPACE_MAX_BYTES,
         }),
         workspace_dir,
         staging_dir,
@@ -2570,6 +3573,85 @@ fn validate_workspace_destination(
     Ok(())
 }
 
+fn canonical_workspace_project_root(
+    project_id: &ProjectId,
+    data_dir_override: Option<&FsPath>,
+) -> anyhow::Result<PathBuf> {
+    let data_dir = match data_dir_override {
+        Some(data_dir) => data_dir.to_path_buf(),
+        None => ygg_core::paths::data_dir()?,
+    };
+    let data_dir = std::fs::canonicalize(&data_dir).with_context(|| {
+        format!(
+            "failed to canonicalize data directory {}",
+            data_dir.display()
+        )
+    })?;
+    let projects = data_dir.join("projects");
+    let project = projects.join(project_id.as_str());
+    for (path, label) in [
+        (&projects, "projects root"),
+        (&project, "deployment project root"),
+    ] {
+        let metadata = std::fs::symlink_metadata(path)
+            .with_context(|| format!("{label} is unavailable: {}", path.display()))?;
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            anyhow::bail!("{label} must be a real directory: {}", path.display());
+        }
+    }
+    let projects = std::fs::canonicalize(&projects)?;
+    let project = std::fs::canonicalize(&project)?;
+    if projects.parent() != Some(data_dir.as_path())
+        || project.parent() != Some(projects.as_path())
+        || project.file_name().and_then(|name| name.to_str()) != Some(project_id.as_str())
+    {
+        anyhow::bail!(
+            "deployment project root escaped the canonical data directory: {}",
+            project.display()
+        );
+    }
+    Ok(project)
+}
+
+fn validate_owned_workspace_child(
+    project_dir: &FsPath,
+    child: &FsPath,
+    label: &str,
+) -> anyhow::Result<bool> {
+    let child_parent = child
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("{label} has no project parent"))?;
+    let child_parent = std::fs::canonicalize(child_parent)?;
+    if child_parent != project_dir {
+        anyhow::bail!("{label} escaped the deployment project root");
+    }
+    let metadata = match std::fs::symlink_metadata(child) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    };
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        anyhow::bail!("{label} must be a real directory: {}", child.display());
+    }
+    let canonical = std::fs::canonicalize(child)?;
+    if canonical.parent() != Some(project_dir) {
+        anyhow::bail!("{label} escaped the deployment project root");
+    }
+    Ok(true)
+}
+
+fn remove_owned_workspace_child_if_exists(
+    project_dir: &FsPath,
+    child: &FsPath,
+    label: &str,
+) -> anyhow::Result<()> {
+    if validate_owned_workspace_child(project_dir, child, label)? {
+        std::fs::remove_dir_all(child)
+            .with_context(|| format!("failed to remove {label} {}", child.display()))?;
+    }
+    Ok(())
+}
+
 fn validate_workspace_staging_containment(
     workspace_dir: &FsPath,
     staging_dir: &FsPath,
@@ -2596,23 +3678,24 @@ fn validate_workspace_staging_containment(
 }
 
 fn replace_workspace_from_staging(
+    owned_project_dir: &FsPath,
     workspace_dir: &FsPath,
     staging_dir: &FsPath,
 ) -> anyhow::Result<()> {
-    let project_dir = workspace_dir
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("workspace dir has no project parent"))?;
-    std::fs::create_dir_all(project_dir)?;
-    let backup_dir = workspace_dir.with_file_name("workspace.previous");
-    if backup_dir.exists() {
-        std::fs::remove_dir_all(&backup_dir).with_context(|| {
-            format!(
-                "failed to remove old workspace backup {}",
-                backup_dir.display()
-            )
-        })?;
+    if !validate_owned_workspace_child(
+        owned_project_dir,
+        staging_dir,
+        "workspace staging directory",
+    )? {
+        anyhow::bail!("workspace staging directory is unavailable");
     }
-    if workspace_dir.exists() {
+    let backup_dir = workspace_dir.with_file_name("workspace.previous");
+    remove_owned_workspace_child_if_exists(
+        owned_project_dir,
+        &backup_dir,
+        "workspace backup directory",
+    )?;
+    if validate_owned_workspace_child(owned_project_dir, workspace_dir, "workspace directory")? {
         std::fs::rename(workspace_dir, &backup_dir).with_context(|| {
             format!(
                 "failed to move existing workspace {} to backup",
@@ -2627,13 +3710,25 @@ fn replace_workspace_from_staging(
         )
     });
     if replace_result.is_err() {
-        if backup_dir.exists() && !workspace_dir.exists() {
+        let backup_owned = validate_owned_workspace_child(
+            owned_project_dir,
+            &backup_dir,
+            "workspace backup directory",
+        )
+        .unwrap_or(false);
+        let workspace_absent = std::fs::symlink_metadata(workspace_dir)
+            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound);
+        if backup_owned && workspace_absent {
             std::fs::rename(&backup_dir, workspace_dir).ok();
         }
         return replace_result;
     }
-    if backup_dir.exists() {
-        std::fs::remove_dir_all(&backup_dir).ok();
+    if let Err(error) = remove_owned_workspace_child_if_exists(
+        owned_project_dir,
+        &backup_dir,
+        "workspace backup directory",
+    ) {
+        eprintln!("workspace installed but previous workspace cleanup failed: {error}");
     }
     Ok(())
 }
@@ -2955,6 +4050,16 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
     }
     if let Some(build_id) = request.build_id.as_deref() {
         validate_build_id(build_id)?;
+    }
+    if let Some(idempotency_key) = request.idempotency_key.as_deref() {
+        if idempotency_key.is_empty()
+            || idempotency_key.len() > 128
+            || !idempotency_key.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.' | ':')
+            })
+        {
+            anyhow::bail!("idempotency_key must be 1-128 label-safe characters");
+        }
     }
     let strategy = request.strategy.as_deref().unwrap_or("dockerfile");
     if !matches!(strategy, "dockerfile" | "nixpacks") {
@@ -3301,6 +4406,48 @@ fn generated_build_id(source_commit: &str) -> String {
     format!("build-{prefix}")
 }
 
+fn build_deploy_request_fingerprint(request: &HostBuildDeployRequest) -> String {
+    let canonical = serde_json::json!({
+        "version": 1,
+        "project_id": request.project_id.as_str(),
+        "source_url": request.source_url,
+        "ref_name": request.ref_name,
+        "strategy": request.strategy,
+        "dockerfile": request.dockerfile,
+        "container_port": request.container_port,
+        "port_name": request.port_name,
+        "route_id": request.route_id,
+        "health_path": request.health_path,
+        "approved": request.approved,
+        "source_commit": request.source_commit,
+        "build_id": request.build_id,
+        "runtime_env": request.runtime_env.iter().map(|env| serde_json::json!({
+            "name": env.name,
+            "value_hash": env.value.as_deref().map(privacy_preserving_sha256),
+            "secret_ref": env.secret_ref,
+        })).collect::<Vec<_>>(),
+        "runtime_mounts": request.runtime_mounts.iter().map(|mount| serde_json::json!({
+            "source_hash": privacy_preserving_sha256(&mount.source_host_path),
+            "container_path": mount.container_path,
+            "mode": mount.mode,
+            "approved": mount.approved,
+            "high_risk_approved": mount.high_risk_approved,
+            "reason_hash": privacy_preserving_sha256(&mount.reason),
+        })).collect::<Vec<_>>(),
+    });
+    let bytes = serde_json::to_vec(&canonical).expect("build-deploy request serializes");
+    privacy_preserving_sha256(&String::from_utf8_lossy(&bytes))
+}
+
+fn privacy_preserving_sha256(value: &str) -> String {
+    let digest = Sha256::digest(value.as_bytes());
+    let mut out = String::from("sha256:");
+    for byte in digest {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
+}
+
 fn build_deploy_descriptor_hash(
     request: &HostBuildDeployRequest,
     build_id: &str,
@@ -3359,15 +4506,20 @@ fn require_built_image(output: &Value) -> anyhow::Result<String> {
     required_string(output, "image", "docker-runtime-lab build_image")
 }
 
-fn redacted_build_deploy_error(error: anyhow::Error) -> ServiceError {
+fn redacted_failure_message(context: &'static str, _error: &impl fmt::Display) -> String {
     tracing::warn!(
         target: "ygg_service::build_deploy",
-        error = %error,
-        "build-deploy failed; public response redacted"
+        context,
+        "operation failed; internal error details suppressed"
     );
-    ServiceError::from(anyhow::anyhow!(
-        "build-deploy failed; details redacted in public response"
-    ))
+    format!("{context} failed; details redacted")
+}
+
+fn redacted_build_deploy_error(error: anyhow::Error) -> ServiceError {
+    ServiceError::from(anyhow::anyhow!(redacted_failure_message(
+        "build-deploy",
+        &error
+    )))
 }
 
 fn redact_build_log(input: &str) -> String {
@@ -4486,6 +5638,9 @@ mod tests {
                 "remote_url":"https://example.com/org/repo.git",
                 "ref_name":"refs/heads/main",
                 "dest_dir": invocation.staging_dir.to_string_lossy(),
+                "max_files": DEPLOYMENT_WORKSPACE_MAX_FILES,
+                "max_directories": DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES,
+                "max_total_bytes": DEPLOYMENT_WORKSPACE_MAX_BYTES,
             })
         );
         Ok(())
@@ -4518,6 +5673,19 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn workspace_clone_rejects_symlinked_projects_root() -> anyhow::Result<()> {
+        let project_id = ProjectId::new("clone__abc123")?;
+        let data_dir = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        std::fs::create_dir_all(outside.path().join(project_id.as_str()))?;
+        std::os::unix::fs::symlink(outside.path(), data_dir.path().join("projects"))?;
+
+        assert!(canonical_workspace_project_root(&project_id, Some(data_dir.path())).is_err());
+        Ok(())
+    }
+
     fn valid_build_deploy_request() -> HostBuildDeployRequest {
         HostBuildDeployRequest {
             project_id: ProjectId::new("build__abc123").unwrap(),
@@ -4534,6 +5702,7 @@ mod tests {
             build_id: Some("build-001".to_string()),
             runtime_env: Vec::new(),
             runtime_mounts: Vec::new(),
+            idempotency_key: None,
         }
     }
 
@@ -4759,7 +5928,7 @@ mod tests {
     fn build_deploy_job_registry_cancel_terminal_and_redacts_logs() -> anyhow::Result<()> {
         let registry = BuildDeployJobRegistry::default();
         let request = valid_build_deploy_request();
-        let job_id = registry.create_job(&request)?;
+        let job_id = registry.create_job(&request)?.job_id;
         registry.transition(
             &job_id,
             BuildDeployJobState::Building,
@@ -4782,6 +5951,169 @@ mod tests {
         );
         let status = registry.status(&job_id).unwrap();
         assert_eq!(status.state, BuildDeployJobState::Cancelled);
+        Ok(())
+    }
+
+    #[test]
+    fn build_deploy_job_registry_reuses_project_idempotency_key() -> anyhow::Result<()> {
+        let registry = BuildDeployJobRegistry::default();
+        let mut request = valid_build_deploy_request();
+        request.idempotency_key = Some("web-retry-001".to_string());
+        let first = registry.create_job(&request)?;
+        let second = registry.create_job(&request)?;
+        assert!(first.created);
+        assert!(!second.created);
+        assert_eq!(first.job_id, second.job_id);
+        let mut changed = request.clone();
+        changed.build_id = Some("build-002".to_string());
+        assert!(registry
+            .create_job(&changed)
+            .unwrap_err()
+            .to_string()
+            .contains("different build-deploy request"));
+        Ok(())
+    }
+
+    fn successful_build_result() -> HostBuildDeployResponse {
+        HostBuildDeployResponse {
+            route_id: "route-build".to_string(),
+            public_url: "/p/route-build/".to_string(),
+            port_lease_id: "port-lease-000001".to_string(),
+            container_id: "container-000001".to_string(),
+            container_name: Some("ygg-build-deploy-route-build-3000".to_string()),
+            image: "yggdrasil/build:build-001".to_string(),
+            build_id: "build-001".to_string(),
+            source_commit: "0123456789abcdef0123456789abcdef01234567".to_string(),
+            build_descriptor_hash: "descriptor-hash".to_string(),
+            strategy: "dockerfile".to_string(),
+            runtime_env: Vec::new(),
+            runtime_mounts: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn deployment_revision_persists_only_replay_safe_runtime_inputs() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let source = tmp.path().join("private-data");
+        std::fs::create_dir(&source)?;
+        let mut request = valid_build_deploy_request();
+        request.runtime_env = vec![
+            RuntimeEnvSpec {
+                name: "DATABASE_URL".to_string(),
+                value: None,
+                secret_ref: Some("secret_ref:project:database-url".to_string()),
+            },
+            RuntimeEnvSpec {
+                name: "ONE_TIME_TOKEN".to_string(),
+                value: Some("must-not-be-journaled".to_string()),
+                secret_ref: None,
+            },
+        ];
+        request.runtime_mounts = vec![approved_ro_mount(&source, "/data/private")];
+        let revision =
+            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+        assert!(!revision.recoverable);
+        assert_eq!(revision.runtime_env.len(), 1);
+        let json = serde_json::to_string(&revision)?;
+        assert!(json.contains("secret_ref:project:database-url"));
+        assert!(!json.contains("must-not-be-journaled"));
+        assert!(!json.contains(&source.to_string_lossy().to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn deployment_projection_retains_a_bounded_recent_revision_window() {
+        let registry = BuildDeployJobRegistry::default();
+        let request = valid_build_deploy_request();
+        let base =
+            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+        let total = BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT + 5;
+        for index in 0..total {
+            let mut revision = base.clone();
+            revision.revision_id = format!("revision-{index:03}");
+            revision.created_at_ms = index as u128;
+            registry.register_revision(revision);
+        }
+
+        let revisions = registry.revisions(&request.project_id);
+        assert_eq!(revisions.len(), BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT);
+        assert_eq!(
+            revisions.first().unwrap().revision_id,
+            format!("revision-{:03}", total - 1)
+        );
+        assert_eq!(
+            registry
+                .active_revision(&request.project_id)
+                .unwrap()
+                .revision_id,
+            format!("revision-{:03}", total - 1)
+        );
+    }
+
+    #[test]
+    fn replay_revision_can_reactivate_history_without_an_active_pointer() {
+        let request = valid_build_deploy_request();
+        let target =
+            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+        let replay = deployment_revision_from_replay(
+            None,
+            &target,
+            DeploymentOperation::Rollback,
+            successful_build_result(),
+        );
+        assert_eq!(replay.parent_revision_id, Some(target.revision_id));
+        assert_eq!(replay.operation, DeploymentOperation::Rollback);
+    }
+
+    #[tokio::test]
+    async fn deployment_journal_hydrates_revisions_and_interrupts_incomplete_jobs(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let source_registry = Arc::new(BuildDeployJobRegistry::default());
+        let request = valid_build_deploy_request();
+        let created = source_registry.create_job(&request)?;
+        let snapshot = source_registry.job_snapshot(&created.job_id).unwrap();
+        append_deployment_journal_event(store.as_ref(), DEPLOYMENT_JOB_SNAPSHOT_EVENT, &snapshot)
+            .await?;
+        let revision = deployment_revision_from_build(
+            &request,
+            &successful_build_result(),
+            &created.job_id,
+            None,
+        );
+        append_deployment_journal_event(
+            store.as_ref(),
+            DEPLOYMENT_REVISION_ACTIVATED_EVENT,
+            &DeploymentRevisionActivated {
+                revision: revision.clone(),
+                job: None,
+            },
+        )
+        .await?;
+
+        let hydrated = Arc::new(BuildDeployJobRegistry::default());
+        assert_eq!(
+            hydrate_deployment_control_plane(store.clone(), hydrated.clone()).await?,
+            2
+        );
+        assert_eq!(
+            hydrated
+                .active_revision(&request.project_id)
+                .unwrap()
+                .revision_id,
+            revision.revision_id
+        );
+        let status = hydrated.status(&created.job_id).unwrap();
+        assert_eq!(status.state, BuildDeployJobState::Failed);
+        assert!(status.error.unwrap().contains("host restarted"));
+        assert_eq!(
+            store
+                .list_kind_prefix(DEPLOYMENT_JOURNAL_PREFIX)
+                .await?
+                .len(),
+            3
+        );
         Ok(())
     }
 

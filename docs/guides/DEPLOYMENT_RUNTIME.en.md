@@ -23,12 +23,12 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 - `LiveLocalExecExecutor`: accepts argv arrays only, never shell strings. cwd, env, logs, timeout, and kill behavior are host-controlled.
 - `ygg-service` reverse proxy: `/p/<route_id>/...` remains available; if `YGG_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is set, `<slug>.apps.example.com/` virtual-host routes are also supported so community apps can own the root path `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
 - `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
-- Web project console: shows target / exec / port / proxy diagnostics. If a project declares deployment metadata, the user can explicitly click Deploy / Stop, or start a Build & Deploy job.
+- Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user can explicitly Deploy / Stop, start Build & Deploy, recover, or roll back.
 - Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
 - Restart reconciliation: after a restart, replayed records are first downgraded (exec → unknown, port → reserved, proxy → stale with `ready=false`), then reconciled against the real world.
 - Readiness gating: proxy routes register with `ready=false`; the reverse proxy returns 503 for routes that are not yet ready, and only forwards once ready.
 - Health supervision: a host background loop periodically probes each active route's upstream, flips `ready=false` on sustained failure and `ready=true` on recovery, and writes an audit event on each transition.
-- Build & Deploy broker: `POST /host/v1/build-deploy` creates a short-lived job. The host clones source, builds via Dockerfile / nixpacks, starts the container, registers proxy, and runs readiness probing. The browser observes job status / SSE and may cancel the job.
+- Build & Deploy broker: `POST /host/v1/build-deploy` creates a durable job intent with an optional `idempotency_key`. The host clones source, builds via Dockerfile / nixpacks, starts the container, registers proxy, and runs readiness probing. The browser observes job status / SSE and may cancel the job.
 
 ## Docker deployment descriptor
 
@@ -127,13 +127,25 @@ Boundary rules:
 Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediately with `job_id`, a status URL, and an SSE events URL. Long-running work stays in the host broker:
 
 1. Validate source URL, strategy, runtime env, runtime mounts, and user approvals.
-2. Clone into the project workspace through `git-tools-lab`.
+2. Clone into the project workspace through `git-tools-lab`. The project and workspace ancestors must be real directories under the canonical data root; selected-tree materialization fails closed above 100,000 files, 100,000 directories, or 1 GiB. Unsupported tree modes such as submodule entries, absolute/root-escaping symlinks, and symlink entries on platforms that cannot preserve them fail explicitly. The current transport still performs a temporary bare fetch, so these tree limits do not yet constitute a repository-download budget.
 3. If strategy is `nixpacks`, generate Dockerfile / context first.
 4. Call `official/docker-runtime-lab/build_image` and label the image with `project_id`, `build_id`, `source_commit`, `strategy`, and `build_descriptor_hash`.
-5. Enter the normal deploy chain: port lease → container start → proxy register → readiness probe.
-6. On success, the route becomes `ready=true`; on failure or cancellation, acquired resources roll back in reverse.
+5. If the project already has an active revision, clean up its container, route, and lease after the new image has built. The old revision remains the durable active pointer until the replacement commits, so replacement failure becomes an explicit recovery-required state.
+6. Enter the normal deploy chain: port lease → container start → proxy register → readiness probe.
+7. After readiness succeeds, append the revision activation event before moving in-memory state to Ready. If the journal commit fails, roll back the new deployment.
 
-Jobs are in-memory only and exist for UI progress plus a bounded log ring. After host restart, job logs may be gone; actual deployment state is recovered from Docker labels, port/proxy event replay, and restart reconciliation.
+Job intent, the latest state snapshot, immutable deployment revisions, and the active pointer are written to the current profile's `EventStore`. SQLite / Postgres profiles therefore restore the control plane across host restarts; the in-memory profile remains development-only. An incomplete job is deterministically marked Failed after restart, and the host never automatically replays clone / build / deploy side effects. The full live log remains a bounded in-memory ring; the journal retains only redacted state and the last event.
+
+Every successful Build & Deploy creates a `DeploymentRevision` containing source ref, build artifact identity, route configuration, and a redacted receipt. It never stores raw secrets or host mount paths. A revision is automatically recoverable only when every runtime env value came from a `secret_ref` and no host mount was used. Plain env values and mounts become explicit blockers that require a manual rebuild. Journal events remain immutable; the live control-plane projection and API retain the most recent 64 revisions per project so restart memory and response size remain bounded.
+
+Project-scoped host APIs:
+
+- `GET /host/v1/projects/<project_id>/deployments`: active revision, runtime readiness, recovery requirement, jobs, and revision history.
+- `POST /host/v1/projects/<project_id>/deployments/recover`: explicitly rebuild the active revision's container / port / proxy projections without cloning or rebuilding.
+- `POST /host/v1/projects/<project_id>/deployments/rollback`: activate an existing historical image as a new immutable rollback revision, including after an explicit stop removed the active pointer; historical records are never mutated.
+- `POST /host/v1/deploy/stop`: clean up resources for a route and append a deactivation event when it belongs to the active durable revision.
+
+Recover and rollback are explicit user actions. The target must be replay-safe, its image must still exist locally, and referenced secrets must still resolve. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a durable revision yet.
 
 ## `project.start` does not deploy
 
@@ -153,7 +165,7 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 ## Next
 
 - Native execution remains trusted/dev-oriented. It is not a full OS sandbox.
-- **Auto-restart** is not implemented and is a separate future phase. Health supervision only monitors, flips readiness, and audits; it does not re-deploy a crashed container. Auto-restart first requires durable "deploy intent" (image, etc.) modeled in host-plane terms without leaking Docker semantics into the kernel proxy / port records — a design done on its own.
+- **Auto-restart** is not implemented and remains a separate future phase. The host-plane now has durable revisions and explicit recovery, but health supervision still only monitors, flips readiness, and audits; it never replays deployment side effects without user authorization.
 - Remote targets and multi-client public exposure are not implemented; ports bind to loopback only.
 - Docker descriptors still lack pull progress and long-term log archival.
 - External project wizards can generate deployment descriptors later, but deployment must remain an explicit user action.

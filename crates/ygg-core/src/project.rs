@@ -189,6 +189,33 @@ pub struct ExternalProjectData {
     /// For external_workspace: path to the fetched project tree under the workspace.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workspace_root: Option<String>,
+
+    /// Kind of source that produced the managed workspace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_kind: Option<ExternalSourceKind>,
+
+    /// Ownership boundary for the workspace path. Managed workspaces may be
+    /// archived or deleted with the project; linked local sources never may.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_ownership: Option<ExternalWorkspaceOwnership>,
+
+    /// Content digest of the materialized workspace tree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_digest: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalSourceKind {
+    Local,
+    Git,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalWorkspaceOwnership {
+    Managed,
+    LinkedLocal,
 }
 
 /// Runtime project state. Not serialized to project.yaml; tracked by registry.
@@ -382,6 +409,9 @@ project:
             source_ref: Some("v1.0.0".into()),
             adapter_manifest: Some("packages/adapter/manifest.yaml".into()),
             workspace_root: None,
+            source_kind: Some(ExternalSourceKind::Git),
+            workspace_ownership: Some(ExternalWorkspaceOwnership::Managed),
+            source_digest: Some("sha256:adapter".into()),
         });
         d
     }
@@ -394,6 +424,9 @@ project:
             source_ref: Some("main".into()),
             adapter_manifest: None,
             workspace_root: Some("/tmp/ws".into()),
+            source_kind: Some(ExternalSourceKind::Git),
+            workspace_ownership: Some(ExternalWorkspaceOwnership::Managed),
+            source_digest: Some("sha256:workspace".into()),
         });
         d
     }

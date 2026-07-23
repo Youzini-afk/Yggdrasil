@@ -46,6 +46,27 @@ provides:
     side_effects:
       - filesystem.write
     streaming: false
+  - id: official/install-lab/prepare_external_intake
+    version: 1.0.0
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [source]
+      properties:
+        source:
+          type: string
+        root_ref:
+          type: string
+        data_dir:
+          type: string
+        linked_local:
+          type: boolean
+    output_schema: {}
+    side_effects:
+      - filesystem.read
+      - filesystem.write
+      - network.read
+    streaming: false
   - id: official/install-lab/uninstall
     version: 1.0.0
     input_schema: {}
@@ -145,6 +166,7 @@ permissions:
       - ~/.yggdrasil/profiles/
       - ~/.yggdrasil/cache/
       - ~/.yggdrasil/projects/
+      - ~/.yggdrasil/workspaces/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 30000
   memory_mb: 512

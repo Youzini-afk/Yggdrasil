@@ -2,7 +2,14 @@
   "bundle": {
     "externalBin": ["binaries/ygg-host"],
     "resources": {
-      "../../web/dist/": "web/"
+      "../../web/dist/": "web/",
+      "../../../packages/official/docker-runtime-lab/manifest.yaml": "official-packages/docker-runtime-lab/manifest.yaml",
+      "../../../packages/official/git-tools-lab/manifest.yaml": "official-packages/git-tools-lab/manifest.yaml",
+      "../../../packages/official/install-lab/manifest.yaml": "official-packages/install-lab/manifest.yaml",
+      "../../../packages/official/integrity-lab/manifest.yaml": "official-packages/integrity-lab/manifest.yaml",
+      "../../../packages/official/project-intake-lab/manifest.yaml": "official-packages/project-intake-lab/manifest.yaml",
+      "../../../packages/official/secret-store-lab/manifest.yaml": "official-packages/secret-store-lab/manifest.yaml",
+      "../../../packages/official/workspace-lab/manifest.yaml": "official-packages/workspace-lab/manifest.yaml"
     }
   }
 }

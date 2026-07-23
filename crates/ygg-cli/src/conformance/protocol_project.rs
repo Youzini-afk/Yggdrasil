@@ -33,6 +33,11 @@ fn descriptor(id: &str) -> ProjectDescriptor {
                 source_ref: None,
                 adapter_manifest: None,
                 workspace_root: Some("/tmp/protocol-project".to_string()),
+                source_kind: Some(ygg_core::project::ExternalSourceKind::Local),
+                workspace_ownership: Some(
+                    ygg_core::project::ExternalWorkspaceOwnership::LinkedLocal,
+                ),
+                source_digest: None,
             }),
             metadata: BTreeMap::new(),
         },

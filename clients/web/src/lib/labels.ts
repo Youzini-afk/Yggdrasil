@@ -341,6 +341,25 @@ export interface LocaleDictionary {
   projectFrameDeploymentEmpty: string;
   projectFrameDeploymentReady: string;
   projectFrameDeploymentExitCode: string;
+  projectFrameDeploymentHistoryTitle: string;
+  projectFrameDeploymentHistoryDescription: string;
+  projectFrameDeploymentActiveRevision: string;
+  projectFrameDeploymentRecoveryRequired: string;
+  projectFrameDeploymentRecover: string;
+  projectFrameDeploymentRecovering: string;
+  projectFrameDeploymentRecoverConfirm: string;
+  projectFrameDeploymentRecoveredTitle: string;
+  projectFrameDeploymentRecoveryFailedTitle: string;
+  projectFrameDeploymentRevisionHistory: string;
+  projectFrameDeploymentRollback: string;
+  projectFrameDeploymentRollingBack: string;
+  projectFrameDeploymentRollbackConfirm: (revisionId: string) => string;
+  projectFrameDeploymentRolledBackTitle: string;
+  projectFrameDeploymentRollbackFailedTitle: string;
+  projectFrameDeploymentNotRecoverable: string;
+  projectFrameDeploymentNoDurableHistory: string;
+  projectFrameDeploymentJobHistory: string;
+  projectFrameDeploymentCreatedAt: string;
   projectFrameDeployActionTitle: string;
   projectFrameDeployActionDescription: string;
   projectFrameDeployInvalidTitle: string;
@@ -943,6 +962,25 @@ export const labels = {
     projectFrameDeploymentEmpty: "No deployment records reported by the host.",
     projectFrameDeploymentReady: "Ready",
     projectFrameDeploymentExitCode: "Exit code",
+    projectFrameDeploymentHistoryTitle: "Durable deployment history",
+    projectFrameDeploymentHistoryDescription: "Host-owned revisions and job receipts survive restarts; recovery only replays secret references and other safe inputs.",
+    projectFrameDeploymentActiveRevision: "Active revision",
+    projectFrameDeploymentRecoveryRequired: "Recovery required",
+    projectFrameDeploymentRecover: "Recover",
+    projectFrameDeploymentRecovering: "Recovering…",
+    projectFrameDeploymentRecoverConfirm: "Recover the active revision from its durable receipt? The existing route resources will be cleaned up first.",
+    projectFrameDeploymentRecoveredTitle: "Deployment recovered",
+    projectFrameDeploymentRecoveryFailedTitle: "Deployment recovery failed",
+    projectFrameDeploymentRevisionHistory: "Revision history",
+    projectFrameDeploymentRollback: "Roll back",
+    projectFrameDeploymentRollingBack: "Rolling back…",
+    projectFrameDeploymentRollbackConfirm: (revisionId) => `Activate deployment revision ${revisionId}? The current deployment will be stopped first.`,
+    projectFrameDeploymentRolledBackTitle: "Deployment rolled back",
+    projectFrameDeploymentRollbackFailedTitle: "Deployment rollback failed",
+    projectFrameDeploymentNotRecoverable: "Manual rebuild required",
+    projectFrameDeploymentNoDurableHistory: "No durable deployment revision has been recorded for this project.",
+    projectFrameDeploymentJobHistory: "Recent deployment jobs",
+    projectFrameDeploymentCreatedAt: "Created",
     projectFrameDeployActionTitle: "Explicit Docker deployment",
     projectFrameDeployActionDescription: "Starts one prebuilt HTTP container using host-owned port and proxy resources.",
     projectFrameDeployInvalidTitle: "Deployment metadata is invalid",
@@ -959,7 +997,7 @@ export const labels = {
     projectFrameDeployPullWarning: "This deployment may pull the image if it is missing. Only deploy trusted image references.",
     projectFrameDeployActiveHint: "An active route, port lease, or tracked container is present for this descriptor.",
     projectFrameDeployConfirm: (image) => `Deploy Docker image ${image}? This will lease a local port and start a container on this host.`,
-    projectFrameStopDeploymentConfirm: (routeId) => `Stop deployment for route ${routeId}? The UI will only stop a container it started in this page session.`,
+    projectFrameStopDeploymentConfirm: (routeId) => `Stop the host-managed deployment for route ${routeId}? Its active durable revision will be deactivated.`,
     projectFrameDeploySuccessTitle: "Deployment started",
     projectFrameDeploySuccessBody: (routeId) => `Proxy route ${routeId} is registered.`,
     projectFrameDeployFailedTitle: "Deployment failed",
@@ -1545,6 +1583,25 @@ export const labels = {
     projectFrameDeploymentEmpty: "主机未报告部署记录。",
     projectFrameDeploymentReady: "就绪",
     projectFrameDeploymentExitCode: "退出码",
+    projectFrameDeploymentHistoryTitle: "持久化部署历史",
+    projectFrameDeploymentHistoryDescription: "主机拥有的修订与任务回执会跨重启保留；恢复只会重放密钥引用等安全输入。",
+    projectFrameDeploymentActiveRevision: "活动修订",
+    projectFrameDeploymentRecoveryRequired: "需要恢复",
+    projectFrameDeploymentRecover: "恢复",
+    projectFrameDeploymentRecovering: "正在恢复…",
+    projectFrameDeploymentRecoverConfirm: "根据持久化回执恢复活动修订？主机会先清理现有路由资源。",
+    projectFrameDeploymentRecoveredTitle: "部署已恢复",
+    projectFrameDeploymentRecoveryFailedTitle: "部署恢复失败",
+    projectFrameDeploymentRevisionHistory: "修订历史",
+    projectFrameDeploymentRollback: "回滚",
+    projectFrameDeploymentRollingBack: "正在回滚…",
+    projectFrameDeploymentRollbackConfirm: (revisionId) => `激活部署修订 ${revisionId}？当前部署会先被停止。`,
+    projectFrameDeploymentRolledBackTitle: "部署已回滚",
+    projectFrameDeploymentRollbackFailedTitle: "部署回滚失败",
+    projectFrameDeploymentNotRecoverable: "需要手动重新构建",
+    projectFrameDeploymentNoDurableHistory: "该项目尚无持久化部署修订。",
+    projectFrameDeploymentJobHistory: "近期部署任务",
+    projectFrameDeploymentCreatedAt: "创建时间",
     projectFrameDeployActionTitle: "显式 Docker 部署",
     projectFrameDeployActionDescription: "使用主机拥有的端口和代理资源启动一个预构建 HTTP 容器。",
     projectFrameDeployInvalidTitle: "部署元数据无效",
@@ -1561,7 +1618,7 @@ export const labels = {
     projectFrameDeployPullWarning: "如果缺少镜像，此部署可能会拉取镜像。请只部署可信镜像引用。",
     projectFrameDeployActiveHint: "该描述符已有活动路由、端口租约或已跟踪容器。",
     projectFrameDeployConfirm: (image) => `部署 Docker 镜像 ${image}？这将在此主机上租用本地端口并启动容器。`,
-    projectFrameStopDeploymentConfirm: (routeId) => `停止路由 ${routeId} 的部署？界面只会停止本页面会话启动的容器。`,
+    projectFrameStopDeploymentConfirm: (routeId) => `停止路由 ${routeId} 的主机托管部署？其活动持久化修订也会被停用。`,
     projectFrameDeploySuccessTitle: "部署已启动",
     projectFrameDeploySuccessBody: (routeId) => `代理路由 ${routeId} 已注册。`,
     projectFrameDeployFailedTitle: "部署失败",

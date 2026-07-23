@@ -30,12 +30,23 @@ pub struct UninstallArgs {
 
 pub async fn run(args: UninstallArgs) -> Result<()> {
     let data_dir = args.data_dir.unwrap_or_else(default_data_dir);
+    let project_descriptor = get_project_descriptor(&args.package_id, &data_dir)?;
+    let project_action = project_descriptor
+        .as_ref()
+        .map(|descriptor| {
+            choose_project_data_action(descriptor, &data_dir, args.keep_data, args.delete_data)
+        })
+        .transpose()?;
     let runtime = load_install_runtime().await?;
     let result = invoke_install_lab(
         &runtime,
         "official/install-lab/uninstall",
         json!({
             "package_id": args.package_id,
+            "project_id": project_descriptor
+                .as_ref()
+                .map(|descriptor| descriptor.project.id.as_str()),
+            "delete_project_data": matches!(project_action, Some(ArchiveAction::Delete)),
             "profile": args.profile,
             "data_dir": data_dir.display().to_string(),
         }),
@@ -50,12 +61,6 @@ pub async fn run(args: UninstallArgs) -> Result<()> {
     if let Some(store) = result["store_path_orphaned"].as_str() {
         println!("Store path orphaned: {store}");
     }
-    maybe_archive_project(
-        &args.package_id,
-        &data_dir,
-        args.keep_data,
-        args.delete_data,
-    )?;
     Ok(())
 }
 
@@ -64,15 +69,12 @@ enum ArchiveAction {
     Delete,
 }
 
-fn maybe_archive_project(
-    package_id: &str,
+fn choose_project_data_action(
+    descriptor: &ProjectDescriptor,
     data_dir: &Path,
     keep_data: bool,
     delete_data: bool,
-) -> Result<()> {
-    let Some(descriptor) = get_project_descriptor(package_id, data_dir)? else {
-        return Ok(());
-    };
+) -> Result<ArchiveAction> {
     let action = if keep_data {
         ArchiveAction::Keep
     } else if delete_data {
@@ -80,7 +82,7 @@ fn maybe_archive_project(
     } else if !std::io::stdin().is_terminal() {
         eprintln!(
             "Note: project '{}' has data; keeping (use --delete-data to remove).",
-            package_id
+            descriptor.project.id
         );
         ArchiveAction::Keep
     } else {
@@ -107,16 +109,7 @@ fn maybe_archive_project(
         }
     };
 
-    match action {
-        ArchiveAction::Keep => archive_project(&descriptor.project.id, data_dir)?,
-        ArchiveAction::Delete => {
-            let dir = project_dir(data_dir, &descriptor.project.id);
-            if dir.exists() {
-                std::fs::remove_dir_all(dir)?;
-            }
-        }
-    }
-    Ok(())
+    Ok(action)
 }
 
 fn get_project_descriptor(package_id: &str, data_dir: &Path) -> Result<Option<ProjectDescriptor>> {

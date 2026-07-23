@@ -5,8 +5,9 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use uuid::Uuid;
 use ygg_core::{
-    package_envelope_for_manifest, protocol_profile_pins_for_envelope, ComponentLockPin, LockEntry,
-    LockRequirement, LockSource, Lockfile, PackageEntry, PackageManifest, ProjectId,
+    package_envelope_for_manifest, protocol_profile_pins_for_envelope, ComponentLockPin,
+    ExternalWorkspaceOwnership, LockEntry, LockRequirement, LockSource, Lockfile, PackageEntry,
+    PackageManifest, ProjectId,
 };
 
 use crate::inproc::invoke_capability_from_inproc;
@@ -221,9 +222,17 @@ pub(super) async fn uninstall(input: Value, session_id: Option<&str>) -> Result<
     }
 
     let project = if let Some(id) = &project_id {
-        let data_action =
-            uninstall_project_data(id, input.data_dir.as_deref(), input.delete_project_data)?;
-        Some(json!({ "project_id": id.as_str(), "data_action": data_action }))
+        let (data_action, workspace_action) = uninstall_project_data(
+            id,
+            project_descriptor.as_ref(),
+            input.data_dir.as_deref(),
+            input.delete_project_data,
+        )?;
+        Some(json!({
+            "project_id": id.as_str(),
+            "data_action": data_action,
+            "workspace_action": workspace_action,
+        }))
     } else {
         None
     };
@@ -504,18 +513,23 @@ fn project_dir(data_dir_override: Option<&str>, id: &ProjectId) -> PathBuf {
 
 fn uninstall_project_data(
     id: &ProjectId,
+    descriptor: Option<&ygg_core::ProjectDescriptor>,
     data_dir_override: Option<&str>,
     delete_project_data: bool,
-) -> Result<&'static str> {
+) -> Result<(&'static str, &'static str)> {
     let from = project_dir(data_dir_override, id);
     if !from.exists() {
         crate::inproc::project_registry_from_inproc()?.unregister(id);
-        return Ok("missing");
+        let workspace_action =
+            uninstall_managed_workspace(id, descriptor, data_dir_override, delete_project_data)?;
+        return Ok(("missing", workspace_action));
     }
     if delete_project_data {
         fs::remove_dir_all(&from)?;
+        let workspace_action =
+            uninstall_managed_workspace(id, descriptor, data_dir_override, true)?;
         crate::inproc::project_registry_from_inproc()?.unregister(id);
-        return Ok("deleted");
+        return Ok(("deleted", workspace_action));
     }
 
     let archived = from
@@ -531,8 +545,139 @@ fn uninstall_project_data(
         super::fs_copy::copy_dir_recursive(&from, &to)?;
         fs::remove_dir_all(&from)?;
     }
+    let workspace_action = uninstall_managed_workspace(id, descriptor, data_dir_override, false)?;
     crate::inproc::project_registry_from_inproc()?.unregister(id);
+    Ok(("archived", workspace_action))
+}
+
+fn uninstall_managed_workspace(
+    id: &ProjectId,
+    descriptor: Option<&ygg_core::ProjectDescriptor>,
+    data_dir_override: Option<&str>,
+    delete: bool,
+) -> Result<&'static str> {
+    let Some(external) = descriptor.and_then(|descriptor| descriptor.project.external.as_ref())
+    else {
+        return Ok("not_applicable");
+    };
+    if external.workspace_ownership != Some(ExternalWorkspaceOwnership::Managed) {
+        return Ok("preserved_linked_source");
+    }
+    let Some(data_dir) = data_dir_override
+        .map(PathBuf::from)
+        .or_else(|| ygg_core::paths::data_dir().ok())
+    else {
+        return Ok("missing");
+    };
+    let data_dir = fs::canonicalize(&data_dir).with_context(|| {
+        format!(
+            "failed to canonicalize data directory {}",
+            data_dir.display()
+        )
+    })?;
+    let workspaces_root = data_dir.join("workspaces");
+    let external_root = workspaces_root.join("external");
+    let managed_root = external_root.join(id.as_str());
+    let Some(workspace_root) = external.workspace_root.as_deref().map(PathBuf::from) else {
+        return Ok("missing");
+    };
+    if !managed_root.exists() {
+        return Ok("missing");
+    }
+    for owned_root in [&workspaces_root, &external_root] {
+        let metadata = fs::symlink_metadata(owned_root)?;
+        anyhow::ensure!(
+            metadata.is_dir() && !metadata.file_type().is_symlink(),
+            "refusing to manage a symlinked workspace ancestor: {}",
+            owned_root.display()
+        );
+    }
+    let root_metadata = fs::symlink_metadata(&managed_root)?;
+    anyhow::ensure!(
+        root_metadata.is_dir() && !root_metadata.file_type().is_symlink(),
+        "refusing to manage a symlinked external workspace root: {}",
+        managed_root.display()
+    );
+    let canonical_workspaces_root = fs::canonicalize(&workspaces_root)?;
+    let canonical_external_root = fs::canonicalize(&external_root)?;
+    let canonical_managed_root = fs::canonicalize(&managed_root)?;
+    let canonical_workspace_root = fs::canonicalize(&workspace_root).with_context(|| {
+        format!(
+            "failed to canonicalize managed external workspace {}",
+            workspace_root.display()
+        )
+    })?;
+    anyhow::ensure!(
+        canonical_workspaces_root.parent() == Some(data_dir.as_path())
+            && canonical_external_root.parent() == Some(canonical_workspaces_root.as_path())
+            && canonical_managed_root.parent() == Some(canonical_external_root.as_path())
+            && canonical_managed_root
+                .file_name()
+                .and_then(|name| name.to_str())
+                == Some(id.as_str())
+            && canonical_workspace_root.parent() == Some(canonical_managed_root.as_path()),
+        "refusing to manage external workspace outside owned project root: {}",
+        workspace_root.display()
+    );
+    if delete {
+        fs::remove_dir_all(&managed_root)?;
+        return Ok("deleted");
+    }
+    let archived_workspaces = ensure_uninstall_owned_directory(
+        &canonical_workspaces_root,
+        ".archived",
+        "workspace archive root",
+    )?;
+    let archive_root = ensure_uninstall_owned_directory(
+        &archived_workspaces,
+        "external",
+        "external workspace archive root",
+    )?;
+    let archived = archive_root.join(id.as_str());
+    match fs::symlink_metadata(&archived) {
+        Ok(metadata) => {
+            anyhow::ensure!(
+                metadata.is_dir() && !metadata.file_type().is_symlink(),
+                "refusing to replace a symlinked external workspace archive: {}",
+                archived.display()
+            );
+            let canonical_archived = fs::canonicalize(&archived)?;
+            anyhow::ensure!(
+                canonical_archived.parent() == Some(archive_root.as_path()),
+                "external workspace archive escaped its managed root: {}",
+                archived.display()
+            );
+            fs::remove_dir_all(&canonical_archived)?;
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    if fs::rename(&managed_root, &archived).is_err() {
+        super::fs_copy::copy_dir_recursive(&managed_root, &archived)?;
+        fs::remove_dir_all(&managed_root)?;
+    }
     Ok("archived")
+}
+
+fn ensure_uninstall_owned_directory(parent: &Path, name: &str, label: &str) -> Result<PathBuf> {
+    let path = parent.join(name);
+    match fs::symlink_metadata(&path) {
+        Ok(metadata) => anyhow::ensure!(
+            metadata.is_dir() && !metadata.file_type().is_symlink(),
+            "{label} must be a real directory, not a symlink: {}",
+            path.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::create_dir(&path)
+            .with_context(|| format!("failed to create {label} {}", path.display()))?,
+        Err(error) => return Err(error.into()),
+    }
+    let canonical = fs::canonicalize(&path)?;
+    anyhow::ensure!(
+        canonical.parent() == Some(parent),
+        "{label} escaped its managed parent: {}",
+        canonical.display()
+    );
+    Ok(canonical)
 }
 
 pub(super) async fn invoke_package_capability(
@@ -594,6 +739,19 @@ pub(super) async fn compute_tree_hash(path: &Path) -> Result<String> {
         "official/integrity-lab",
         "official/integrity-lab/compute_tree_hash",
         json!({ "dir": path.to_string_lossy() }),
+    )
+    .await?;
+    Ok(value_str(&output, "sha256")?.to_string())
+}
+
+pub(super) async fn compute_external_tree_hash(path: &Path) -> Result<String> {
+    let output = invoke_package_capability(
+        "official/integrity-lab",
+        "official/integrity-lab/compute_tree_hash",
+        json!({
+            "dir": path.to_string_lossy(),
+            "profile": "external_workspace_v1",
+        }),
     )
     .await?;
     Ok(value_str(&output, "sha256")?.to_string())

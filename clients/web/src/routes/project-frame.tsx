@@ -18,6 +18,7 @@ import type {
   BuildDeployJobEvent,
   BuildDeployJobStatusResponse,
   BuildDeployJobSubmitResponse,
+  DeploymentRevision,
   ExecStatus,
   ExecutionTarget,
   KernelEvent,
@@ -26,6 +27,7 @@ import type {
   PortLeaseRecord,
   ProjectRecord,
   ProxyRouteRecord,
+  ProjectDeploymentsResponse,
   SurfaceContributionRecord,
   UpdateCheckResult,
 } from "@/protocol/client";
@@ -41,10 +43,13 @@ interface ProjectDiagnostics {
   executions: ExecStatus[];
   portLeases: PortLeaseRecord[];
   proxyRoutes: ProxyRouteRecord[];
+  deployments?: ProjectDeploymentsResponse;
   updates?: UpdateCheckResult;
   errors: string[];
   refreshedAt: string;
 }
+
+type DeploymentUiOperation = "idle" | "deploying" | "stopping" | "recovering" | "rolling_back";
 
 interface ConsoleSummary {
   packageTotal: number;
@@ -69,7 +74,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   const [stopping, setStopping] = useState(false);
   const [refreshingDiagnostics, setRefreshingDiagnostics] = useState(false);
   const [updatingProject, setUpdatingProject] = useState(false);
-  const [deploymentOperation, setDeploymentOperation] = useState<"idle" | "deploying" | "stopping">("idle");
+  const [deploymentOperation, setDeploymentOperation] = useState<DeploymentUiOperation>("idle");
   const [buildDeployJob, setBuildDeployJob] = useState<BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse | null>(null);
   const [buildDeployEvents, setBuildDeployEvents] = useState<BuildDeployJobEvent[]>([]);
   const [diagnostics, setDiagnostics] = useState<ProjectDiagnostics | null>(null);
@@ -135,6 +140,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
             executions: current?.executions ?? [],
             portLeases: current?.portLeases ?? [],
             proxyRoutes: current?.proxyRoutes ?? [],
+            deployments: current?.deployments,
             updates: current?.updates,
             errors: current?.errors ?? [],
             refreshedAt: current?.refreshedAt ?? new Date().toISOString(),
@@ -278,7 +284,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     const sessionId = latestProject?.running_session_id ?? currentProject?.running_session_id;
     const declaredPackageRefs = latestProject?.packages ?? currentProject?.packages ?? [];
 
-    const [bundleResult, packageListResult, eventResult, updateResult, targetResult, execResult, portResult, proxyResult] = await Promise.allSettled([
+    const [bundleResult, packageListResult, eventResult, updateResult, targetResult, execResult, portResult, proxyResult, deploymentResult] = await Promise.allSettled([
       entrySurfaceId ? resolveSurfaceBundle(client, entrySurfaceId) : Promise.resolve(undefined),
       client.packages(),
       sessionId ? client.listEvents(sessionId) : Promise.resolve([]),
@@ -287,6 +293,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       client.listExecs(),
       client.listPortLeases(),
       client.listProxyRoutes(),
+      client.getProjectDeployments(projectId),
     ]);
 
     const bundle = unwrapSettled(bundleResult, errors);
@@ -297,6 +304,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     const executions = unwrapSettled(execResult, errors)?.executions ?? [];
     const portLeases = unwrapSettled(portResult, errors) ?? [];
     const proxyRoutes = unwrapSettled(proxyResult, errors) ?? [];
+    const deployments = unwrapSettled(deploymentResult, errors);
     const projectPackages = filterProjectPackages(packageList, declaredPackageRefs, projectId, updates?.results ?? []);
 
     setDiagnostics({
@@ -307,6 +315,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       executions,
       portLeases,
       proxyRoutes,
+      deployments,
       updates,
       errors,
       refreshedAt: new Date().toISOString(),
@@ -376,12 +385,12 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     }
   }, [client, deploymentOperation, loadDiagnostics, t, toast]);
 
-  const onStopDockerDeployment = useCallback(async (descriptor: DockerDeploymentDescriptor) => {
+  const onStopDeploymentRoute = useCallback(async (routeId: string) => {
     if (deploymentOperation !== "idle") return;
-    if (typeof window !== "undefined" && !window.confirm(t("projectFrameStopDeploymentConfirm", descriptor.route_id))) return;
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameStopDeploymentConfirm", routeId))) return;
     setDeploymentOperation("stopping");
     try {
-      const result = await client.stopProjectDeployment({ route_id: descriptor.route_id });
+      const result = await client.stopProjectDeployment({ route_id: routeId });
       await loadDiagnostics();
       if (result.warnings.length > 0) {
         toast.push({ variant: "warning", title: t("projectFrameStopDeploymentPartialTitle"), body: result.warnings.slice(0, 2).join("; ") });
@@ -395,6 +404,50 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       setDeploymentOperation("idle");
     }
   }, [client, deploymentOperation, loadDiagnostics, t, toast]);
+
+  const onStopDockerDeployment = useCallback((descriptor: DockerDeploymentDescriptor) => {
+    void onStopDeploymentRoute(descriptor.route_id);
+  }, [onStopDeploymentRoute]);
+
+  const onRecoverDeployment = useCallback(async () => {
+    if (deploymentOperation !== "idle") return;
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameDeploymentRecoverConfirm"))) return;
+    setDeploymentOperation("recovering");
+    try {
+      const result = await client.recoverProjectDeployment(projectId);
+      toast.push({
+        variant: result.warnings.length ? "warning" : "success",
+        title: t("projectFrameDeploymentRecoveredTitle"),
+        body: result.warnings.slice(0, 2).join("; ") || result.revision.revision_id,
+      });
+      await loadDiagnostics();
+    } catch (err) {
+      toast.push({ variant: "error", title: t("projectFrameDeploymentRecoveryFailedTitle"), body: errorMessage(err) });
+      await loadDiagnostics().catch(() => {});
+    } finally {
+      setDeploymentOperation("idle");
+    }
+  }, [client, deploymentOperation, loadDiagnostics, projectId, t, toast]);
+
+  const onRollbackDeployment = useCallback(async (revision: DeploymentRevision) => {
+    if (deploymentOperation !== "idle") return;
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameDeploymentRollbackConfirm", revision.revision_id))) return;
+    setDeploymentOperation("rolling_back");
+    try {
+      const result = await client.rollbackProjectDeployment(projectId, revision.revision_id);
+      toast.push({
+        variant: result.warnings.length ? "warning" : "success",
+        title: t("projectFrameDeploymentRolledBackTitle"),
+        body: result.warnings.slice(0, 2).join("; ") || result.revision.revision_id,
+      });
+      await loadDiagnostics();
+    } catch (err) {
+      toast.push({ variant: "error", title: t("projectFrameDeploymentRollbackFailedTitle"), body: errorMessage(err) });
+      await loadDiagnostics().catch(() => {});
+    } finally {
+      setDeploymentOperation("idle");
+    }
+  }, [client, deploymentOperation, loadDiagnostics, projectId, t, toast]);
 
   const onBuildDeploy = useCallback(async (descriptor: BuildDeployDescriptor) => {
     if (typeof window !== "undefined" && !window.confirm(t("projectFrameBuildDeployConfirm", descriptor.route_id))) return;
@@ -412,6 +465,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         approved: true,
         runtime_env: descriptor.runtime_env,
         runtime_mounts: descriptor.runtime_mounts,
+        idempotency_key: newDeploymentIdempotencyKey(),
       });
       setBuildDeployJob(job);
       setBuildDeployEvents([]);
@@ -439,14 +493,17 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
       if (closed) return;
       setBuildDeployEvents((events) => [...events.filter((item) => item.sequence !== event.sequence), event].slice(-80));
       void client.getBuildDeployJob(jobId).then((status) => {
-        if (!closed) setBuildDeployJob(status);
+        if (!closed) {
+          setBuildDeployJob(status);
+          if (["ready", "failed", "cancelled"].includes(status.state)) void loadDiagnostics();
+        }
       }).catch(() => {});
     });
     void client.getBuildDeployJob(jobId).then((status) => {
       if (!closed) setBuildDeployJob(status);
     }).catch(() => {});
     return () => { closed = true; close(); };
-  }, [buildDeployJob?.job_id, client]);
+  }, [buildDeployJob?.job_id, client, loadDiagnostics]);
 
   const consoleSummary = useMemo(() => summarizeConsoleDiagnostics(diagnostics), [diagnostics]);
   const isStandalone = chrome === "none";
@@ -537,6 +594,9 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
               buildDeployEvents={buildDeployEvents}
               onBuildDeploy={onBuildDeploy}
               onCancelBuildDeploy={onCancelBuildDeploy}
+              onRecoverDeployment={onRecoverDeployment}
+              onRollbackDeployment={onRollbackDeployment}
+              onStopDeploymentRoute={onStopDeploymentRoute}
             />
           </div>
         )}
@@ -637,6 +697,9 @@ function ProjectConsole({
   buildDeployEvents,
   onBuildDeploy,
   onCancelBuildDeploy,
+  onRecoverDeployment,
+  onRollbackDeployment,
+  onStopDeploymentRoute,
 }: {
   projectId: string;
   project: (ProjectRecord & { running_session_id?: string; entry_surface_id?: string }) | null;
@@ -649,13 +712,16 @@ function ProjectConsole({
   onRefresh: () => void;
   onUpdate: () => void;
   onStop: () => void;
-  deploymentOperation: "idle" | "deploying" | "stopping";
+  deploymentOperation: DeploymentUiOperation;
   onDeployDocker: (descriptor: DockerDeploymentDescriptor) => void;
   onStopDockerDeployment: (descriptor: DockerDeploymentDescriptor) => void;
   buildDeployJob: BuildDeployJobStatusResponse | BuildDeployJobSubmitResponse | null;
   buildDeployEvents: BuildDeployJobEvent[];
   onBuildDeploy: (descriptor: BuildDeployDescriptor) => void;
   onCancelBuildDeploy: (jobId: string) => void;
+  onRecoverDeployment: () => void;
+  onRollbackDeployment: (revision: DeploymentRevision) => void;
+  onStopDeploymentRoute: (routeId: string) => void;
 }) {
   const t = useT();
   const bundle = diagnostics?.bundle;
@@ -760,6 +826,13 @@ function ProjectConsole({
             onCancel={onCancelBuildDeploy}
           />
         ) : null}
+        <DeploymentRevisionHistory
+          deployments={diagnostics?.deployments}
+          operation={deploymentOperation}
+          onRecover={onRecoverDeployment}
+          onRollback={onRollbackDeployment}
+          onStop={onStopDeploymentRoute}
+        />
         <DeploymentDiagnostics diagnostics={diagnostics} />
       </ConsoleSection>
 
@@ -840,7 +913,7 @@ function DeploymentActionCard({
   descriptor: DockerDeploymentDescriptor | null;
   error?: string;
   diagnostics: ProjectDiagnostics | null;
-  operation: "idle" | "deploying" | "stopping";
+  operation: DeploymentUiOperation;
   onDeploy: (descriptor: DockerDeploymentDescriptor) => void;
   onStop: (descriptor: DockerDeploymentDescriptor) => void;
 }) {
@@ -965,6 +1038,113 @@ function BuildDeployActionCard({
           <Button tone="destructive" size="sm" onClick={() => { if (activeJobId) onCancel(activeJobId); setConfirmCancel(false); }}>{t("projectFrameBuildDeployCancel")}</Button>
         </ModalFooter>
       </Modal>
+    </div>
+  );
+}
+
+function DeploymentRevisionHistory({
+  deployments,
+  operation,
+  onRecover,
+  onRollback,
+  onStop,
+}: {
+  deployments?: ProjectDeploymentsResponse;
+  operation: DeploymentUiOperation;
+  onRecover: () => void;
+  onRollback: (revision: DeploymentRevision) => void;
+  onStop: (routeId: string) => void;
+}) {
+  const t = useT();
+  const active = deployments?.active_revision ?? null;
+  const revisions = deployments?.revisions ?? [];
+  const jobs = deployments?.jobs ?? [];
+  const busy = operation !== "idle";
+
+  return (
+    <div className="mb-4 rounded-[16px] border border-whisper-border bg-pure-surface p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="font-display text-[15px] font-bold text-charcoal-ink">{t("projectFrameDeploymentHistoryTitle")}</p>
+          <p className="mt-1 text-[12px] text-steel-secondary">{t("projectFrameDeploymentHistoryDescription")}</p>
+        </div>
+        {active ? (
+          <div className="flex flex-wrap gap-2">
+            {deployments?.recovery_required ? (
+              <Button tone="primary" size="sm" disabled={busy || !active.recoverable} onClick={onRecover}>
+                {operation === "recovering" ? t("projectFrameDeploymentRecovering") : t("projectFrameDeploymentRecover")}
+              </Button>
+            ) : null}
+            <Button tone="destructive" size="sm" disabled={busy} onClick={() => onStop(active.route_id)}>
+              {operation === "stopping" ? t("projectFrameStoppingDeployment") : t("projectFrameStopDeployment")}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {active ? (
+        <div className="mt-4 rounded-[14px] border border-aged-brass/30 bg-warm-bone p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{t("projectFrameDeploymentActiveRevision")}</p>
+              <p className="mt-1 font-mono text-[12px] text-charcoal-ink">{active.revision_id}</p>
+            </div>
+            <StatusPill
+              tone={deployments?.runtime_ready ? "running" : "failed"}
+              label={deployments?.runtime_ready ? t("projectFrameStatusReady") : t("projectFrameDeploymentRecoveryRequired")}
+            />
+          </div>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <TinyValue label={t("projectFrameDeployRouteId")} value={active.route_id} />
+            <TinyValue label={t("projectFrameDeployImage")} value={active.image} />
+            <TinyValue label={t("projectFrameBuildDeployStrategy")} value={active.strategy} />
+            <TinyValue label={t("projectFrameDeploymentCreatedAt")} value={new Date(active.created_at_ms).toLocaleString()} />
+          </dl>
+          {!active.recoverable ? <p className="mt-3 rounded-[10px] bg-deep-rust-surface p-2 text-[12px] text-deep-rust">{t("projectFrameDeploymentNotRecoverable")}: {active.recovery_blockers.join("; ")}</p> : null}
+        </div>
+      ) : <p className="mt-4 text-[12px] text-steel-secondary">{t("projectFrameDeploymentNoDurableHistory")}</p>}
+
+      {revisions.length ? (
+        <div className="mt-4">
+          <p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameDeploymentRevisionHistory")}</p>
+          <div className="mt-2 space-y-2">
+            {revisions.slice(0, 8).map((revision) => {
+              const isActive = revision.revision_id === deployments?.active_revision_id;
+              return (
+                <div key={revision.revision_id} className="flex flex-col gap-3 rounded-[12px] border border-whisper-border bg-warm-bone p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[12px] text-charcoal-ink">{revision.revision_id}</span>
+                      <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] uppercase text-steel-secondary">{revision.operation.replace("_", " ")}</span>
+                      {isActive ? <StatusPill tone="accent" label={t("projectFrameDeploymentActiveRevision")} showDot={false} /> : null}
+                    </div>
+                    <p className="mt-1 truncate text-[11px] text-steel-secondary" title={revision.image}>{revision.image} · {new Date(revision.created_at_ms).toLocaleString()}</p>
+                  </div>
+                  {!isActive ? (
+                    <Button tone="secondary" size="sm" disabled={busy || !revision.recoverable} onClick={() => onRollback(revision)}>
+                      {operation === "rolling_back" ? t("projectFrameDeploymentRollingBack") : t("projectFrameDeploymentRollback")}
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {jobs.length ? (
+        <div className="mt-4">
+          <p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameDeploymentJobHistory")}</p>
+          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+            {jobs.slice(0, 6).map((job) => (
+              <div key={job.job_id} className="flex items-center justify-between gap-3 rounded-[12px] border border-whisper-border bg-warm-bone p-3">
+                <div className="min-w-0"><p className="truncate font-mono text-[11px] text-charcoal-ink">{job.job_id}</p><p className="mt-1 text-[11px] text-steel-secondary">{new Date(job.updated_at_ms).toLocaleString()}</p></div>
+                <StatusPill tone={job.state === "ready" ? "stopped" : job.state === "failed" || job.state === "cancelled" ? "failed" : "starting"} label={job.state} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1224,6 +1404,12 @@ function unwrapSettled<T>(result: PromiseSettledResult<T>, errors: string[]): T 
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function newDeploymentIdempotencyKey(): string {
+  const entropy = globalThis.crypto?.randomUUID?.().replaceAll("-", "")
+    ?? Math.random().toString(36).slice(2);
+  return `web-${Date.now().toString(36)}-${entropy.slice(0, 20)}`;
 }
 
 function fingerprintFromUrl(bundleUrl?: string): string | undefined {

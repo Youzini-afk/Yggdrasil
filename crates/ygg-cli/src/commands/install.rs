@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -6,10 +5,6 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use clap::Args;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
-use ygg_core::project::{
-    ExternalProjectData, ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy,
-};
 use ygg_runtime::{CapabilityInvocationRequest, InMemoryEventStore, Runtime, RuntimeConfig};
 
 use crate::commands::manifest::read_manifest;
@@ -53,13 +48,17 @@ pub struct InstallArgs {
     #[arg(long, default_value = "human")]
     pub format: OutputFormat,
 
-    /// For external projects: generate an adapter package wrapping the project
+    /// Request adapter authoring (currently fails closed until the approved ChangeSet flow exists)
     #[arg(long, conflicts_with = "workspace_only")]
     pub wrap_as_adapter: bool,
 
     /// For external projects: open as workspace without wrapping
     #[arg(long, conflicts_with = "wrap_as_adapter")]
     pub workspace_only: bool,
+
+    /// For local external projects: use the source directory in place instead of a managed copy
+    #[arg(long, conflicts_with = "wrap_as_adapter")]
+    pub link_local: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
@@ -79,25 +78,6 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     };
 
     let runtime = load_install_runtime().await?;
-    let mut resolved = invoke_install_lab(
-        &runtime,
-        "official/install-lab/resolve_plan",
-        json!({
-            "root_url": install_url.url_for_resolver(),
-            "root_ref": install_url.ref_or_default(),
-            "lockfile": existing_lockfile,
-            "require_signed": args.require_signed,
-            "strict_conformance": args.strict,
-        }),
-    )
-    .await?;
-    let plan = resolved
-        .output
-        .get_mut("plan")
-        .map(Value::take)
-        .context("install-lab resolve_plan response missing plan")?;
-    print_conformance_warnings(&plan, args.strict);
-
     let detected = invoke_install_lab(
         &runtime,
         "official/install-lab/detect_kind",
@@ -108,19 +88,57 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     )
     .await?
     .output;
+    if args.link_local && !matches!(&install_url.source, InstallSource::Local { .. }) {
+        anyhow::bail!("--link-local is only valid for a local external project");
+    }
 
-    let project_descriptor = match detected.get("kind").and_then(Value::as_str) {
-        Some("native") | Some("declared_external") => None,
-        Some("external") => {
-            let staging_dir = staging_dir_for_external(&install_url.source, &data_dir);
-            Some(serde_json::to_value(external_project_wizard(
-                &args,
-                &install_url.url_for_resolver(),
-                &staging_dir,
-            )?)?)
+    let kind = detected
+        .get("kind")
+        .and_then(Value::as_str)
+        .context("install-lab detect_kind response missing kind")?;
+    if kind != "external" && (args.wrap_as_adapter || args.workspace_only || args.link_local) {
+        anyhow::bail!(
+            "--wrap-as-adapter, --workspace-only, and --link-local are only valid for an external project"
+        );
+    }
+    let plan = match kind {
+        "native" | "declared_external" => {
+            resolve_package_plan(&runtime, &args, &install_url, existing_lockfile.as_deref())
+                .await?
         }
-        _ => None,
+        "external" => {
+            if args.wrap_as_adapter {
+                anyhow::bail!(
+                    "--wrap-as-adapter requires the approved authoring workflow; use --workspace-only now and promote a generated adapter after review"
+                );
+            }
+            let has_manifest = detected
+                .get("has_manifest_yaml")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if has_manifest && !args.workspace_only && !args.link_local {
+                let plan = resolve_package_plan(
+                    &runtime,
+                    &args,
+                    &install_url,
+                    existing_lockfile.as_deref(),
+                )
+                .await?;
+                anyhow::ensure!(
+                    plan["packages"]
+                        .as_array()
+                        .is_some_and(|items| !items.is_empty()),
+                    "package manifest resolved to an empty installation plan"
+                );
+                plan
+            } else {
+                choose_external_workspace(&args)?;
+                prepare_external_plan(&runtime, &args, &install_url, &data_dir).await?
+            }
+        }
+        other => anyhow::bail!("unsupported detected project kind: {other}"),
     };
+    print_conformance_warnings(&plan, args.strict);
 
     match args.format {
         OutputFormat::Json => println!("{}", serde_json::to_string_pretty(&plan)?),
@@ -144,9 +162,6 @@ pub async fn run(args: InstallArgs) -> Result<()> {
             "data_dir".to_string(),
             Value::String(data_dir.display().to_string()),
         );
-        if let Some(descriptor) = project_descriptor {
-            input.insert("project_descriptor".to_string(), descriptor);
-        }
         Value::Object(input)
     })
     .await?
@@ -175,179 +190,91 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     Ok(())
 }
 
-fn external_project_wizard(
+async fn resolve_package_plan(
+    runtime: &Runtime<InMemoryEventStore>,
     args: &InstallArgs,
-    source_url: &str,
-    staging_dir: &Path,
-) -> Result<ProjectDescriptor> {
-    if args.wrap_as_adapter {
-        return create_external_wrapped_descriptor(source_url, staging_dir);
-    }
-    if args.workspace_only {
-        return create_external_workspace_descriptor(source_url, staging_dir);
+    install_url: &crate::install::url_parser::InstallUrl,
+    existing_lockfile: Option<&str>,
+) -> Result<Value> {
+    let mut resolved = invoke_install_lab(
+        runtime,
+        "official/install-lab/resolve_plan",
+        json!({
+            "root_url": install_url.url_for_resolver(),
+            "root_ref": install_url.ref_or_default(),
+            "lockfile": existing_lockfile,
+            "require_signed": args.require_signed,
+            "strict_conformance": args.strict,
+        }),
+    )
+    .await?;
+    resolved
+        .output
+        .get_mut("plan")
+        .map(Value::take)
+        .context("install-lab resolve_plan response missing plan")
+}
+
+async fn prepare_external_plan(
+    runtime: &Runtime<InMemoryEventStore>,
+    args: &InstallArgs,
+    install_url: &crate::install::url_parser::InstallUrl,
+    data_dir: &std::path::Path,
+) -> Result<Value> {
+    let mut prepared = invoke_install_lab(
+        runtime,
+        "official/install-lab/prepare_external_intake",
+        json!({
+            "source": install_url.url_for_resolver(),
+            "root_ref": install_url.ref_or_default(),
+            "data_dir": data_dir.display().to_string(),
+            "linked_local": args.link_local,
+        }),
+    )
+    .await?;
+    prepared
+        .output
+        .get_mut("plan")
+        .map(Value::take)
+        .context("install-lab prepare_external_intake response missing plan")
+}
+
+fn choose_external_workspace(args: &InstallArgs) -> Result<()> {
+    if args.workspace_only || args.link_local {
+        return Ok(());
     }
 
     if !std::io::stdin().is_terminal() {
         eprintln!("Note: external project, no TTY available. Using workspace mode.");
-        eprintln!("      (Use --wrap-as-adapter to wrap with adapter package.)");
-        return create_external_workspace_descriptor(source_url, staging_dir);
+        eprintln!("      Adapter authoring requires the approved ChangeSet workflow.");
+        return Ok(());
     }
 
     println!();
     println!(
         "The repository at {} does not declare itself as a Yggdrasil project.",
-        source_url
+        args.source
     );
     println!("How do you want to use it?");
     println!();
-    println!("  [1] Wrap with adapter (creates a Yggdrasil package that wraps the tool)");
-    println!("  [2] Open as workspace (run in agent-driven workspace; no wrapping)");
-    println!("  [3] Cancel");
+    println!("  [1] Open as managed workspace (no project code is executed)");
+    println!("  [2] Cancel");
+    if matches!(
+        parse_install_url(&args.source)?.source,
+        InstallSource::Local { .. }
+    ) {
+        println!("      Tip: rerun with --link-local to keep the local directory user-owned.");
+    }
     println!();
 
     let choice = dialoguer::Select::new()
-        .items(&["Wrap with adapter", "Open as workspace", "Cancel"])
-        .default(1)
+        .items(&["Open as managed workspace", "Cancel"])
+        .default(0)
         .interact()?;
 
     match choice {
-        0 => create_external_wrapped_descriptor(source_url, staging_dir),
-        1 => create_external_workspace_descriptor(source_url, staging_dir),
+        0 => Ok(()),
         _ => anyhow::bail!("install cancelled by user"),
-    }
-}
-
-fn create_external_workspace_descriptor(
-    source_url: &str,
-    staging_dir: &Path,
-) -> Result<ProjectDescriptor> {
-    let id = derive_project_id_from_url(source_url)?;
-    let title = derive_title_from_url(source_url);
-    Ok(ProjectDescriptor {
-        schema_version: 1,
-        project: ProjectInner {
-            id,
-            title,
-            description: format!("External project from {source_url}"),
-            project_type: ProjectType::ExternalWorkspace,
-            icon: None,
-            entry_surface_id: Some("official/workspace-lab/workspace_view".to_string()),
-            packages: vec!["packages/official/workspace-lab/manifest.yaml".to_string()],
-            optional_packages: vec![],
-            required_surfaces: vec![],
-            required_capabilities: vec![],
-            secret_policy: SecretPolicy::default(),
-            external: Some(ExternalProjectData {
-                source: source_url.to_string(),
-                source_ref: None,
-                adapter_manifest: None,
-                workspace_root: Some(staging_dir.display().to_string()),
-            }),
-            metadata: BTreeMap::new(),
-        },
-    })
-}
-
-fn create_external_wrapped_descriptor(
-    source_url: &str,
-    staging_dir: &Path,
-) -> Result<ProjectDescriptor> {
-    let id = derive_project_id_from_url(source_url)?;
-    let title = derive_title_from_url(source_url);
-    let adapter_manifest_path = format!("{}/adapter/manifest.yaml", staging_dir.display());
-    Ok(ProjectDescriptor {
-        schema_version: 1,
-        project: ProjectInner {
-            id,
-            title,
-            description: format!("Adapter-wrapped external project from {source_url}"),
-            project_type: ProjectType::ExternalWrapped,
-            icon: None,
-            entry_surface_id: None,
-            packages: vec![adapter_manifest_path.clone()],
-            optional_packages: vec![],
-            required_surfaces: vec![],
-            required_capabilities: vec![],
-            secret_policy: SecretPolicy::default(),
-            external: Some(ExternalProjectData {
-                source: source_url.to_string(),
-                source_ref: None,
-                adapter_manifest: Some(adapter_manifest_path),
-                workspace_root: Some(staging_dir.display().to_string()),
-            }),
-            metadata: BTreeMap::new(),
-        },
-    })
-}
-
-fn derive_project_id_from_url(url: &str) -> Result<ProjectId> {
-    let mut hasher = Sha256::new();
-    hasher.update(url.as_bytes());
-    let hash = hasher.finalize();
-    let short_hash = hash[..4]
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-
-    let slug = if let Ok(parsed) = url::Url::parse(url) {
-        parsed
-            .path()
-            .trim_start_matches('/')
-            .trim_end_matches(".git")
-            .replace('/', "__")
-    } else {
-        Path::new(url)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("project")
-            .to_string()
-    };
-    let safe_slug: String = slug
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    let safe_slug = safe_slug.trim_matches('_');
-    let safe_slug = if safe_slug.is_empty() {
-        "project"
-    } else {
-        safe_slug
-    };
-    let safe_slug = if safe_slug.len() > 64 {
-        &safe_slug[..64]
-    } else {
-        safe_slug
-    };
-
-    ProjectId::new(format!("{safe_slug}__{short_hash}"))
-}
-
-fn derive_title_from_url(url: &str) -> String {
-    if let Ok(parsed) = url::Url::parse(url) {
-        let path = parsed
-            .path()
-            .trim_start_matches('/')
-            .trim_end_matches(".git");
-        if let Some(repo) = path.rsplit('/').next() {
-            return repo.to_string();
-        }
-    }
-    Path::new(url)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Project")
-        .to_string()
-}
-
-fn staging_dir_for_external(source: &InstallSource, data_dir: &Path) -> PathBuf {
-    match source {
-        InstallSource::Local { path } => path.clone(),
-        InstallSource::Git { .. } => data_dir.join("workspaces").join("external"),
     }
 }
 

@@ -86,8 +86,8 @@ pub use paths::{
     projects_dir, secret_store_key_path, secret_store_path, store_dir, store_path_for_hash,
 };
 pub use project::{
-    ExternalProjectData, ProjectDescriptor, ProjectId, ProjectInner, ProjectState, ProjectType,
-    SecretPolicy,
+    ExternalProjectData, ExternalSourceKind, ExternalWorkspaceOwnership, ProjectDescriptor,
+    ProjectId, ProjectInner, ProjectState, ProjectType, SecretPolicy,
 };
 pub use protocol_descriptor::{
     NegotiatedProtocol, ProtocolAuthorityRequirement, ProtocolCompatibilityProfile,

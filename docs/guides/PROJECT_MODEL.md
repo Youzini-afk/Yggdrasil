@@ -56,13 +56,11 @@ project:
 
 ### external_wrapped
 
-外部项目（普通 git/npm 仓库），通过适配器包包装。安装时如果选 “wrap with adapter”，
-Yggdrasil 会借助 `adapter-generator-lab` 生成一个适配器包，然后把外部项目接入。
+外部项目（普通 git/npm 仓库），通过真实存在的适配器包包装。当前安装器不会伪造 adapter manifest；`--wrap-as-adapter` 会 fail-closed，并提示进入后续带 ChangeSet 审批的 adapter authoring 流程。
 
 ### external_workspace
 
-外部项目作为 agent workspace 接入，不包装。适合临时使用、agent 协助修改的场景。
-默认行为（无 TTY、不指定标志）。
+外部项目作为 agent workspace 接入，不包装。适合临时使用、agent 协助修改的场景。默认是 host-owned managed copy；本地目录也可用 `--link-local` 建立明确的 user-owned 可变引用。两种模式都不在 intake 时执行项目代码。
 
 ## ProjectDescriptor
 
@@ -81,6 +79,7 @@ Yggdrasil 会借助 `adapter-generator-lab` 生成一个适配器包，然后把
 | `optional_packages` | 可选 package manifest 路径。 |
 | `required_surfaces` | 项目认为必须存在的 surface ids。 |
 | `secret_policy` | 项目密钥解析策略。 |
+| `external` | 外部来源、ref、workspace root、`source_kind`、`workspace_ownership` 与可选 `source_digest`。 |
 
 `entry_surface_id` 应该匹配某个 package manifest 中 `slot: experience_entry` 的 surface。
 例如 YdlTavern 使用 `ydltavern/play`。
@@ -95,6 +94,14 @@ Yggdrasil 会借助 `adapter-generator-lab` 生成一个适配器包，然后把
 ├── state/                # 包能存的项目级状态
 └── lockfile.toml         # 项目锁定的包版本
 ```
+
+managed external workspace 独立存放在：
+
+```text
+~/.yggdrasil/workspaces/external/<project_id>/<content_digest>/
+```
+
+`project.yaml` 中的 `workspace_ownership` 决定卸载权限：`managed` 路径必须位于上述 host-owned 根内才可归档/删除；`linked_local` 永远保留用户源目录。
 
 文件权限：0700 目录，0600 文件（Unix）。
 加密：同一份 master key（位于 `~/.yggdrasil/secret-store.key` 或 OS keyring）。
@@ -131,9 +138,11 @@ Starting → Running
 Stopping → Stopped
   ↓ yg uninstall
 (询问保留数据)
-  ├─ Keep: 移到 ~/.yggdrasil/projects/.archived/<id>/
-  └─ Delete: 直接 rm -rf
+  ├─ Keep: 项目数据移到 ~/.yggdrasil/projects/.archived/<id>/；managed workspace 同步归档
+  └─ Delete: 删除项目数据和经过 containment 校验的 managed workspace
 ```
+
+linked-local source 不属于 Yggdrasil，上述两种卸载选择都不会修改它。
 
 任何状态都可以失败 → Failed。
 
@@ -142,8 +151,9 @@ Stopping → Stopped
 ```bash
 # 安装项目
 yg install github.com/user/repo
-yg install github.com/user/repo --wrap-as-adapter   # 外部项目: 包装
 yg install github.com/user/repo --workspace-only    # 外部项目: 工作区
+yg install ./existing-source --link-local           # 本地外部项目: 保留用户所有权
+yg install github.com/user/repo --wrap-as-adapter   # 当前 fail-closed；不生成假 manifest
 
 # 查看项目
 yg project list
@@ -185,7 +195,7 @@ yg uninstall <id> --delete-data  # 立即删除
 
 点 Play 调用 `kernel.v1.project.start`，启动后导航到项目的 `entry_surface`。
 
-项目页带平台侧控制台：显示 bundle、包、最近事件、更新诊断与部署诊断；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `kernel.v1.capability.invoke`。
+项目页带平台侧控制台：显示 bundle、包、最近事件、更新诊断、部署诊断，以及 host-plane 的 durable job / revision / recovery 状态；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `kernel.v1.capability.invoke`。
 
 ## Play 流程
 
@@ -213,7 +223,7 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 `project.start` 不启动外部进程。它只打开项目 session，并把项目标记为 Running。
 
-若项目需要启动 Docker HTTP 服务，可以在 `project.metadata.deployment.docker` 声明最小部署描述符。Web 项目控制台会显示 Deploy / Stop 按钮，用户确认后由 Web shell 作为 host broker 串联：
+若项目需要启动 Docker HTTP 服务，可以在 `project.metadata.deployment.docker` 声明最小部署描述符。Web 项目控制台会显示 Deploy / Stop 按钮，用户确认后由 `ygg-service` host broker 串联；浏览器只是瘦客户端：
 
 1. `kernel.v1.port.lease` 租 loopback 端口。
 2. `official/docker-runtime-lab/start_container` 启动容器。
@@ -265,13 +275,14 @@ kernel/v1/project.uninstalled
 
 ## 安装检测
 
-`yg install <url>` 先看仓库根目录是否有 `project.yaml`。
+`yg install <url>` 先检测来源与项目类型，再决定是否解析 package manifest。
 
 - 有且 `type: yggdrasil_native`：按原生项目安装。
-- 没有：进入外部项目 wizard。
+- 有合法 package manifest：按包来源解析安装。
+- 没有 project/package manifest：调用 `official/install-lab/prepare_external_intake`，建立 `external_workspace`。
 - 有但解析失败：fail-closed，要求修正 descriptor。
 
-无 TTY 且没有显式 flag 时，外部项目默认进入 `external_workspace`，避免自动生成包装代码。
+外部项目默认进入 managed `external_workspace`，内容复制/获取到按 project id + digest 隔离的 host workspace；`--link-local` 仅适用于本地来源并显式保留用户所有权。重复安装同一来源/内容是幂等的，不会自动生成包装代码或运行项目脚本。
 
 ## 不做的事 (推迟)
 

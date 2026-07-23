@@ -274,6 +274,11 @@ fn external_descriptor(id: &str, root: &Path) -> ProjectDescriptor {
                 source_ref: None,
                 adapter_manifest: None,
                 workspace_root: Some(root.display().to_string()),
+                source_kind: Some(ygg_core::project::ExternalSourceKind::Local),
+                workspace_ownership: Some(
+                    ygg_core::project::ExternalWorkspaceOwnership::LinkedLocal,
+                ),
+                source_digest: None,
             }),
             metadata: BTreeMap::new(),
         },

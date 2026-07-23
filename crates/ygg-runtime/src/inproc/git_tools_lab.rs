@@ -37,6 +37,12 @@ struct FetchTreeInput {
     #[serde(default)]
     ref_name: Option<String>,
     dest_dir: String,
+    #[serde(default)]
+    max_files: Option<u64>,
+    #[serde(default)]
+    max_directories: Option<u64>,
+    #[serde(default)]
+    max_total_bytes: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,7 +78,15 @@ impl RefKind {
 #[derive(Debug, Default)]
 struct TreeWriteStats {
     files_written: u64,
+    directories_written: u64,
     total_bytes: u64,
+}
+
+#[derive(Debug, Default)]
+struct TreeWriteLimits {
+    max_files: Option<u64>,
+    max_directories: Option<u64>,
+    max_total_bytes: Option<u64>,
 }
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
@@ -181,32 +195,57 @@ fn fetch_refs(input: Value) -> Result<Value> {
 fn fetch_tree(input: Value) -> Result<Value> {
     let input: FetchTreeInput = serde_json::from_value(input)?;
     validate_remote_url(&input.remote_url)?;
-    let dest = PathBuf::from(&input.dest_dir);
-    validate_dest_dir(&dest)?;
-    if dest.exists() {
-        anyhow::bail!("dest_dir already exists: {}", dest.display());
-    }
+    let requested_dest = PathBuf::from(&input.dest_dir);
+    validate_dest_dir(&requested_dest)?;
     if !is_full_sha(&input.commit_sha) {
         anyhow::bail!("commit_sha must be a 40-character hex SHA");
     }
+    let limits = TreeWriteLimits {
+        max_files: input.max_files,
+        max_directories: input.max_directories,
+        max_total_bytes: input.max_total_bytes,
+    };
+    validate_tree_write_limits(&limits)?;
 
-    let parent = dest
+    let parent = requested_dest
         .parent()
-        .with_context(|| format!("dest_dir has no parent: {}", dest.display()))?;
-    let file_name = dest
+        .with_context(|| format!("dest_dir has no parent: {}", requested_dest.display()))?;
+    let file_name = requested_dest
         .file_name()
         .and_then(|name| name.to_str())
         .with_context(|| {
             format!(
                 "dest_dir must end in a valid UTF-8 directory name: {}",
-                dest.display()
+                requested_dest.display()
             )
         })?;
-    fs::create_dir_all(parent)?;
+    let parent_metadata = fs::symlink_metadata(parent).with_context(|| {
+        format!(
+            "dest_dir parent must already exist as a real directory: {}",
+            parent.display()
+        )
+    })?;
+    anyhow::ensure!(
+        parent_metadata.is_dir() && !parent_metadata.file_type().is_symlink(),
+        "dest_dir parent must be a real directory, not a symlink: {}",
+        parent.display()
+    );
+    let parent = fs::canonicalize(parent).with_context(|| {
+        format!(
+            "failed to canonicalize dest_dir parent {}",
+            parent.display()
+        )
+    })?;
+    let dest = parent.join(file_name);
+    match fs::symlink_metadata(&dest) {
+        Ok(_) => anyhow::bail!("dest_dir already exists: {}", dest.display()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
     let tmp = parent.join(format!("{file_name}.tmp.{}", Uuid::new_v4()));
+    let repo_tmp = parent.join(format!("{file_name}.repo.tmp.{}", Uuid::new_v4()));
 
     let outcome = (|| -> Result<Value> {
-        let repo_tmp = parent.join(format!("{file_name}.repo.tmp.{}", Uuid::new_v4()));
         let fetch_ref = input.ref_name.as_deref().unwrap_or(&input.commit_sha);
         let repo = clone_shallow(&input.remote_url, fetch_ref, &repo_tmp)?;
         let commit_id = gix::ObjectId::from_hex(input.commit_sha.as_bytes())?;
@@ -215,7 +254,8 @@ fn fetch_tree(input: Value) -> Result<Value> {
         let tree_hash = tree.id.to_string();
 
         fs::create_dir(&tmp)?;
-        let stats = write_tree_recursive(&tree, &tmp)
+        let mut stats = TreeWriteStats::default();
+        write_tree_recursive(&tree, &tmp, &tmp, &mut stats, &limits)
             .with_context(|| format!("failed to write tree to {}", tmp.display()))?;
         fs::rename(&tmp, &dest).with_context(|| {
             format!(
@@ -224,9 +264,9 @@ fn fetch_tree(input: Value) -> Result<Value> {
                 dest.display()
             )
         })?;
-        fs::remove_dir_all(&repo_tmp).ok();
         Ok(serde_json::json!({
             "files_written": stats.files_written,
+            "directories_written": stats.directories_written,
             "total_bytes": stats.total_bytes,
             "tree_hash": tree_hash,
         }))
@@ -235,6 +275,7 @@ fn fetch_tree(input: Value) -> Result<Value> {
     if outcome.is_err() {
         fs::remove_dir_all(&tmp).ok();
     }
+    fs::remove_dir_all(&repo_tmp).ok();
     outcome
 }
 
@@ -256,33 +297,35 @@ fn read_signed_tag(input: Value) -> Result<Value> {
 
     let object_to_fetch = tag_ref.tag_object.as_deref().unwrap_or(&tag_ref.sha);
     let tmp = std::env::temp_dir().join(format!("ygg-git-tag-{}", Uuid::new_v4()));
-    let repo = clone_shallow(&input.remote_url, object_to_fetch, &tmp)?;
-    let output = if let Some(tag_object) = &tag_ref.tag_object {
-        let id = gix::ObjectId::from_hex(tag_object.as_bytes())?;
-        let tag = repo.find_object(id)?.try_into_tag()?;
-        let decoded = tag.decode()?;
-        let signed_data = signed_data_before_pgp(&tag.data);
-        serde_json::json!({
-            "tag_object": tag_object,
-            "pgp_signature": decoded.pgp_signature.map(bstr_to_string),
-            "signed_data": bytes_to_string(signed_data),
-            "tagger": decoded.tagger()?.map(signature_to_json),
-            "message": bstr_to_string(decoded.message),
-        })
-    } else {
-        let id = gix::ObjectId::from_hex(tag_ref.sha.as_bytes())?;
-        let commit = repo.find_object(id)?.peel_to_commit()?;
-        let decoded = commit.decode()?;
-        serde_json::json!({
-            "tag_object": Value::Null,
-            "pgp_signature": Value::Null,
-            "signed_data": bytes_to_string(&commit.data),
-            "tagger": signature_to_json(decoded.committer()?),
-            "message": bstr_to_string(decoded.message),
-        })
-    };
+    let output = (|| -> Result<Value> {
+        let repo = clone_shallow(&input.remote_url, object_to_fetch, &tmp)?;
+        if let Some(tag_object) = &tag_ref.tag_object {
+            let id = gix::ObjectId::from_hex(tag_object.as_bytes())?;
+            let tag = repo.find_object(id)?.try_into_tag()?;
+            let decoded = tag.decode()?;
+            let signed_data = signed_data_before_pgp(&tag.data);
+            Ok(serde_json::json!({
+                "tag_object": tag_object,
+                "pgp_signature": decoded.pgp_signature.map(bstr_to_string),
+                "signed_data": bytes_to_string(signed_data),
+                "tagger": decoded.tagger()?.map(signature_to_json),
+                "message": bstr_to_string(decoded.message),
+            }))
+        } else {
+            let id = gix::ObjectId::from_hex(tag_ref.sha.as_bytes())?;
+            let commit = repo.find_object(id)?.peel_to_commit()?;
+            let decoded = commit.decode()?;
+            Ok(serde_json::json!({
+                "tag_object": Value::Null,
+                "pgp_signature": Value::Null,
+                "signed_data": bytes_to_string(&commit.data),
+                "tagger": signature_to_json(decoded.committer()?),
+                "message": bstr_to_string(decoded.message),
+            }))
+        }
+    })();
     fs::remove_dir_all(&tmp).ok();
-    Ok(output)
+    output
 }
 
 fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
@@ -420,8 +463,13 @@ fn clone_shallow(remote_url: &str, _ref_name: &str, path: &Path) -> Result<gix::
     Ok(repo)
 }
 
-fn write_tree_recursive(tree: &gix::Tree<'_>, dest: &Path) -> Result<TreeWriteStats> {
-    let mut stats = TreeWriteStats::default();
+fn write_tree_recursive(
+    tree: &gix::Tree<'_>,
+    root: &Path,
+    dest: &Path,
+    stats: &mut TreeWriteStats,
+    limits: &TreeWriteLimits,
+) -> Result<()> {
     for entry in tree.iter() {
         let entry = entry?;
         let name = bstr_to_string(entry.filename());
@@ -430,34 +478,129 @@ fn write_tree_recursive(tree: &gix::Tree<'_>, dest: &Path) -> Result<TreeWriteSt
         }
         let out = dest.join(&name);
         if entry.mode().is_tree() {
+            reserve_tree_directory(stats, limits)?;
             fs::create_dir(&out)?;
             let child = entry.object()?.try_into_tree()?;
-            let child_stats = write_tree_recursive(&child, &out)?;
-            stats.files_written += child_stats.files_written;
-            stats.total_bytes += child_stats.total_bytes;
+            write_tree_recursive(&child, root, &out, stats, limits)?;
         } else if entry.mode().is_blob_or_symlink() {
             let blob = entry.object()?.try_into_blob()?;
+            reserve_tree_blob(stats, limits, blob.data.len() as u64)?;
             if entry.mode().is_link() {
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::symlink;
-                    let target = bytes_to_string(&blob.data);
+                    let target = std::str::from_utf8(&blob.data)
+                        .context("git symlink target must be valid UTF-8")?;
+                    validate_tree_symlink_target(root, &out, Path::new(target))?;
                     symlink(target, &out)?;
                 }
                 #[cfg(not(unix))]
                 {
-                    let mut file = fs::File::create(&out)?;
-                    file.write_all(&blob.data)?;
+                    anyhow::bail!("git symlink entries are not supported on this platform");
                 }
             } else {
                 let mut file = fs::File::create(&out)?;
                 file.write_all(&blob.data)?;
+                #[cfg(unix)]
+                if entry.mode().is_executable() {
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&out, fs::Permissions::from_mode(0o755))?;
+                }
             }
-            stats.files_written += 1;
-            stats.total_bytes += blob.data.len() as u64;
+        } else {
+            anyhow::bail!("unsupported git tree entry mode for {name}");
         }
     }
-    Ok(stats)
+    Ok(())
+}
+
+#[cfg(any(unix, test))]
+fn validate_tree_symlink_target(root: &Path, link: &Path, target: &Path) -> Result<()> {
+    anyhow::ensure!(
+        !target.as_os_str().is_empty() && !target.is_absolute(),
+        "git symlink target must be relative: {}",
+        link.display()
+    );
+    let parent = link
+        .parent()
+        .context("git symlink has no parent")?
+        .strip_prefix(root)
+        .context("git symlink escaped materialization root")?;
+    let mut depth = parent
+        .components()
+        .filter(|component| matches!(component, std::path::Component::Normal(_)))
+        .count();
+    for component in target.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::Normal(_) => depth += 1,
+            std::path::Component::ParentDir if depth > 0 => depth -= 1,
+            std::path::Component::ParentDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_) => {
+                anyhow::bail!(
+                    "git symlink target escapes materialization root: {}",
+                    link.display()
+                )
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_tree_write_limits(limits: &TreeWriteLimits) -> Result<()> {
+    for (name, limit) in [
+        ("max_files", limits.max_files),
+        ("max_directories", limits.max_directories),
+        ("max_total_bytes", limits.max_total_bytes),
+    ] {
+        if limit.is_some_and(|limit| limit == 0) {
+            anyhow::bail!("{name} must be greater than zero when provided");
+        }
+    }
+    Ok(())
+}
+
+fn reserve_tree_directory(stats: &mut TreeWriteStats, limits: &TreeWriteLimits) -> Result<()> {
+    stats.directories_written = stats
+        .directories_written
+        .checked_add(1)
+        .context("git tree directory count overflow")?;
+    if limits
+        .max_directories
+        .is_some_and(|limit| stats.directories_written > limit)
+    {
+        anyhow::bail!("git tree directory count limit exceeded");
+    }
+    Ok(())
+}
+
+fn reserve_tree_blob(
+    stats: &mut TreeWriteStats,
+    limits: &TreeWriteLimits,
+    bytes: u64,
+) -> Result<()> {
+    stats.files_written = stats
+        .files_written
+        .checked_add(1)
+        .context("git tree file count overflow")?;
+    stats.total_bytes = stats
+        .total_bytes
+        .checked_add(bytes)
+        .context("git tree byte count overflow")?;
+    if limits
+        .max_files
+        .is_some_and(|limit| stats.files_written > limit)
+    {
+        anyhow::bail!("git tree file count limit exceeded");
+    }
+    if limits
+        .max_total_bytes
+        .is_some_and(|limit| stats.total_bytes > limit)
+    {
+        anyhow::bail!("git tree byte limit exceeded");
+    }
+    Ok(())
 }
 
 fn validate_remote_url(url: &str) -> Result<()> {
@@ -547,6 +690,35 @@ mod tests {
     #[test]
     fn rejects_parent_components() {
         assert!(validate_dest_dir(Path::new("/tmp/../repo")).is_err());
+    }
+
+    #[test]
+    fn tree_write_limits_fail_before_unbounded_materialization() {
+        let limits = TreeWriteLimits {
+            max_files: Some(1),
+            max_directories: Some(1),
+            max_total_bytes: Some(4),
+        };
+        let mut stats = TreeWriteStats::default();
+        reserve_tree_directory(&mut stats, &limits).unwrap();
+        assert!(reserve_tree_directory(&mut stats, &limits).is_err());
+
+        let mut stats = TreeWriteStats::default();
+        reserve_tree_blob(&mut stats, &limits, 4).unwrap();
+        assert!(reserve_tree_blob(&mut stats, &limits, 1).is_err());
+
+        let mut stats = TreeWriteStats::default();
+        assert!(reserve_tree_blob(&mut stats, &limits, 5).is_err());
+    }
+
+    #[test]
+    fn git_symlink_targets_must_remain_inside_materialization_root() {
+        let root = Path::new("root");
+        let link = root.join("nested/link");
+        assert!(validate_tree_symlink_target(root, &link, Path::new("../target")).is_ok());
+        assert!(validate_tree_symlink_target(root, &link, Path::new("../../escape")).is_err());
+        assert!(validate_tree_symlink_target(root, &link, Path::new("/absolute")).is_err());
+        assert!(validate_tree_symlink_target(root, &link, Path::new("")).is_err());
     }
 
     #[test]
