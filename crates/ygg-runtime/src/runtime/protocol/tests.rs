@@ -381,7 +381,7 @@ mod host_resource_authority_tests {
         let forked = runtime
             .call_protocol(
                 &context,
-                "session.fork",
+                "kernel.v1.session.fork",
                 serde_json::json!({
                     "parent_session_id": session_id,
                     "forked_from_sequence": 0,
@@ -401,7 +401,7 @@ mod host_resource_authority_tests {
         runtime
             .call_protocol(
                 &context,
-                "session.get",
+                "kernel.v1.session.get",
                 serde_json::json!({"session_id": child_session_id}),
             )
             .await
