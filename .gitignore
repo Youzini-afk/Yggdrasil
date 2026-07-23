@@ -5,6 +5,8 @@
 !.env.example
 node_modules
 dist
+clients/desktop/src-tauri/binaries/
+clients/desktop/src-tauri/gen/schemas/windows-schema.json
 .DS_Store
 
 # Nested Rust target directories

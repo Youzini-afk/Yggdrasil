@@ -7,6 +7,7 @@ import "@fontsource-variable/jetbrains-mono/wght.css";
 import "@/styles/app.css";
 
 import { App } from "@/app";
+import { registerPwa } from "@/pwa";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("missing #root");
@@ -16,3 +17,5 @@ createRoot(container).render(
     <App />
   </StrictMode>,
 );
+
+void registerPwa();

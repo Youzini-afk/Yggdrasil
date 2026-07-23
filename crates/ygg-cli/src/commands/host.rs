@@ -783,6 +783,19 @@ mod tests {
             "ygg.contract.alias.legacy_adapter"
         );
     }
+
+    #[test]
+    fn managed_host_listen_handshake_is_stable() {
+        let addr: SocketAddr = "127.0.0.1:43117".parse().unwrap();
+        assert_eq!(
+            managed_host_listen_line(addr),
+            "YGG_HOST_LISTEN_ADDR=127.0.0.1:43117"
+        );
+    }
+}
+
+fn managed_host_listen_line(addr: SocketAddr) -> String {
+    format!("YGG_HOST_LISTEN_ADDR={addr}")
 }
 
 async fn serve_runtime<S>(
@@ -810,12 +823,17 @@ where
         .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?;
     println!("  projects loaded: {count}");
     let listener = tokio::net::TcpListener::bind(http).await?;
-    println!("Yggdrasil host serving http://{http}");
+    let bound_http = listener.local_addr()?;
+    println!("{}", managed_host_listen_line(bound_http));
+    println!("Yggdrasil host serving http://{bound_http}");
     println!("  event store: {backend_kind} (config redacted)");
-    println!("  RPC: POST http://{http}/rpc");
-    println!("  SSE: GET  http://{http}/kernel/v1/event.subscribe/:session_id");
+    println!("  RPC: POST http://{bound_http}/rpc");
+    println!("  SSE: GET  http://{bound_http}/kernel/v1/event.subscribe/:session_id");
     if let Some(static_dir) = &static_dir {
-        println!("  static: GET http://{http}/ -> {}", static_dir.display());
+        println!(
+            "  static: GET http://{bound_http}/ -> {}",
+            static_dir.display()
+        );
     }
     if access_token
         .as_deref()
@@ -839,7 +857,10 @@ where
         build_jobs: ygg_service::build_deploy_job_registry(),
     };
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
-    let app = ygg_service::app_with_state(state);
+    let bootstrap_token = std::env::var("YGG_HTTP_BOOTSTRAP_TOKEN")
+        .ok()
+        .filter(|token| !token.is_empty());
+    let app = ygg_service::app_with_state_and_bootstrap_token(state, bootstrap_token);
     axum::serve(listener, app).await?;
     Ok(())
 }

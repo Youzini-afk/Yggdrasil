@@ -9,6 +9,7 @@ import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/locale";
 import { openProjectInTab } from "@/lib/project-launcher";
+import { shouldReturnToShellHistory } from "@/client-core/platform-adapter";
 import { mountSurface, type SurfaceHostHandle } from "@/surfaces/surface-host";
 import { resolveSurfaceBundle, type ResolvedSurfaceBundle } from "@/surfaces/bundle-resolver";
 import { formatBytes } from "@/lib/format";
@@ -231,8 +232,8 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   }, [client, project?.title, projectId, stopping, t, toast]);
 
   const onOpenProjectTab = useCallback(() => {
-    const opened = openProjectInTab(projectId);
-    if (!opened) {
+    const outcome = openProjectInTab(projectId);
+    if (outcome === "failed" || outcome === "invalid") {
       toast.push({
         variant: "warning",
         title: t("projectFrameProjectTabBlockedTitle"),
@@ -449,10 +450,26 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
 
   const consoleSummary = useMemo(() => summarizeConsoleDiagnostics(diagnostics), [diagnostics]);
   const isStandalone = chrome === "none";
+  const returnToShell = useCallback(() => {
+    if (shouldReturnToShellHistory(window.history)) {
+      window.history.back();
+    } else {
+      window.location.assign("/#/");
+    }
+  }, []);
 
   return (
     <div className={isStandalone ? "flex h-[100dvh] flex-col overflow-hidden bg-warm-bone" : "flex min-h-[calc(100dvh-60px)] flex-col"}>
-      {isStandalone ? null : (
+      {isStandalone ? (
+      <div className="ygg-mobile-project-bar flex shrink-0 items-center gap-2 border-b border-whisper-border bg-pure-surface md:hidden">
+        <Button tone="icon" size="icon-sm" onClick={returnToShell} aria-label={t("projectFrameBackHome")}>
+          <ArrowLeft size={16} />
+        </Button>
+        <span className="truncate font-display text-[13px] font-bold text-charcoal-ink">
+          {project?.title ?? projectId}
+        </span>
+      </div>
+      ) : (
       <div className="flex h-10 items-center justify-between border-b border-whisper-border bg-pure-surface px-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Tooltip label={t("projectFrameBackHome")}>

@@ -22,5 +22,7 @@ tauri-plugin-fs = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+reqwest = { workspace = true }
+uuid = { workspace = true }
 ygg-runtime = { path = "../../../crates/ygg-runtime" }
 ygg-core = { path = "../../../crates/ygg-core" }

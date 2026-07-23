@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "externalBin": ["binaries/ygg-host"],
+    "resources": {
+      "../../web/dist/": "web/"
+    }
+  }
+}

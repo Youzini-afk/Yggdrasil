@@ -27,7 +27,7 @@ const hostWindow: ProjectTabWindow = {
   },
 };
 
-assertEqual(openProjectInTab("demo-project", hostWindow), true);
+assertEqual(openProjectInTab("demo-project", hostWindow), "tab");
 assertEqual(openArgs?.[0], "/project/demo-project");
 assertEqual(openArgs?.[2], "noopener,noreferrer");
 assertEqual(opened.opener, null);
@@ -44,6 +44,44 @@ const popupBlocked: ProjectTabWindow = {
   },
 };
 
-assertEqual(openProjectInTab("fallback-project", popupBlocked), false);
+assertEqual(openProjectInTab("fallback-project", popupBlocked), "same-window");
+assertEqual(assigned, "/project/fallback-project");
+assertEqual(openProjectInTab("bad/id", popupBlocked), "invalid");
+
+let mobileOpened = false;
+assigned = "";
+let reloaded = false;
+let pushedUrl = "";
+let pushedState: Record<string, unknown> | null = null;
+const mobileWindow: ProjectTabWindow = {
+  open() {
+    mobileOpened = true;
+    return opened;
+  },
+  location: {
+    assign(url: string) {
+      assigned = url;
+    },
+    reload() {
+      reloaded = true;
+    },
+  },
+  history: {
+    length: 2,
+    state: { existing: true },
+    pushState(state, _unused, url) {
+      pushedState = state as Record<string, unknown>;
+      pushedUrl = String(url);
+    },
+  },
+  matchMedia(query: string) {
+    return { matches: query === "(max-width: 767px)" };
+  },
+};
+assertEqual(openProjectInTab("mobile-project", mobileWindow), "same-window");
+assertEqual(mobileOpened, false);
 assertEqual(assigned, "");
-assertEqual(openProjectInTab("bad/id", popupBlocked), false);
+assertEqual(pushedUrl, "/project/mobile-project");
+assertEqual((pushedState as Record<string, unknown> | null)?.existing, true);
+assertEqual((pushedState as Record<string, unknown> | null)?.__ygg_project_from_shell__, true);
+assertEqual(reloaded, true);

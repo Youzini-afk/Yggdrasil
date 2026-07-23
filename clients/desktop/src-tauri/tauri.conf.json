@@ -4,23 +4,24 @@
   "version": "0.1.0",
   "identifier": "com.yggdrasil.desktop",
   "build": {
-    "beforeDevCommand": "npm --prefix ../../web run dev",
-    "beforeBuildCommand": "npm --prefix ../../web run build",
-    "devUrl": "http://127.0.0.1:1420",
+    "beforeDevCommand": "npm run prepare:dev",
+    "beforeBuildCommand": "npm run prepare:build",
     "frontendDist": "../../web/dist"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Yggdrasil",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
-        "minHeight": 600
+        "minHeight": 600,
+        "visible": false
       }
     ],
     "security": {
-      "csp": "default-src 'self' asset: tauri:; connect-src 'self' http://127.0.0.1:8787 ws://127.0.0.1:8787 ipc: http://ipc.localhost; img-src 'self' asset: blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src 'self'"
+      "csp": "default-src 'self' asset: tauri:; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src 'self'"
     }
   },
   "bundle": {

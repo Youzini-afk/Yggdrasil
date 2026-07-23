@@ -61,6 +61,8 @@ const BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE: usize = 1;
 const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
 const BUILD_DEPLOY_LOG_RING: usize = 256;
 const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
+const HOST_SESSION_COOKIE: &str = "ygg_host_session";
+const DESKTOP_BOOTSTRAP_PATH: &str = "/host/bootstrap";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProxyAccessMode {
@@ -69,6 +71,21 @@ enum ProxyAccessMode {
 }
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
+
+#[derive(Clone)]
+struct AccessControl {
+    access_token: Option<String>,
+    bootstrap_token: Arc<Mutex<Option<String>>>,
+}
+
+impl AccessControl {
+    fn new(access_token: Option<String>, bootstrap_token: Option<String>) -> Self {
+        Self {
+            access_token,
+            bootstrap_token: Arc::new(Mutex::new(bootstrap_token)),
+        }
+    }
+}
 
 pub struct AppState<S = InMemoryEventStore>
 where
@@ -144,6 +161,17 @@ pub fn app_with_state<S>(state: AppState<S>) -> Router
 where
     S: EventStore,
 {
+    app_with_state_and_bootstrap_token(state, None)
+}
+
+pub fn app_with_state_and_bootstrap_token<S>(
+    state: AppState<S>,
+    bootstrap_token: Option<String>,
+) -> Router
+where
+    S: EventStore,
+{
+    let access_control = AccessControl::new(state.access_token.clone(), bootstrap_token);
     let protected = Router::new()
         .route("/kernel/v1/session.open", post(open_session::<S>))
         .route(
@@ -190,7 +218,7 @@ where
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
         .route_layer(middleware::from_fn_with_state(
-            state.access_token.clone(),
+            access_control.clone(),
             require_access_token,
         ));
 
@@ -208,6 +236,10 @@ where
             state,
             vhost_proxy_middleware::<S>,
         ))
+        .layer(middleware::from_fn_with_state(
+            access_control,
+            desktop_bootstrap_middleware,
+        ))
 }
 
 pub fn spawn_health_supervisor<S>(state: AppState<S>) -> tokio::task::JoinHandle<()>
@@ -222,19 +254,93 @@ async fn health() -> &'static str {
 }
 
 async fn require_access_token(
-    State(access_token): State<Option<String>>,
-    request: Request,
+    State(access_control): State<AccessControl>,
+    mut request: Request,
     next: Next,
 ) -> Response {
-    let Some(expected) = access_token.as_deref().filter(|token| !token.is_empty()) else {
+    let Some(expected) = access_control
+        .access_token
+        .as_deref()
+        .filter(|token| !token.is_empty())
+    else {
         return next.run(request).await;
     };
 
     if request_access_token_matches(&request, expected) {
+        strip_host_session_cookie(request.headers_mut());
         return next.run(request).await;
     }
 
     (StatusCode::UNAUTHORIZED, "missing or invalid access token").into_response()
+}
+
+async fn desktop_bootstrap_middleware(
+    State(access_control): State<AccessControl>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if request.uri().path() != DESKTOP_BOOTSTRAP_PATH {
+        return next.run(request).await;
+    }
+    if request.method() != Method::GET {
+        return StatusCode::METHOD_NOT_ALLOWED.into_response();
+    }
+
+    let Some(access_token) = access_control
+        .access_token
+        .as_deref()
+        .filter(|token| !token.is_empty())
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let candidate = request.uri().query().and_then(|query| {
+        url::form_urlencoded::parse(query.as_bytes())
+            .find(|(key, _)| key == "nonce")
+            .map(|(_, value)| value.into_owned())
+    });
+    let accepted = {
+        let mut pending = access_control
+            .bootstrap_token
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if candidate.as_deref().is_some_and(|value| {
+            !value.is_empty() && pending.as_deref().is_some_and(|expected| value == expected)
+        }) {
+            pending.take();
+            true
+        } else {
+            false
+        }
+    };
+    if !accepted {
+        return (
+            StatusCode::UNAUTHORIZED,
+            "invalid or expired bootstrap nonce",
+        )
+            .into_response();
+    }
+
+    let mut response = StatusCode::SEE_OTHER.into_response();
+    response.headers_mut().insert(
+        header::LOCATION,
+        HeaderValue::from_static("/?ygg_platform=desktop"),
+    );
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&format!(
+            "{HOST_SESSION_COOKIE}={}; Path=/; HttpOnly; SameSite=Strict",
+            host_session_cookie_value(access_token)
+        ))
+        .expect("SHA-256 cookie value is always a valid header"),
+    );
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response.headers_mut().insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    response
 }
 
 async fn vhost_proxy_middleware<S>(
@@ -442,6 +548,17 @@ fn request_access_token_matches(request: &Request, expected: &str) -> bool {
         return true;
     }
 
+    let expected_cookie = host_session_cookie_value(expected);
+    if request
+        .headers()
+        .get(header::COOKIE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|cookies| cookie_value(cookies, HOST_SESSION_COOKIE))
+        .is_some_and(|value| value == expected_cookie)
+    {
+        return true;
+    }
+
     request
         .uri()
         .query()
@@ -451,6 +568,47 @@ fn request_access_token_matches(request: &Request, expected: &str) -> bool {
                 .map(|(_, value)| value.into_owned())
         })
         .is_some_and(|token| token == expected)
+}
+
+fn host_session_cookie_value(access_token: &str) -> String {
+    let digest = Sha256::digest(access_token.as_bytes());
+    digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>()
+}
+
+fn cookie_value<'a>(cookies: &'a str, name: &str) -> Option<&'a str> {
+    cookies.split(';').find_map(|part| {
+        let (key, value) = part.trim().split_once('=')?;
+        (key == name).then_some(value)
+    })
+}
+
+fn strip_host_session_cookie(headers: &mut HeaderMap) {
+    let Some(cookies) = headers
+        .get(header::COOKIE)
+        .and_then(|value| value.to_str().ok())
+    else {
+        headers.remove(header::COOKIE);
+        return;
+    };
+    let retained = cookies
+        .split(';')
+        .map(str::trim)
+        .filter(|part| {
+            part.split_once('=')
+                .is_none_or(|(key, _)| key != HOST_SESSION_COOKIE)
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    if retained.is_empty() {
+        headers.remove(header::COOKIE);
+    } else if let Ok(value) = HeaderValue::from_str(&retained) {
+        headers.insert(header::COOKIE, value);
+    } else {
+        headers.remove(header::COOKIE);
+    }
 }
 
 async fn open_session<S>(
@@ -4022,12 +4180,23 @@ async fn read_static_file(static_root: &FsPath, path: &FsPath) -> StaticRead {
         Ok(bytes) => bytes,
         Err(_) => return StaticRead::Missing,
     };
-    StaticRead::Served((public_static_headers(content_type_for(&canonical)), bytes).into_response())
+    let cache_control = cache_control_for(&static_root, &canonical);
+    StaticRead::Served(
+        (
+            public_static_headers(content_type_for(&canonical), cache_control),
+            bytes,
+        )
+            .into_response(),
+    )
 }
 
-fn public_static_headers(content_type: &'static str) -> HeaderMap {
+fn public_static_headers(content_type: &'static str, cache_control: &'static str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static(cache_control),
+    );
     // Surface frames are sandboxed without `allow-same-origin`; browser module
     // loading treats the frame as an opaque origin. Public browser assets must be
     // CORS-readable so `/surface-frame-bootstrap.js` and installed surface
@@ -4038,6 +4207,20 @@ fn public_static_headers(content_type: &'static str) -> HeaderMap {
         HeaderValue::from_static("*"),
     );
     headers
+}
+
+fn cache_control_for(static_root: &FsPath, path: &FsPath) -> &'static str {
+    let relative = path.strip_prefix(static_root).unwrap_or(path);
+    let filename = relative.file_name().and_then(|name| name.to_str());
+    let extension = relative.extension().and_then(|ext| ext.to_str());
+
+    if matches!(filename, Some("index.html" | "sw.js")) || extension == Some("webmanifest") {
+        "no-cache"
+    } else if relative.starts_with("assets") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "public, max-age=3600"
+    }
 }
 
 fn surface_bundle_path<S>(
@@ -4122,6 +4305,7 @@ fn content_type_for(path: &std::path::Path) -> &'static str {
         Some("mjs") | Some("js") => "application/javascript",
         Some("css") => "text/css",
         Some("json") | Some("map") => "application/json",
+        Some("webmanifest") => "application/manifest+json",
         Some("svg") => "image/svg+xml",
         Some("png") => "image/png",
         Some("jpg") | Some("jpeg") => "image/jpeg",
@@ -4922,6 +5106,11 @@ mod tests {
     async fn serves_static_files_when_configured() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
         std::fs::write(dir.path().join("index.html"), "<main>Ygg web</main>")?;
+        std::fs::write(
+            dir.path().join("sw.js"),
+            "self.addEventListener('fetch',()=>{});",
+        )?;
+        std::fs::write(dir.path().join("manifest.webmanifest"), "{}")?;
         std::fs::create_dir_all(dir.path().join("assets"))?;
         std::fs::write(dir.path().join("assets/app.js"), "console.log('ygg');")?;
 
@@ -4948,6 +5137,10 @@ mod tests {
             response.headers().get(header::CONTENT_TYPE).unwrap(),
             "application/javascript"
         );
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL).unwrap(),
+            "public, max-age=31536000, immutable"
+        );
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"console.log('ygg');");
 
@@ -4960,6 +5153,28 @@ mod tests {
             )
             .await?;
         assert_eq!(project_route.status(), StatusCode::OK);
+        assert_eq!(
+            project_route.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-cache"
+        );
+
+        let manifest = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/manifest.webmanifest")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(manifest.status(), StatusCode::OK);
+        assert_eq!(
+            manifest.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/manifest+json"
+        );
+        assert_eq!(
+            manifest.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-cache"
+        );
 
         let random_route = app
             .clone()
@@ -5027,6 +5242,90 @@ mod tests {
             .await?;
         assert_eq!(allowed.status(), StatusCode::OK);
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn desktop_bootstrap_nonce_is_one_time_and_issues_http_only_session() -> anyhow::Result<()>
+    {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let app = app_with_state_and_bootstrap_token(
+            AppState {
+                runtime,
+                static_dir: None,
+                access_token: Some("long-lived-host-token".to_string()),
+                app_base_domain: None,
+                build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            },
+            Some("single-use-bootstrap-nonce".to_string()),
+        );
+
+        let bootstrap = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/host/bootstrap?nonce=single-use-bootstrap-nonce")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(bootstrap.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            bootstrap.headers().get(header::LOCATION).unwrap(),
+            "/?ygg_platform=desktop"
+        );
+        assert_eq!(
+            bootstrap.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-store"
+        );
+        assert_eq!(
+            bootstrap.headers().get(header::REFERRER_POLICY).unwrap(),
+            "no-referrer"
+        );
+        let set_cookie = bootstrap
+            .headers()
+            .get(header::SET_COOKIE)
+            .unwrap()
+            .to_str()?;
+        assert!(set_cookie.starts_with("ygg_host_session="));
+        assert!(set_cookie.contains("HttpOnly"));
+        assert!(set_cookie.contains("SameSite=Strict"));
+        assert!(!set_cookie.contains("long-lived-host-token"));
+        let cookie = set_cookie.split(';').next().unwrap();
+
+        let authenticated = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/kernel/v1/host.info")
+                    .header(header::COOKIE, cookie)
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(authenticated.status(), StatusCode::OK);
+
+        let replay = app
+            .oneshot(
+                Request::builder()
+                    .uri("/host/bootstrap?nonce=single-use-bootstrap-nonce")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(replay.status(), StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+
+    #[test]
+    fn host_session_cookie_is_removed_before_proxy_or_rpc_handlers() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::COOKIE,
+            HeaderValue::from_static("project_session=keep; ygg_host_session=remove; theme=warm"),
+        );
+        strip_host_session_cookie(&mut headers);
+        assert_eq!(
+            headers.get(header::COOKIE).unwrap(),
+            "project_session=keep; theme=warm"
+        );
     }
 
     #[tokio::test]

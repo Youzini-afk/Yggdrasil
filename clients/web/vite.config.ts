@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -67,7 +68,7 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     host: '127.0.0.1',
-    // Proxy /rpc and /kernel to host serve during dev so the web client
+    // Proxy control-plane routes to host serve during dev so the web client
     // can hit them at same-origin without CORS hassle.
     proxy: {
       '/rpc': {
@@ -75,6 +76,10 @@ export default defineConfig({
         changeOrigin: false,
       },
       '/kernel': {
+        target: 'http://127.0.0.1:8787',
+        changeOrigin: false,
+      },
+      '/host': {
         target: 'http://127.0.0.1:8787',
         changeOrigin: false,
       },
@@ -93,6 +98,52 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA({
+      registerType: 'prompt',
+      injectRegister: null,
+      includeAssets: ['icons/yggdrasil.svg', 'icons/yggdrasil-maskable.svg'],
+      manifest: {
+        id: '/',
+        name: 'Yggdrasil Project Workshop',
+        short_name: 'Yggdrasil',
+        description: 'A permissioned workshop for building, deploying, and operating projects.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#fafaf7',
+        theme_color: '#fafaf7',
+        icons: [
+          {
+            src: '/icons/yggdrasil.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/yggdrasil-maskable.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+        globPatterns: ['**/*.{js,css,html,svg,webmanifest,woff,woff2}'],
+        globIgnores: ['**/*.map'],
+        navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^\/$/, /^\/project\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/],
+        navigateFallbackDenylist: [
+          /^\/rpc(?:\/|$)/,
+          /^\/kernel(?:\/|$)/,
+          /^\/host(?:\/|$)/,
+          /^\/p(?:\/|$)/,
+          /^\/surface-bundles(?:\/|$)/,
+        ],
+        clientsClaim: false,
+        skipWaiting: false,
+      },
+    }),
     {
       name: 'surface-dev-bundle-server',
       configureServer(server) {

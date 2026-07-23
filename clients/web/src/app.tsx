@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-gate";
 import { KernelProvider } from "@/lib/kernel-client";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthGateScreen, AuthChecking } from "@/components/auth-gate";
+import { AuthGateScreen, AuthChecking, HostUnavailable } from "@/components/auth-gate";
 import { Shell } from "@/components/layout/shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePathProjectRoute } from "@/lib/router";
@@ -43,6 +43,10 @@ function AppInner({ children }: { children?: ReactNode }) {
 
   if (status === "checking") {
     return <AuthChecking />;
+  }
+
+  if (status === "unavailable") {
+    return <HostUnavailable />;
   }
 
   const showGate = status === "required" || status === "invalid";

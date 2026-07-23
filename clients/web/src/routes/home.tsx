@@ -60,15 +60,15 @@ export function HomePage() {
   const navigateTo = useCallback((route: Route) => navigate(route), [navigate]);
   const launchProject = useCallback(
     (projectId: string) => {
-      const opened = openProjectInTab(projectId);
-      if (!opened) {
+      const outcome = openProjectInTab(projectId);
+      if (outcome === "failed" || outcome === "invalid") {
         toast.push({
           variant: "warning",
           title: t("homeProjectPopupBlockedTitle"),
           body: t("homeProjectPopupBlockedBody"),
         });
       }
-      navigate({ kind: "project", projectId });
+      if (outcome === "tab") navigate({ kind: "project", projectId });
     },
     [navigate, t, toast],
   );

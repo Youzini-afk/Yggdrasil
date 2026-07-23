@@ -41,6 +41,9 @@ jobs:
       - name: cargo test ygg-core
         run: cargo test -p ygg-core
 
+      - name: cargo test desktop Host supervisor
+        run: cargo test -p ygg-desktop --lib
+
       - name: ygg conformance
         run: cargo run -p ygg-cli --release -- conformance
 
@@ -89,3 +92,28 @@ jobs:
 
       - name: Build
         run: npm run build --prefix clients/web
+
+  desktop-sidecar:
+    name: Desktop managed Host smoke
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: clients/web/package-lock.json
+
+      - name: Install web deps
+        run: npm ci --prefix clients/web
+
+      - name: Stage Host sidecar and build client shell
+        run: npm run prepare:dev --prefix clients/desktop
+
+      - name: Smoke managed Host sidecar
+        run: npm run smoke:sidecar --prefix clients/desktop

@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { YggProtocolClient, type KernelEvent } from "@/protocol/client";
+import { resolveHostBaseUrl } from "@/client-core/host-endpoint";
 
 interface KernelContextValue {
   client: YggProtocolClient;
@@ -30,8 +31,7 @@ export function KernelProvider({
   accessToken?: string | null;
 }) {
   const client = useMemo(() => {
-    const url = baseUrl
-      ?? (typeof location !== "undefined" && location.origin !== "null" ? location.origin : "http://127.0.0.1:8787");
+    const url = resolveHostBaseUrl(baseUrl);
     return new YggProtocolClient(url, accessToken);
   }, [baseUrl, accessToken]);
 

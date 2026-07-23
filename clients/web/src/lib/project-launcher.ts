@@ -1,30 +1,21 @@
 import { isValidProjectId, projectPath } from "@/lib/router";
+import {
+  createBrowserPlatformAdapter,
+  type ProjectNavigationWindow,
+} from "@/client-core/platform-adapter";
 
-export interface ProjectTabWindow {
-  open(url: string, target: string, features?: string): Window | null;
-  location: Pick<Location, "assign">;
-}
-
-const PROJECT_TAB_FEATURES = "noopener,noreferrer";
+export type ProjectTabWindow = ProjectNavigationWindow;
+export type ProjectOpenOutcome = "tab" | "same-window" | "invalid" | "failed";
 
 export function projectTabTargetName(projectId: string): string {
   return `ygg-project-${fnv1a(projectId).toString(36).padStart(7, "0").slice(0, 16)}`;
 }
 
-export function openProjectInTab(projectId: string, hostWindow: ProjectTabWindow = window): boolean {
-  if (!isValidProjectId(projectId)) return false;
+export function openProjectInTab(projectId: string, hostWindow: ProjectTabWindow = window): ProjectOpenOutcome {
+  if (!isValidProjectId(projectId)) return "invalid";
   const url = projectPath(projectId);
   const target = projectTabTargetName(projectId);
-  const opened = hostWindow.open(url, target, PROJECT_TAB_FEATURES);
-  if (opened) {
-    try {
-      opened.opener = null;
-    } catch {
-      // Some browsers expose opener as read-only when noopener is already in force.
-    }
-    return true;
-  }
-  return false;
+  return createBrowserPlatformAdapter(hostWindow).openProject(url, target);
 }
 
 function fnv1a(value: string): number {

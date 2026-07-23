@@ -65,7 +65,15 @@ export interface HostContractInfo {
   methods: unknown[];
 }
 
-export const BROWSER_ACCESS_TOKEN_STORAGE_KEY = "ygg_http_access_token";
+import { resolveBrowserAccessToken } from "@/client-core/credentials";
+
+export {
+  BROWSER_ACCESS_TOKEN_STORAGE_KEY,
+  clearBrowserAccessToken,
+  readBrowserAccessToken,
+  resolveBrowserAccessToken,
+  storeBrowserAccessToken,
+} from "@/client-core/credentials";
 
 export class ProtocolHttpError extends Error {
   constructor(
@@ -79,53 +87,6 @@ export class ProtocolHttpError extends Error {
   get isAuthError(): boolean {
     return this.status === 401;
   }
-}
-
-export function readBrowserAccessToken(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-
-  try {
-    return window.localStorage.getItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function storeBrowserAccessToken(token: string): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.setItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY, token);
-  } catch {
-    // Storage can be disabled in locked-down browsers; auth still works in memory.
-  }
-}
-
-export function clearBrowserAccessToken(): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.removeItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY);
-  } catch {
-    // Best effort only.
-  }
-}
-
-export function resolveBrowserAccessToken(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = params.get("ygg_token") ?? params.get("access_token");
-    if (fromQuery) {
-      scrubTokenFromBrowserUrl(params);
-      return fromQuery;
-    }
-  } catch {
-    return undefined;
-  }
-
-  return readBrowserAccessToken();
 }
 
 export interface CapabilityInvocationResult<TOutput = unknown> {
@@ -1198,15 +1159,4 @@ async function throwForHttpError(response: Response): Promise<void> {
 
   const body = await response.text().catch(() => response.statusText || "HTTP error");
   throw new ProtocolHttpError(response.status, body);
-}
-
-function scrubTokenFromBrowserUrl(params: URLSearchParams) {
-  if (typeof window === "undefined" || !window.history?.replaceState) return;
-  if (!params.has("ygg_token") && !params.has("access_token")) return;
-
-  params.delete("ygg_token");
-  params.delete("access_token");
-  const search = params.toString();
-  const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`;
-  window.history.replaceState(window.history.state, "", nextUrl);
 }

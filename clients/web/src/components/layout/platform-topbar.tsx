@@ -36,7 +36,7 @@ export function PlatformTopbar({ route }: { route: Route }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-whisper-border bg-warm-bone/85 px-3 backdrop-blur-[20px] sm:px-6 lg:px-8",
+        "ygg-safe-topbar sticky top-0 z-30 flex items-center justify-between border-b border-whisper-border bg-warm-bone/85 backdrop-blur-[20px] sm:px-6 lg:px-8",
       )}
     >
       <nav className="flex min-w-0 items-center gap-2 text-[14px] sm:gap-3">

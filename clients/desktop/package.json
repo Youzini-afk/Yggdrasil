@@ -5,8 +5,13 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "stage:sidecar": "node scripts/stage-sidecar.mjs",
+    "stage:sidecar:release": "node scripts/stage-sidecar.mjs --release",
+    "smoke:sidecar": "node scripts/smoke-sidecar.mjs",
+    "prepare:dev": "npm run stage:sidecar && npm --prefix ../web run build",
+    "prepare:build": "npm run stage:sidecar:release && npm --prefix ../web run build",
+    "dev": "tauri dev --config src-tauri/tauri.sidecar.conf.json",
+    "build": "tauri build --config src-tauri/tauri.sidecar.conf.json"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

@@ -1,15 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import {
-  clearBrowserAccessToken,
   ProtocolHttpError,
-  readBrowserAccessToken,
-  resolveBrowserAccessToken,
-  storeBrowserAccessToken,
   YggProtocolClient,
 } from "@/protocol/client";
+import {
+  clearBrowserAccessToken,
+  PendingCredentialLease,
+  readBrowserAccessToken,
+  storeBrowserAccessToken,
+} from "@/client-core/credentials";
+import { resolveHostBaseUrl } from "@/client-core/host-endpoint";
 import { useT } from "@/lib/locale";
 
-export type AuthStatus = "checking" | "optional" | "required" | "authenticated" | "invalid";
+export type AuthStatus = "checking" | "optional" | "required" | "authenticated" | "invalid" | "unavailable";
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -17,13 +20,10 @@ interface AuthContextValue {
   error: string | null;
   login: (token: string) => Promise<void>;
   logout: () => void;
+  retry: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function getBaseUrl() {
-  return typeof location !== "undefined" && location.origin !== "null" ? location.origin : "http://127.0.0.1:8787";
-}
 
 async function probeServer(client: YggProtocolClient): Promise<{ authError: boolean }> {
   try {
@@ -45,9 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const probeIdRef = useRef(0);
+  const pendingCredentialRef = useRef<PendingCredentialLease | null>(null);
+  if (!pendingCredentialRef.current) pendingCredentialRef.current = new PendingCredentialLease();
 
   const validateToken = useCallback(async (candidateToken: string): Promise<ProbeResult> => {
-    const baseUrl = getBaseUrl();
+    const baseUrl = resolveHostBaseUrl();
     const client = new YggProtocolClient(baseUrl, candidateToken);
     const { authError } = await probeServer(client);
     return authError ? "auth-error" : "ok";
@@ -55,15 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const authenticateCandidate = useCallback(
     async (candidateToken: string, probeId: number) => {
+      pendingCredentialRef.current?.retain(candidateToken);
       try {
         const result = await validateToken(candidateToken);
         if (probeIdRef.current !== probeId) return;
         if (result === "ok") {
           storeBrowserAccessToken(candidateToken);
+          pendingCredentialRef.current?.clear();
           setToken(candidateToken);
           setStatus("authenticated");
         } else {
           clearBrowserAccessToken();
+          pendingCredentialRef.current?.clear();
           setToken(null);
           setError(t("authInvalidToken"));
           setStatus("invalid");
@@ -71,9 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         if (probeIdRef.current !== probeId) return;
         const msg = err instanceof Error ? err.message : String(err);
-        setToken(null);
+        setToken(candidateToken);
         setError(t("authConnectionFailed", msg));
-        setStatus("invalid");
+        setStatus("unavailable");
       }
     },
     [t, validateToken],
@@ -83,18 +88,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const probeId = ++probeIdRef.current;
     setStatus("checking");
     setError(null);
-    const baseUrl = getBaseUrl();
+    // Consume and scrub one-time Desktop/deep-link credentials immediately,
+    // even when this Host later reports that authentication is optional.
+    const candidateToken = pendingCredentialRef.current?.resolve() ?? readBrowserAccessToken() ?? null;
+    const baseUrl = resolveHostBaseUrl();
     const client = new YggProtocolClient(baseUrl, null);
     try {
       const { authError } = await probeServer(client);
       if (probeIdRef.current !== probeId) return;
       if (!authError) {
+        pendingCredentialRef.current?.clear();
         setToken(null);
         setStatus("optional");
       } else {
-        const bootstrapToken = resolveBrowserAccessToken() ?? readBrowserAccessToken() ?? null;
-        if (bootstrapToken) {
-          await authenticateCandidate(bootstrapToken, probeId);
+        if (candidateToken) {
+          await authenticateCandidate(candidateToken, probeId);
         } else {
           setToken(null);
           setStatus("required");
@@ -104,8 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (probeIdRef.current !== probeId) return;
       const msg = err instanceof Error ? err.message : String(err);
       setError(t("authConnectionFailed", msg));
-      setToken(null);
-      setStatus("required");
+      setToken(candidateToken);
+      setStatus("unavailable");
     }
   }, [authenticateCandidate, t]);
 
@@ -124,6 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const retryWhenOnline = () => void runStartupProbe();
+    window.addEventListener("online", retryWhenOnline);
+    return () => window.removeEventListener("online", retryWhenOnline);
+  }, [runStartupProbe]);
+
   const login = useCallback(
     async (newToken: string) => {
       const trimmed = newToken.trim();
@@ -135,14 +150,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearBrowserAccessToken();
+    pendingCredentialRef.current?.clear();
     setToken(null);
     setError(null);
     runStartupProbe();
   }, [runStartupProbe]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, token, error, login, logout }),
-    [status, token, error, login, logout],
+    () => ({ status, token, error, login, logout, retry: runStartupProbe }),
+    [status, token, error, login, logout, runStartupProbe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
