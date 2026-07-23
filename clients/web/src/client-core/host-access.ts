@@ -11,17 +11,30 @@ export type HostAccessScope =
 
 export type HostAccessIdentityKind = "root" | "device";
 
+export type HostAccessResourceKind = "project" | "target";
+
+export interface HostAccessResourceSelector {
+  kind: HostAccessResourceKind;
+  id?: string | null;
+}
+
 export interface HostAccessIdentity {
   kind: HostAccessIdentityKind;
   grant_id?: string | null;
   device_name: string;
   scopes: HostAccessScope[];
+  resources?: HostAccessResourceSelector[];
+  delegation_chain?: string[];
+  expires_at_ms?: number | null;
 }
 
 export interface HostAccessGrant {
   id: string;
   device_name: string;
   scopes: HostAccessScope[];
+  resources?: HostAccessResourceSelector[];
+  parent_grant_id?: string | null;
+  delegation_depth?: number;
   created_at_ms: number;
   expires_at_ms: number;
   revoked_at_ms?: number | null;
@@ -32,6 +45,9 @@ export interface HostPairing {
   id: string;
   device_name: string;
   scopes: HostAccessScope[];
+  resources?: HostAccessResourceSelector[];
+  parent_grant_id?: string | null;
+  delegation_depth?: number;
   created_at_ms: number;
   expires_at_ms: number;
   grant_expires_at_ms: number;
@@ -48,6 +64,7 @@ export interface HostAccessOverview {
 export interface CreateHostPairingInput {
   device_name: string;
   scopes: HostAccessScope[];
+  resources: HostAccessResourceSelector[];
   pairing_ttl_secs?: number;
   grant_ttl_secs?: number;
 }

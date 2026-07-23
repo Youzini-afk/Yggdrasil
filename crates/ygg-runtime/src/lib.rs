@@ -50,8 +50,9 @@ pub use pi::PI_INTEGRATION_DEFERRED;
 pub use project_registry::{ProjectEntry, ProjectRegistry};
 pub use project_secret::{ProjectScopeContext, ProjectStoreSecretResolver};
 pub use protocol::{
-    host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolContext, ProtocolError,
-    ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResponse, KERNEL_METHODS,
+    host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolAuthorityContext,
+    ProtocolContext, ProtocolError, ProtocolHostOperationContext, ProtocolMethod,
+    ProtocolPrincipal, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse, KERNEL_METHODS,
     KERNEL_PROTOCOL_VERSION,
 };
 pub use protocol_commons::{

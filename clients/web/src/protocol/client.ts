@@ -460,6 +460,7 @@ export interface DockerStopContainerOutput {
 }
 
 export interface HostDeployProjectInput {
+  project_id: string;
   image: string;
   container_port: number;
   port_name: string;

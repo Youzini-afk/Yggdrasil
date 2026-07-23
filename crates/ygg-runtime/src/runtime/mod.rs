@@ -17,7 +17,7 @@ use ygg_core::{
 
 use crate::{
     EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, ObjectStore,
-    ProjectRegistry, ProjectScopeContext, SecretResolverConfig,
+    ProjectRegistry, ProjectScopeContext, ProtocolContext, ProtocolPrincipal, SecretResolverConfig,
 };
 
 mod artifacts;
@@ -401,6 +401,40 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("session '{}' has no metadata.project_id", sid))?;
         ProjectId::new(pid_str)
+    }
+
+    pub(crate) async fn ensure_host_session_access(
+        &self,
+        context: &ProtocolContext,
+        action: &str,
+        session_id: &str,
+    ) -> anyhow::Result<()> {
+        match context.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => return Ok(()),
+            ProtocolPrincipal::HostDevice { .. } => {}
+            _ => anyhow::bail!("principal is not authenticated as a Host controller"),
+        }
+        if !context.allows_host_action(action) {
+            anyhow::bail!("Host device authority does not include action '{action}'");
+        }
+        let sessions = self.sessions.read().await;
+        let session = sessions
+            .get(session_id)
+            .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
+        if session.status != SessionStatus::Open {
+            anyhow::bail!("session '{}' is closed", session_id);
+        }
+        match session.metadata.get("project_id").and_then(Value::as_str) {
+            Some(project_id) if context.allows_host_resource("host", "project", project_id) => {
+                Ok(())
+            }
+            Some(project_id) => anyhow::bail!(
+                "Host device authority does not include project '{}'",
+                project_id
+            ),
+            None if context.allows_all_host_resources("host", "project") => Ok(()),
+            None => anyhow::bail!("project-scoped Host device cannot access an unbound session"),
+        }
     }
 
     fn build_project_scope(&self, project_id: &ProjectId) -> anyhow::Result<ProjectScopeContext> {

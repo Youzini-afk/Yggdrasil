@@ -11,16 +11,41 @@ impl<S> Runtime<S>
 where
     S: EventStore,
 {
-    // --- Target ---
-
-    pub(crate) async fn dispatch_target_list(&self) -> anyhow::Result<Value> {
-        Ok(serde_json::to_value(
-            self.config.target_registry.list().await,
-        )?)
+    fn ensure_target_authority(context: &ProtocolContext, target_id: &str) -> anyhow::Result<()> {
+        if context.allows_host_resource("host", "target", target_id) {
+            Ok(())
+        } else {
+            anyhow::bail!(
+                "permission denied: authenticated authority does not include target '{}'",
+                target_id
+            )
+        }
     }
 
-    pub(crate) async fn dispatch_target_status(&self, params: &Value) -> anyhow::Result<Value> {
+    // --- Target ---
+
+    pub(crate) async fn dispatch_target_list(
+        &self,
+        context: &ProtocolContext,
+    ) -> anyhow::Result<Value> {
+        let targets = self
+            .config
+            .target_registry
+            .list()
+            .await
+            .into_iter()
+            .filter(|target| context.allows_host_resource("host", "target", target.id.as_str()))
+            .collect::<Vec<_>>();
+        Ok(serde_json::to_value(targets)?)
+    }
+
+    pub(crate) async fn dispatch_target_status(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let target_id = required_str(params, "target_id", "kernel.v1.target.status")?;
+        Self::ensure_target_authority(context, &target_id)?;
         Ok(serde_json::to_value(
             self.config
                 .target_registry
@@ -30,14 +55,24 @@ where
         )?)
     }
 
-    pub(crate) async fn dispatch_target_register(&self, params: Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_target_register(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         let target: crate::runtime::ExecutionTarget = serde_json::from_value(params)?;
+        Self::ensure_target_authority(context, target.id.as_str())?;
         self.config.target_registry.register(target.clone()).await;
         Ok(serde_json::to_value(target)?)
     }
 
-    pub(crate) async fn dispatch_target_unregister(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_target_unregister(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let target_id = required_str(params, "target_id", "kernel.v1.target.unregister")?;
+        Self::ensure_target_authority(context, &target_id)?;
         Ok(serde_json::to_value(
             self.config
                 .target_registry
@@ -55,6 +90,7 @@ where
         params: Value,
     ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecStartRequest = serde_json::from_value(params)?;
+        Self::ensure_target_authority(context, &request.target_id)?;
         let effect_context = exec_effect_context(context, &request);
         self.append_deployment_hub_event(
             context,
@@ -188,6 +224,9 @@ where
         }
         let exec_id = request.exec_id.clone();
         if let Some(status) = self.config.exec_registry.status(&exec_id).await {
+            if let Some(target_id) = status.target_id.as_deref() {
+                Self::ensure_target_authority(context, target_id)?;
+            }
             if is_process_terminal(&status)
                 && self
                     .config
@@ -211,6 +250,7 @@ where
             .effect_context(&exec_id)
             .await
             .unwrap_or_else(|| unknown_exec_effect_context(context, &exec_id));
+        Self::ensure_target_authority(context, &effect_context.target_id)?;
         let response = match self
             .config
             .local_exec_executor
@@ -317,6 +357,9 @@ where
         }
         let exec_id = request.exec_id.clone();
         if let Some(status) = self.config.exec_registry.status(&exec_id).await {
+            if let Some(target_id) = status.target_id.as_deref() {
+                Self::ensure_target_authority(context, target_id)?;
+            }
             if is_process_terminal(&status)
                 && self
                     .config
@@ -339,6 +382,7 @@ where
             .effect_context(&exec_id)
             .await
             .unwrap_or_else(|| unknown_exec_effect_context(context, &exec_id));
+        Self::ensure_target_authority(context, &effect_context.target_id)?;
         let response = match self
             .config
             .local_exec_executor
@@ -439,11 +483,34 @@ where
         Ok(serde_json::to_value(response)?)
     }
 
-    pub(crate) async fn dispatch_exec_logs(&self, params: Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_exec_logs(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecLogsRequest = serde_json::from_value(params)?;
         if request.exec_id.trim().is_empty() {
             anyhow::bail!("kernel.v1.exec.logs requires exec_id");
         }
+        let target_id = if let Some(target_id) = self
+            .config
+            .exec_registry
+            .status(&request.exec_id)
+            .await
+            .and_then(|status| status.target_id)
+        {
+            target_id
+        } else {
+            self.config
+                .exec_registry
+                .effect_context(&request.exec_id)
+                .await
+                .map(|effect| effect.target_id)
+                .ok_or_else(|| {
+                    anyhow::anyhow!("execution '{}' has no target context", request.exec_id)
+                })?
+        };
+        Self::ensure_target_authority(context, &target_id)?;
         Ok(serde_json::to_value(
             self.config
                 .local_exec_executor
@@ -453,11 +520,24 @@ where
         )?)
     }
 
-    pub(crate) async fn dispatch_exec_list(&self) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_exec_list(
+        &self,
+        context: &ProtocolContext,
+    ) -> anyhow::Result<Value> {
+        let executions = self
+            .config
+            .exec_registry
+            .list()
+            .await
+            .into_iter()
+            .filter(|status| {
+                status.target_id.as_deref().is_some_and(|target_id| {
+                    context.allows_host_resource("host", "target", target_id)
+                })
+            })
+            .collect();
         Ok(serde_json::to_value(
-            crate::runtime::LocalExecListResponse {
-                executions: self.config.exec_registry.list().await,
-            },
+            crate::runtime::LocalExecListResponse { executions },
         )?)
     }
 
@@ -668,6 +748,7 @@ where
         params: Value,
     ) -> anyhow::Result<Value> {
         let request: crate::runtime::PortLeaseRequest = serde_json::from_value(params)?;
+        Self::ensure_target_authority(context, &request.target_id)?;
         let response = self.config.port_lease_registry.lease(request).await;
         self.append_deployment_hub_event(
             context,
@@ -693,6 +774,13 @@ where
         params: &Value,
     ) -> anyhow::Result<Value> {
         let lease_id = required_str(params, "lease_id", "kernel.v1.port.release")?;
+        let existing = self
+            .config
+            .port_lease_registry
+            .status(&lease_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("port lease '{lease_id}' not found"))?;
+        Self::ensure_target_authority(context, &existing.target_id)?;
         let lease = self
             .config
             .port_lease_registry
@@ -715,21 +803,35 @@ where
         Ok(serde_json::to_value(lease)?)
     }
 
-    pub(crate) async fn dispatch_port_status(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_port_status(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let lease_id = required_str(params, "lease_id", "kernel.v1.port.status")?;
-        Ok(serde_json::to_value(
-            self.config
-                .port_lease_registry
-                .status(&lease_id)
-                .await
-                .ok_or_else(|| anyhow::anyhow!("port lease '{lease_id}' not found"))?,
-        )?)
+        let lease = self
+            .config
+            .port_lease_registry
+            .status(&lease_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("port lease '{lease_id}' not found"))?;
+        Self::ensure_target_authority(context, &lease.target_id)?;
+        Ok(serde_json::to_value(lease)?)
     }
 
-    pub(crate) async fn dispatch_port_list(&self) -> anyhow::Result<Value> {
-        Ok(serde_json::to_value(
-            self.config.port_lease_registry.list().await,
-        )?)
+    pub(crate) async fn dispatch_port_list(
+        &self,
+        context: &ProtocolContext,
+    ) -> anyhow::Result<Value> {
+        let leases = self
+            .config
+            .port_lease_registry
+            .list()
+            .await
+            .into_iter()
+            .filter(|lease| context.allows_host_resource("host", "target", &lease.target_id))
+            .collect::<Vec<_>>();
+        Ok(serde_json::to_value(leases)?)
     }
 
     // --- Proxy ---
@@ -760,6 +862,7 @@ where
             );
         }
         let lease = lease.expect("active lease checked above");
+        Self::ensure_target_authority(context, &lease.target_id)?;
         if request.upstream.port_name != lease.port_name {
             self.append_deployment_hub_event(
                 context,
@@ -803,6 +906,19 @@ where
         params: &Value,
     ) -> anyhow::Result<Value> {
         let route_id = required_str(params, "route_id", "kernel.v1.proxy.unregister")?;
+        let existing = self
+            .config
+            .proxy_route_registry
+            .status(&route_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("proxy route '{route_id}' not found"))?;
+        let lease = self
+            .config
+            .port_lease_registry
+            .status(&existing.upstream.port_lease_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("proxy route '{route_id}' has no active lease"))?;
+        Self::ensure_target_authority(context, &lease.target_id)?;
         let route = self
             .config
             .proxy_route_registry
@@ -822,21 +938,47 @@ where
         Ok(serde_json::to_value(route)?)
     }
 
-    pub(crate) async fn dispatch_proxy_status(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_proxy_status(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let route_id = required_str(params, "route_id", "kernel.v1.proxy.status")?;
-        Ok(serde_json::to_value(
-            self.config
-                .proxy_route_registry
-                .status(&route_id)
-                .await
-                .ok_or_else(|| anyhow::anyhow!("proxy route '{route_id}' not found"))?,
-        )?)
+        let route = self
+            .config
+            .proxy_route_registry
+            .status(&route_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("proxy route '{route_id}' not found"))?;
+        let lease = self
+            .config
+            .port_lease_registry
+            .status(&route.upstream.port_lease_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("proxy route '{route_id}' has no active lease"))?;
+        Self::ensure_target_authority(context, &lease.target_id)?;
+        Ok(serde_json::to_value(route)?)
     }
 
-    pub(crate) async fn dispatch_proxy_list(&self) -> anyhow::Result<Value> {
-        Ok(serde_json::to_value(
-            self.config.proxy_route_registry.list().await,
-        )?)
+    pub(crate) async fn dispatch_proxy_list(
+        &self,
+        context: &ProtocolContext,
+    ) -> anyhow::Result<Value> {
+        let mut visible = Vec::new();
+        for route in self.config.proxy_route_registry.list().await {
+            let Some(lease) = self
+                .config
+                .port_lease_registry
+                .status(&route.upstream.port_lease_id)
+                .await
+            else {
+                continue;
+            };
+            if context.allows_host_resource("host", "target", &lease.target_id) {
+                visible.push(route);
+            }
+        }
+        Ok(serde_json::to_value(visible)?)
     }
 
     async fn append_deployment_hub_event(

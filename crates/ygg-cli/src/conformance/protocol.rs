@@ -277,6 +277,8 @@ pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
     let denied_context = ProtocolContext {
         principal: ProtocolPrincipal::Anonymous,
         transport: "conformance".to_string(),
+        authority: None,
+        host_operation: None,
         session_id: None,
         correlation_id: None,
         parent_invocation_id: None,
@@ -485,6 +487,8 @@ pub(crate) async fn deployment_hub_requires_host_principal() -> anyhow::Result<(
     let context = ProtocolContext {
         principal: ProtocolPrincipal::Anonymous,
         transport: "conformance".to_string(),
+        authority: None,
+        host_operation: None,
         session_id: None,
         correlation_id: None,
         parent_invocation_id: None,

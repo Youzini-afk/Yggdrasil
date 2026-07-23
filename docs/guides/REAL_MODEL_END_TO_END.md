@@ -147,7 +147,7 @@ npm run dev --prefix clients/web
 2. 点 Play。
 3. 项目状态变成 Running。
 4. host 创建项目 session。
-5. `kernel.v1.surface.resolve_bundle` 返回 `/surface-bundles/projects/<project_id>/bundle.mjs`，surface bundle 被挂载到 iframe。
+5. `host.surface.bundle.resolve` 验证项目后返回短期 `/surface-assets/<lease>/projects/<project_id>/bundle.mjs`，surface bundle 被挂载到 iframe；内部原始 `/surface-bundles/...` 路径不交给 sandbox。
 6. 打开 API Connections 抽屉。
 7. 选 OpenAI / Anthropic / Gemini provider。
 8. 粘贴 API key。

@@ -29,6 +29,7 @@ export interface LocaleDictionary {
   pairInvalidBody: string;
   pairDevice: string;
   pairPermissions: string;
+  pairResources: string;
   pairGrantExpires: string;
   pairSecureRequiredTitle: string;
   pairSecureRequiredBody: string;
@@ -537,6 +538,16 @@ export interface LocaleDictionary {
   accessPublicHostUrlHelper: string;
   accessHttpsRequired: string;
   accessPermissions: string;
+  accessProjectResources: string;
+  accessProjectResourcesBody: string;
+  accessAllProjects: string;
+  accessProjectIdsPlaceholder: string;
+  accessTargetResources: string;
+  accessTargetResourcesBody: string;
+  accessAllTargets: string;
+  accessTargetIdsPlaceholder: string;
+  accessProjectResource: (id: string) => string;
+  accessTargetResource: (id: string) => string;
   accessCreateValidation: string;
   accessCreating: string;
   accessCreateButton: string;
@@ -774,6 +785,7 @@ export const labels = {
     pairInvalidBody: "This invitation is invalid, expired, cancelled, or has already been used.",
     pairDevice: "Device",
     pairPermissions: "Granted abilities",
+    pairResources: "Granted resources",
     pairGrantExpires: "Access expires",
     pairSecureRequiredTitle: "HTTPS is required",
     pairSecureRequiredBody:
@@ -1304,6 +1316,16 @@ export const labels = {
     accessPublicHostUrlHelper: "The phone must be able to reach this exact Host address.",
     accessHttpsRequired: "Enter the public HTTPS origin for this Host, without a path.",
     accessPermissions: "Device abilities",
+    accessProjectResources: "Project access",
+    accessProjectResourcesBody: "Grant every project or enter exact project ids separated by commas.",
+    accessAllProjects: "All projects",
+    accessProjectIdsPlaceholder: "project-a, project-b",
+    accessTargetResources: "Execution targets",
+    accessTargetResourcesBody: "Grant every target or enter exact target ids separated by commas.",
+    accessAllTargets: "All targets",
+    accessTargetIdsPlaceholder: "local, preview-server",
+    accessProjectResource: (id) => `Project · ${id}`,
+    accessTargetResource: (id) => `Target · ${id}`,
     accessCreateValidation: "Enter a device name, 1–365 days, and a valid HTTPS Host address.",
     accessCreating: "Creating…",
     accessCreateButton: "Create pairing link",
@@ -1551,6 +1573,7 @@ export const labels = {
     pairInvalidBody: "此邀请无效、已过期、已取消，或已经被使用。",
     pairDevice: "设备",
     pairPermissions: "授予能力",
+    pairResources: "授权资源",
     pairGrantExpires: "访问到期时间",
     pairSecureRequiredTitle: "必须使用 HTTPS",
     pairSecureRequiredBody: "远程会话使用 Secure、HttpOnly Cookie。请通过 Host 的 HTTPS 地址重新打开此邀请。",
@@ -2068,6 +2091,16 @@ export const labels = {
     accessPublicHostUrlHelper: "手机必须能够访问这个准确的 Host 地址。",
     accessHttpsRequired: "请输入此 Host 的公网 HTTPS 源地址，不要包含路径。",
     accessPermissions: "设备能力",
+    accessProjectResources: "项目访问范围",
+    accessProjectResourcesBody: "可授权全部项目，或输入以英文逗号分隔的准确项目 ID。",
+    accessAllProjects: "全部项目",
+    accessProjectIdsPlaceholder: "project-a, project-b",
+    accessTargetResources: "执行目标范围",
+    accessTargetResourcesBody: "可授权全部 target，或输入以英文逗号分隔的准确 target ID。",
+    accessAllTargets: "全部 target",
+    accessTargetIdsPlaceholder: "local, preview-server",
+    accessProjectResource: (id) => `项目 · ${id}`,
+    accessTargetResource: (id) => `Target · ${id}`,
     accessCreateValidation: "请填写设备名称、1–365 天有效期和有效的 Host HTTPS 地址。",
     accessCreating: "正在创建…",
     accessCreateButton: "创建配对链接",

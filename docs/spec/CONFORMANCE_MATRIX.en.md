@@ -84,7 +84,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | Assertion | Coverage | Status |
 |---|---|---|
 | static surface bundle | `surface_bundle` is a static browser entry and does not use the wasm sentinel or package execution | implemented |
-| project-root install surface dist | native project dist is served from the project root/project dist at `/surface-bundles/projects/<project_id>/...` | implemented |
+| project-root install surface dist | native project dist lives under Host/project-authority-gated `/surface-bundles/projects/<project_id>/...` | implemented |
+| sandbox asset attenuation | authorized resolution issues a five-minute `/surface-assets/<lease>/...` handle bound to the grant/bundle root; cross-root, forged, expired, or revoked-grant access is denied | implemented |
 | bridge allowlist | typed `allowed_capability_ids` precisely constrains callable surface-bridge capabilities | implemented |
 | metadata not authority | surface metadata describes entries only and does not grant authority | implemented |
 | stream ownership | stream subscribe/unsubscribe is bound to the owning surface and session | implemented |

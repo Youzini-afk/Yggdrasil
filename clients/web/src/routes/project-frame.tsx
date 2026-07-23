@@ -364,6 +364,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     setDeploymentOperation("deploying");
     try {
       const result = await client.deployProject({
+        project_id: projectId,
         image: descriptor.image,
         container_port: descriptor.container_port,
         port_name: descriptor.port_name,

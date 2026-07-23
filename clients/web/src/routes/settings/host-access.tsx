@@ -10,6 +10,8 @@ import {
   revokeHostAccessGrant,
   type CreateHostPairingResponse,
   type HostAccessGrant,
+  type HostAccessResourceKind,
+  type HostAccessResourceSelector,
   type HostAccessScope,
   type HostPairing,
 } from "@/client-core/host-access";
@@ -36,6 +38,10 @@ export function HostAccessPanel() {
   const [error, setError] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState("");
   const [grantDays, setGrantDays] = useState("90");
+  const [allProjects, setAllProjects] = useState(true);
+  const [projectIds, setProjectIds] = useState("");
+  const [allTargets, setAllTargets] = useState(true);
+  const [targetIds, setTargetIds] = useState("");
   const [linkBase, setLinkBase] = useState(() =>
     typeof window === "undefined" ? "" : window.location.origin,
   );
@@ -62,6 +68,22 @@ export function HostAccessPanel() {
   useEffect(() => {
     setSelectedScopes(defaultScopes);
   }, [defaultScopes]);
+
+  useEffect(() => {
+    if (!identity || identity.kind === "root" || !identity.resources) {
+      setAllProjects(true);
+      setProjectIds("");
+      setAllTargets(true);
+      setTargetIds("");
+      return;
+    }
+    const projectResources = identity.resources.filter((resource) => resource.kind === "project");
+    const targetResources = identity.resources.filter((resource) => resource.kind === "target");
+    setAllProjects(projectResources.some((resource) => !resource.id));
+    setProjectIds(projectResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+    setAllTargets(targetResources.some((resource) => !resource.id));
+    setTargetIds(targetResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+  }, [identity]);
 
   const refresh = useCallback(async () => {
     if (!canManage) {
@@ -109,10 +131,19 @@ export function HostAccessPanel() {
     setError(null);
     setCreated(null);
     try {
+      const resources: HostAccessResourceSelector[] = [
+        ...(allProjects
+          ? [{ kind: "project" as const }]
+          : parseResourceIds(projectIds).map((id) => ({ kind: "project" as const, id }))),
+        ...(allTargets
+          ? [{ kind: "target" as const }]
+          : parseResourceIds(targetIds).map((id) => ({ kind: "target" as const, id }))),
+      ];
       const result = await createHostPairing(
         {
           device_name: deviceName.trim(),
           scopes: SCOPE_ORDER.filter((scope) => selectedScopes.has(scope)),
+          resources,
           pairing_ttl_secs: 600,
           grant_ttl_secs: days * 24 * 60 * 60,
         },
@@ -285,6 +316,38 @@ export function HostAccessPanel() {
                 ))}
               </div>
             </CardSection>
+            <CardSection divided className="grid gap-5 md:grid-cols-2">
+              <Field label={t("accessProjectResources")} helper={t("accessProjectResourcesBody")}>
+                <div className="space-y-3">
+                  <Checkbox
+                    checked={allProjects}
+                    onCheckedChange={setAllProjects}
+                    label={t("accessAllProjects")}
+                  />
+                  <Input
+                    value={projectIds}
+                    disabled={allProjects}
+                    placeholder={t("accessProjectIdsPlaceholder")}
+                    onChange={(event) => setProjectIds(event.target.value)}
+                  />
+                </div>
+              </Field>
+              <Field label={t("accessTargetResources")} helper={t("accessTargetResourcesBody")}>
+                <div className="space-y-3">
+                  <Checkbox
+                    checked={allTargets}
+                    onCheckedChange={setAllTargets}
+                    label={t("accessAllTargets")}
+                  />
+                  <Input
+                    value={targetIds}
+                    disabled={allTargets}
+                    placeholder={t("accessTargetIdsPlaceholder")}
+                    onChange={(event) => setTargetIds(event.target.value)}
+                  />
+                </div>
+              </Field>
+            </CardSection>
             <CardSection divided className="flex justify-end">
               <Button
                 tone="primary"
@@ -391,6 +454,9 @@ function AccessRecords({
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {grant.scopes.map((scope) => <ScopeChip key={scope} scope={scope} />)}
+                    {(grant.resources ?? []).map((resource, index) => (
+                      <ResourceChip key={`${resource.kind}:${resource.id ?? "*"}:${index}`} resource={resource} />
+                    ))}
                   </div>
                 </div>
                 {grant.active ? (
@@ -450,6 +516,28 @@ function ScopeChip({ scope }: { scope: HostAccessScope }) {
       {scopeLabel(scope, t)}
     </span>
   );
+}
+
+function ResourceChip({ resource }: { resource: HostAccessResourceSelector }) {
+  const t = useT();
+  return (
+    <span className="rounded-full bg-aged-brass-surface px-2 py-0.5 text-[10px] font-medium text-aged-brass-deep">
+      {resourceLabel(resource.kind, resource.id, t)}
+    </span>
+  );
+}
+
+function parseResourceIds(value: string): string[] {
+  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+}
+
+function resourceLabel(
+  kind: HostAccessResourceKind,
+  id: string | null | undefined,
+  t: ReturnType<typeof useT>,
+): string {
+  if (kind === "project") return id ? t("accessProjectResource", id) : t("accessAllProjects");
+  return id ? t("accessTargetResource", id) : t("accessAllTargets");
 }
 
 function normalizePairingBase(input: string): string | null {

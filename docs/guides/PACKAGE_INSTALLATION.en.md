@@ -110,7 +110,7 @@ Install-related flags:
 
 A native project's `project.yaml` references the package manifests it needs and declares `entry_surface_id`. That surface should be contributed by one of those packages, usually with `slot: experience_entry`.
 
-The installed native-project path is: source → content-addressed store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`. A package `surface_bundle` is a static/non-executing browser entry that describes the bundle, styles, fonts, and mount export for the iframe. It does not use the wasm sentinel and is not treated as an executable package entry.
+The installed native-project path is: source → content-addressed store → nested manifests/profile autoload → project registry → project dist → internal `/surface-bundles/projects/<project_id>/...` → an authorized short-lived `/surface-assets/<lease>/...` handle. A package `surface_bundle` is a static/non-executing browser entry that describes the bundle, styles, fonts, and mount export for the iframe. It does not use the wasm sentinel and is not treated as an executable package entry.
 
 See [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
 
@@ -255,7 +255,7 @@ yg install github.com/user/repo#v1.0
     ├─ write the ProjectRegistry record
     └─ write lockfile (atomic)
             ↓
-7. after host serve loads the profile, expose static bundle files under /surface-bundles/projects/<project_id>/...
+7. after host serve loads the profile, keep `/surface-bundles/projects/<project_id>/...` protected and issue a short-lived `/surface-assets/<lease>/...` handle to the sandbox after project authorization
             ↓
 8. Done
 ```

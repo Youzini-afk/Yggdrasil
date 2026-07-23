@@ -7,6 +7,7 @@ import {
   claimHostPairing,
   inspectHostPairing,
   type HostPairing,
+  type HostAccessResourceSelector,
   type HostAccessScope,
 } from "@/client-core/host-access";
 import { PendingPairingCredentialLease } from "@/client-core/pairing-credential";
@@ -102,6 +103,21 @@ export function PairingPage() {
                   ))}
                 </div>
               </div>
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-tone">
+                  {t("pairResources")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(pairing.resources ?? []).map((resource, index) => (
+                    <span
+                      key={`${resource.kind}:${resource.id ?? "*"}:${index}`}
+                      className="rounded-full border border-whisper-border bg-aged-brass-surface px-2.5 py-1 text-[11px] font-medium text-charcoal-ink"
+                    >
+                      {pairingResourceLabel(resource, t)}
+                    </span>
+                  ))}
+                </div>
+              </div>
               <PairingDetail
                 label={t("pairGrantExpires")}
                 value={new Date(pairing.grant_expires_at_ms).toLocaleString()}
@@ -178,4 +194,14 @@ function scopeLabel(scope: HostAccessScope, t: ReturnType<typeof useT>): string 
     access_manage: "accessScopeManage",
   };
   return t(keys[scope]);
+}
+
+function pairingResourceLabel(
+  resource: HostAccessResourceSelector,
+  t: ReturnType<typeof useT>,
+): string {
+  if (resource.kind === "project") {
+    return resource.id ? t("accessProjectResource", resource.id) : t("accessAllProjects");
+  }
+  return resource.id ? t("accessTargetResource", resource.id) : t("accessAllTargets");
 }

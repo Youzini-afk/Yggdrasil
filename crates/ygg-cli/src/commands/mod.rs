@@ -5,6 +5,7 @@ pub(crate) mod conformance_package;
 pub(crate) mod contract;
 pub(crate) mod demo;
 pub mod host;
+pub mod host_access;
 pub mod install;
 pub mod list_installed;
 pub mod lockfile;

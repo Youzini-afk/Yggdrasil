@@ -22,12 +22,12 @@ ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/de
 - `GET /` 以及 `/app/public` 下的 Web 资源
 - `POST /rpc`（配置 token 时需要 token）
 - `GET /kernel/v1/event.subscribe/:session_id`（配置 token 时需要 token）
-- `GET /surface-bundles/...`（公开只读浏览器 artifact）
+- `GET /surface-bundles/...`（需 Host 身份）与授权解析后短期可读的 `/surface-assets/<lease>/...`
 - `GET /healthz`
 
 设置 `YGG_HTTP_ACCESS_TOKEN` 后，`/rpc` 与 `/kernel/...` 路由需要 `Authorization: Bearer <token>`。浏览器 SSE 使用 `?access_token=<token>`，因为 EventSource 不能发送自定义 header。正常使用时，直接打开 Web URL，在登录页粘贴 token；Web client 会验证 token、保存到 `localStorage`，之后自动用于 RPC/SSE。作为可选 bootstrap，也可以第一次访问时在 URL 加上 `?ygg_token=<token>` 或 `?access_token=<token>`；Web client 会读取一次并从地址栏移除该参数。
 
-`/surface-bundles/...` 在该 quick-validation 部署中是公开前端 artifact，这样 sandboxed iframe 的 dynamic import、stylesheet、font、image 能稳定加载。不要把 secret 放进 bundle 或 asset。安全边界是 host RPC/kernel token 加 SurfaceHost bridge capability policy，而不是隐藏前端 JavaScript/CSS。
+原始 `/surface-bundles/...` 走 Host 身份与项目授权。sandboxed iframe 不携带 Host credential；授权后的 resolver 会返回随机、五分钟、绑定 grant/bundle root 的 `/surface-assets/<lease>/...` 只读路径，让 dynamic import、stylesheet、font、image 稳定加载。asset lease 仍不是 secret 容器，不要把 secret 放进 bundle 或 asset；能力与数据访问继续由 Host token、项目 authority 和 SurfaceHost bridge policy 保护。
 
 ## Zeabur 配置
 
@@ -69,7 +69,7 @@ curl http://127.0.0.1:8080/healthz
 
 - 仅用于快速验证；不替代正式桌面分发。
 - access token 只是 quick-validation auth，不是生产级 session auth。
-- Surface bundle/asset 是公开只读浏览器 artifact，绝不要嵌入 secret。
+- Surface bundle/asset 通过短期只读 lease 暴露给 sandbox，但仍绝不要嵌入 secret。
 - 该适配器不引入新的官方包 namespace 或安装模型。
 - 公网验证请使用一次性 `/data` volume，测试结束后删除。
 - 不要在公网 quick-validation URL 中输入真实 API key 或敏感 secret。

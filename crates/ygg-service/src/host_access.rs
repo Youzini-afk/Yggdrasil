@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use ygg_core::{EventEnvelope, EventSequence};
-use ygg_runtime::EventStore;
+use ygg_runtime::{EventStore, ProtocolContext, ProtocolResourceSelector};
 
 use crate::{AppState, ServiceError, HOST_SESSION_COOKIE};
 
@@ -25,6 +25,7 @@ const DEFAULT_PAIRING_TTL_SECS: u64 = 5 * 60;
 const MAX_PAIRING_TTL_SECS: u64 = 10 * 60;
 const DEFAULT_GRANT_TTL_SECS: u64 = 90 * 24 * 60 * 60;
 const MAX_GRANT_TTL_SECS: u64 = 365 * 24 * 60 * 60;
+const MAX_DELEGATION_DEPTH: u16 = 32;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -48,6 +49,57 @@ impl HostAccessScope {
         Self::DevelopExecute,
         Self::AccessManage,
     ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Observe => "observe",
+            Self::ProjectOperate => "project_operate",
+            Self::Deploy => "deploy",
+            Self::DevelopPropose => "develop_propose",
+            Self::DevelopApprove => "develop_approve",
+            Self::DevelopExecute => "develop_execute",
+            Self::AccessManage => "access_manage",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum HostAccessResourceKind {
+    Project,
+    Target,
+}
+
+impl HostAccessResourceKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Project => "project",
+            Self::Target => "target",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(deny_unknown_fields)]
+pub struct HostAccessResourceSelector {
+    pub kind: HostAccessResourceKind,
+    /// Omitted means every resource of this kind. Exact ids are compared
+    /// structurally and never by prefix.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+}
+
+fn default_host_access_resources() -> BTreeSet<HostAccessResourceSelector> {
+    BTreeSet::from([
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Project,
+            id: None,
+        },
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Target,
+            id: None,
+        },
+    ])
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -63,6 +115,9 @@ pub struct HostAccessIdentity {
     pub grant_id: Option<String>,
     pub device_name: String,
     pub scopes: BTreeSet<HostAccessScope>,
+    pub resources: BTreeSet<HostAccessResourceSelector>,
+    pub delegation_chain: Vec<String>,
+    pub expires_at_ms: Option<i64>,
 }
 
 impl HostAccessIdentity {
@@ -72,11 +127,73 @@ impl HostAccessIdentity {
             grant_id: None,
             device_name: "Host root credential".to_string(),
             scopes: HostAccessScope::ALL.into_iter().collect(),
+            resources: default_host_access_resources(),
+            delegation_chain: Vec::new(),
+            expires_at_ms: None,
         }
     }
 
     pub fn allows(&self, scope: HostAccessScope) -> bool {
         self.kind == HostAccessIdentityKind::Root || self.scopes.contains(&scope)
+    }
+
+    pub fn allows_resource(&self, kind: HostAccessResourceKind, id: &str) -> bool {
+        self.kind == HostAccessIdentityKind::Root
+            || self.resources.iter().any(|selector| {
+                selector.kind == kind
+                    && selector.id.as_deref().is_none_or(|selected| selected == id)
+            })
+    }
+
+    pub fn allows_project(&self, project_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Project, project_id)
+    }
+
+    pub fn allows_target(&self, target_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Target, target_id)
+    }
+
+    pub fn allows_all(&self, kind: HostAccessResourceKind) -> bool {
+        self.kind == HostAccessIdentityKind::Root
+            || self
+                .resources
+                .iter()
+                .any(|selector| selector.kind == kind && selector.id.is_none())
+    }
+
+    fn allows_selector(&self, candidate: &HostAccessResourceSelector) -> bool {
+        if self.kind == HostAccessIdentityKind::Root {
+            return true;
+        }
+        self.resources
+            .iter()
+            .any(|owned| selector_covers(owned, candidate))
+    }
+
+    pub fn protocol_context(&self, transport: impl Into<String>) -> ProtocolContext {
+        let transport = transport.into();
+        if self.kind == HostAccessIdentityKind::Root {
+            return ProtocolContext::host_admin(transport);
+        }
+        ProtocolContext::host_device(
+            self.grant_id
+                .clone()
+                .expect("device identities always carry a grant id"),
+            self.scopes
+                .iter()
+                .map(|scope| scope.as_str().to_string())
+                .collect(),
+            self.resources
+                .iter()
+                .map(|selector| ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: selector.kind.as_str().to_string(),
+                    id: selector.id.clone(),
+                })
+                .collect(),
+            self.delegation_chain.clone(),
+            transport,
+        )
     }
 }
 
@@ -85,6 +202,12 @@ struct StoredPairing {
     id: String,
     device_name: String,
     scopes: BTreeSet<HostAccessScope>,
+    #[serde(default = "default_host_access_resources")]
+    resources: BTreeSet<HostAccessResourceSelector>,
+    #[serde(default)]
+    parent_grant_id: Option<String>,
+    #[serde(default)]
+    delegation_depth: u16,
     secret_digest: String,
     created_at_ms: i64,
     expires_at_ms: i64,
@@ -110,10 +233,70 @@ struct StoredGrant {
     id: String,
     device_name: String,
     scopes: BTreeSet<HostAccessScope>,
+    #[serde(default = "default_host_access_resources")]
+    resources: BTreeSet<HostAccessResourceSelector>,
+    #[serde(default)]
+    parent_grant_id: Option<String>,
+    #[serde(default)]
+    delegation_depth: u16,
     token_digest: String,
     created_at_ms: i64,
     expires_at_ms: i64,
     revoked_at_ms: Option<i64>,
+}
+
+fn selector_covers(
+    owned: &HostAccessResourceSelector,
+    candidate: &HostAccessResourceSelector,
+) -> bool {
+    owned.kind == candidate.kind
+        && match (&owned.id, &candidate.id) {
+            (None, _) => true,
+            (Some(owned), Some(candidate)) => owned == candidate,
+            (Some(_), None) => false,
+        }
+}
+
+fn ensure_delegated_authority(
+    parent: Option<&StoredGrant>,
+    scopes: &BTreeSet<HostAccessScope>,
+    resources: &BTreeSet<HostAccessResourceSelector>,
+    delegation_depth: u16,
+    expires_at_ms: i64,
+    issued_at_ms: i64,
+) -> anyhow::Result<()> {
+    let Some(parent) = parent else {
+        anyhow::ensure!(
+            delegation_depth == 0,
+            "root-issued Host grant must have delegation depth zero"
+        );
+        return Ok(());
+    };
+    anyhow::ensure!(
+        parent.revoked_at_ms.is_none() && parent.expires_at_ms > issued_at_ms,
+        "Host grant parent is not active"
+    );
+    anyhow::ensure!(
+        delegation_depth == parent.delegation_depth.saturating_add(1)
+            && delegation_depth <= MAX_DELEGATION_DEPTH,
+        "Host grant delegation depth is invalid"
+    );
+    anyhow::ensure!(
+        scopes.is_subset(&parent.scopes) && !scopes.contains(&HostAccessScope::AccessManage),
+        "delegated Host grant scopes exceed its parent"
+    );
+    anyhow::ensure!(
+        resources.iter().all(|candidate| parent
+            .resources
+            .iter()
+            .any(|owned| selector_covers(owned, candidate))),
+        "delegated Host grant resources exceed its parent"
+    );
+    anyhow::ensure!(
+        expires_at_ms <= parent.expires_at_ms,
+        "delegated Host grant outlives its parent"
+    );
+    Ok(())
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -144,9 +327,19 @@ struct HostAccessState {
     grants: HashMap<String, StoredGrant>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct HostAccessRegistry {
     state: Mutex<HostAccessState>,
+    instance_id: uuid::Uuid,
+}
+
+impl Default for HostAccessRegistry {
+    fn default() -> Self {
+        Self {
+            state: Mutex::new(HostAccessState::default()),
+            instance_id: uuid::Uuid::new_v4(),
+        }
+    }
 }
 
 pub fn host_access_registry() -> Arc<HostAccessRegistry> {
@@ -158,6 +351,9 @@ pub struct HostAccessGrantView {
     pub id: String,
     pub device_name: String,
     pub scopes: Vec<HostAccessScope>,
+    pub resources: Vec<HostAccessResourceSelector>,
+    pub parent_grant_id: Option<String>,
+    pub delegation_depth: u16,
     pub created_at_ms: i64,
     pub expires_at_ms: i64,
     pub revoked_at_ms: Option<i64>,
@@ -170,6 +366,9 @@ impl StoredGrant {
             id: self.id.clone(),
             device_name: self.device_name.clone(),
             scopes: self.scopes.iter().copied().collect(),
+            resources: self.resources.iter().cloned().collect(),
+            parent_grant_id: self.parent_grant_id.clone(),
+            delegation_depth: self.delegation_depth,
             created_at_ms: self.created_at_ms,
             expires_at_ms: self.expires_at_ms,
             revoked_at_ms: self.revoked_at_ms,
@@ -183,6 +382,9 @@ pub struct HostPairingView {
     pub id: String,
     pub device_name: String,
     pub scopes: Vec<HostAccessScope>,
+    pub resources: Vec<HostAccessResourceSelector>,
+    pub parent_grant_id: Option<String>,
+    pub delegation_depth: u16,
     pub created_at_ms: i64,
     pub expires_at_ms: i64,
     pub grant_expires_at_ms: i64,
@@ -206,6 +408,9 @@ impl StoredPairing {
             id: self.id.clone(),
             device_name: self.device_name.clone(),
             scopes: self.scopes.iter().copied().collect(),
+            resources: self.resources.iter().cloned().collect(),
+            parent_grant_id: self.parent_grant_id.clone(),
+            delegation_depth: self.delegation_depth,
             created_at_ms: self.created_at_ms,
             expires_at_ms: self.expires_at_ms,
             grant_expires_at_ms: self.grant_expires_at_ms,
@@ -220,6 +425,8 @@ impl StoredPairing {
 struct CreatePairingRequest {
     device_name: String,
     scopes: BTreeSet<HostAccessScope>,
+    #[serde(default = "default_host_access_resources")]
+    resources: BTreeSet<HostAccessResourceSelector>,
     #[serde(default)]
     pairing_ttl_secs: Option<u64>,
     #[serde(default)]
@@ -256,6 +463,9 @@ pub struct HostAccessIdentityView {
     pub grant_id: Option<String>,
     pub device_name: String,
     pub scopes: Vec<HostAccessScope>,
+    pub resources: Vec<HostAccessResourceSelector>,
+    pub delegation_chain: Vec<String>,
+    pub expires_at_ms: Option<i64>,
 }
 
 impl From<&HostAccessIdentity> for HostAccessIdentityView {
@@ -265,11 +475,38 @@ impl From<&HostAccessIdentity> for HostAccessIdentityView {
             grant_id: identity.grant_id.clone(),
             device_name: identity.device_name.clone(),
             scopes: identity.scopes.iter().copied().collect(),
+            resources: identity.resources.iter().cloned().collect(),
+            delegation_chain: identity.delegation_chain.clone(),
+            expires_at_ms: identity.expires_at_ms,
         }
     }
 }
 
 impl HostAccessRegistry {
+    pub(crate) fn instance_id(&self) -> uuid::Uuid {
+        self.instance_id
+    }
+
+    fn grant_is_active(state: &HostAccessState, grant_id: &str, now_ms: i64) -> bool {
+        let mut current = Some(grant_id);
+        let mut visited = BTreeSet::new();
+        while let Some(id) = current {
+            if !visited.insert(id.to_string())
+                || visited.len() > usize::from(MAX_DELEGATION_DEPTH) + 1
+            {
+                return false;
+            }
+            let Some(grant) = state.grants.get(id) else {
+                return false;
+            };
+            if grant.revoked_at_ms.is_some() || grant.expires_at_ms <= now_ms {
+                return false;
+            }
+            current = grant.parent_grant_id.as_deref();
+        }
+        true
+    }
+
     fn next_sequence(&self) -> EventSequence {
         self.state
             .lock()
@@ -302,6 +539,23 @@ impl HostAccessRegistry {
                     !state.pairings.contains_key(&pairing.id),
                     "Host pairing id was reused"
                 );
+                let parent = pairing
+                    .parent_grant_id
+                    .as_deref()
+                    .map(|parent_id| {
+                        state.grants.get(parent_id).ok_or_else(|| {
+                            anyhow::anyhow!("Host pairing parent grant does not exist")
+                        })
+                    })
+                    .transpose()?;
+                ensure_delegated_authority(
+                    parent,
+                    &pairing.scopes,
+                    &pairing.resources,
+                    pairing.delegation_depth,
+                    pairing.grant_expires_at_ms,
+                    pairing.created_at_ms,
+                )?;
                 state.pairings.insert(pairing.id.clone(), pairing);
             }
             HostAccessJournalEvent::PairingClaimed {
@@ -315,7 +569,8 @@ impl HostAccessRegistry {
                 );
                 let pairing = state
                     .pairings
-                    .get_mut(&pairing_id)
+                    .get(&pairing_id)
+                    .cloned()
                     .ok_or_else(|| anyhow::anyhow!("claimed Host pairing does not exist"))?;
                 anyhow::ensure!(
                     matches!(pairing.status, HostPairingStatus::Pending)
@@ -325,10 +580,35 @@ impl HostAccessRegistry {
                 anyhow::ensure!(
                     grant.device_name == pairing.device_name
                         && grant.scopes == pairing.scopes
+                        && grant.resources == pairing.resources
+                        && grant.parent_grant_id == pairing.parent_grant_id
+                        && grant.delegation_depth == pairing.delegation_depth
                         && grant.expires_at_ms == pairing.grant_expires_at_ms,
                     "Host grant does not match its pairing"
                 );
-                pairing.status = HostPairingStatus::Claimed {
+                let parent = grant
+                    .parent_grant_id
+                    .as_deref()
+                    .map(|parent_id| {
+                        state
+                            .grants
+                            .get(parent_id)
+                            .ok_or_else(|| anyhow::anyhow!("Host grant parent does not exist"))
+                    })
+                    .transpose()?;
+                ensure_delegated_authority(
+                    parent,
+                    &grant.scopes,
+                    &grant.resources,
+                    grant.delegation_depth,
+                    grant.expires_at_ms,
+                    claimed_at_ms,
+                )?;
+                state
+                    .pairings
+                    .get_mut(&pairing_id)
+                    .expect("claimed Host pairing was validated above")
+                    .status = HostPairingStatus::Claimed {
                     grant_id: grant.id.clone(),
                     claimed_at_ms,
                 };
@@ -385,13 +665,23 @@ impl HostAccessRegistry {
             .cloned()
     }
 
+    pub(crate) fn grant_is_currently_active(&self, grant_id: &str) -> bool {
+        let now_ms = Utc::now().timestamp_millis();
+        let state = self.state.lock().expect("Host access state lock poisoned");
+        Self::grant_is_active(&state, grant_id, now_ms)
+    }
+
     fn overview(&self, identity: &HostAccessIdentity) -> HostAccessOverview {
         let now_ms = Utc::now().timestamp_millis();
         let state = self.state.lock().expect("Host access state lock poisoned");
         let mut grants = state
             .grants
             .values()
-            .map(|grant| grant.view(now_ms))
+            .map(|grant| {
+                let mut view = grant.view(now_ms);
+                view.active = Self::grant_is_active(&state, &grant.id, now_ms);
+                view
+            })
             .collect::<Vec<_>>();
         grants.sort_by_key(|grant| std::cmp::Reverse(grant.created_at_ms));
         let mut pairings = state
@@ -410,7 +700,8 @@ impl HostAccessRegistry {
     fn authenticate(&self, token: &str) -> Option<HostAccessIdentity> {
         let grant_id = access_token_grant_id(token)?;
         let now_ms = Utc::now().timestamp_millis();
-        let grant = self.grant(grant_id)?;
+        let state = self.state.lock().expect("Host access state lock poisoned");
+        let grant = state.grants.get(grant_id)?.clone();
         if grant.revoked_at_ms.is_some() || grant.expires_at_ms <= now_ms {
             return None;
         }
@@ -418,11 +709,53 @@ impl HostAccessRegistry {
         if !constant_time_eq(candidate_digest.as_bytes(), grant.token_digest.as_bytes()) {
             return None;
         }
+        let mut delegation_chain = Vec::new();
+        let mut parent_grant_id = grant.parent_grant_id.as_deref();
+        let mut remaining_depth = grant.delegation_depth;
+        let mut delegated_scopes = grant.scopes.clone();
+        let mut delegated_resources = grant.resources.clone();
+        let mut delegated_expiry = grant.expires_at_ms;
+        while let Some(parent_id) = parent_grant_id {
+            if delegation_chain.len() >= usize::from(MAX_DELEGATION_DEPTH)
+                || delegation_chain.iter().any(|id| id == parent_id)
+            {
+                return None;
+            }
+            let parent = state.grants.get(parent_id)?;
+            if parent.revoked_at_ms.is_some()
+                || parent.expires_at_ms <= now_ms
+                || remaining_depth == 0
+                || parent.delegation_depth.saturating_add(1) != remaining_depth
+                || !delegated_scopes.is_subset(&parent.scopes)
+                || delegated_scopes.contains(&HostAccessScope::AccessManage)
+                || !delegated_resources.iter().all(|candidate| {
+                    parent
+                        .resources
+                        .iter()
+                        .any(|owned| selector_covers(owned, candidate))
+                })
+                || delegated_expiry > parent.expires_at_ms
+            {
+                return None;
+            }
+            delegation_chain.push(parent.id.clone());
+            remaining_depth = parent.delegation_depth;
+            delegated_scopes = parent.scopes.clone();
+            delegated_resources = parent.resources.clone();
+            delegated_expiry = parent.expires_at_ms;
+            parent_grant_id = parent.parent_grant_id.as_deref();
+        }
+        if remaining_depth != 0 {
+            return None;
+        }
         Some(HostAccessIdentity {
             kind: HostAccessIdentityKind::Device,
             grant_id: Some(grant.id),
             device_name: grant.device_name,
             scopes: grant.scopes,
+            resources: grant.resources,
+            delegation_chain,
+            expires_at_ms: Some(grant.expires_at_ms),
         })
     }
 }
@@ -515,6 +848,19 @@ where
             "a Host access grant cannot exceed the caller's scopes",
         ));
     }
+    for selector in &request.resources {
+        validate_resource_selector(selector)?;
+    }
+    if request
+        .resources
+        .iter()
+        .any(|selector| !identity.allows_selector(selector))
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "a Host access grant cannot exceed the caller's project or target resources",
+        ));
+    }
     if request.scopes.contains(&HostAccessScope::AccessManage)
         && identity.kind != HostAccessIdentityKind::Root
     {
@@ -533,12 +879,36 @@ where
             "Host access TTL is outside the supported range",
         ));
     }
+    if identity.expires_at_ms.is_some_and(|caller_expiry| {
+        Utc::now()
+            .timestamp_millis()
+            .saturating_add(seconds_to_millis(grant_ttl_secs))
+            > caller_expiry
+    }) {
+        return Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "a delegated Host access grant cannot outlive its parent grant",
+        ));
+    }
+
+    let delegation_depth = u16::try_from(identity.delegation_chain.len())
+        .unwrap_or(u16::MAX)
+        .saturating_add(u16::from(identity.kind == HostAccessIdentityKind::Device));
+    if delegation_depth > MAX_DELEGATION_DEPTH {
+        return Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "Host access delegation depth limit reached",
+        ));
+    }
 
     let (pairing, pairing_token) = create_pairing_record(
         state.runtime.store().as_ref(),
         state.host_access.as_ref(),
         request.device_name.trim().to_string(),
         request.scopes,
+        request.resources,
+        identity.grant_id.clone(),
+        delegation_depth,
         pairing_ttl_secs,
         grant_ttl_secs,
     )
@@ -710,6 +1080,23 @@ fn validate_device_name(name: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
+fn validate_resource_selector(selector: &HostAccessResourceSelector) -> Result<(), ServiceError> {
+    if let Some(id) = selector.id.as_deref() {
+        let trimmed = id.trim();
+        if trimmed.is_empty()
+            || trimmed.len() > 160
+            || trimmed != id
+            || trimmed.chars().any(|ch| ch.is_control())
+        {
+            return Err(ServiceError::with_status(
+                StatusCode::BAD_REQUEST,
+                "Host access resource ids must contain 1..=160 non-control characters without surrounding whitespace",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn access_internal_error(error: anyhow::Error) -> ServiceError {
     tracing::warn!(error = %error, "Host access control-plane operation failed");
     ServiceError::with_status(
@@ -815,6 +1202,9 @@ async fn create_pairing_record<S>(
     registry: &HostAccessRegistry,
     device_name: String,
     scopes: BTreeSet<HostAccessScope>,
+    resources: BTreeSet<HostAccessResourceSelector>,
+    parent_grant_id: Option<String>,
+    delegation_depth: u16,
     pairing_ttl_secs: u64,
     grant_ttl_secs: u64,
 ) -> anyhow::Result<(StoredPairing, String)>
@@ -828,6 +1218,9 @@ where
         id,
         device_name,
         scopes,
+        resources,
+        parent_grant_id,
+        delegation_depth,
         secret_digest: credential_digest("pairing", &pairing_token),
         created_at_ms: now_ms,
         expires_at_ms: now_ms.saturating_add(seconds_to_millis(pairing_ttl_secs)),
@@ -839,6 +1232,23 @@ where
     };
     for _ in 0..8 {
         sync_host_access_journal(store, registry).await?;
+        let parent = pairing
+            .parent_grant_id
+            .as_deref()
+            .map(|parent_id| {
+                registry
+                    .grant(parent_id)
+                    .ok_or_else(|| anyhow::anyhow!("Host pairing parent grant does not exist"))
+            })
+            .transpose()?;
+        ensure_delegated_authority(
+            parent.as_ref(),
+            &pairing.scopes,
+            &pairing.resources,
+            pairing.delegation_depth,
+            pairing.grant_expires_at_ms,
+            Utc::now().timestamp_millis(),
+        )?;
         let expected_next = registry.next_sequence();
         if append_access_event(store, registry, expected_next, &transition)
             .await?
@@ -880,10 +1290,30 @@ where
             ),
             "Host pairing secret did not match"
         );
+        let parent = pairing
+            .parent_grant_id
+            .as_deref()
+            .map(|parent_id| {
+                registry
+                    .grant(parent_id)
+                    .ok_or_else(|| anyhow::anyhow!("Host pairing parent grant does not exist"))
+            })
+            .transpose()?;
+        ensure_delegated_authority(
+            parent.as_ref(),
+            &pairing.scopes,
+            &pairing.resources,
+            pairing.delegation_depth,
+            pairing.grant_expires_at_ms,
+            now_ms,
+        )?;
         let grant = StoredGrant {
             id: grant_id.clone(),
             device_name: pairing.device_name,
             scopes: pairing.scopes,
+            resources: pairing.resources,
+            parent_grant_id: pairing.parent_grant_id,
+            delegation_depth: pairing.delegation_depth,
             token_digest: credential_digest("access", &access_token),
             created_at_ms: now_ms,
             expires_at_ms: pairing.grant_expires_at_ms,
@@ -1075,6 +1505,9 @@ mod tests {
             &registry,
             "Phone".to_string(),
             scopes.clone(),
+            default_host_access_resources(),
+            None,
+            0,
             300,
             3600,
         )
@@ -1105,6 +1538,9 @@ mod tests {
             &source,
             "Tablet".to_string(),
             BTreeSet::from([HostAccessScope::Observe]),
+            default_host_access_resources(),
+            None,
+            0,
             300,
             3600,
         )
@@ -1126,6 +1562,262 @@ mod tests {
             assert!(!serialized.contains(&pairing_token));
             assert!(!serialized.contains(&access_token));
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn legacy_access_journal_without_resources_hydrates_as_wildcard() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let registry = Arc::new(HostAccessRegistry::default());
+        let now_ms = Utc::now().timestamp_millis();
+        let pairing_id = "legacy-pairing";
+        let grant_id = "legacy-grant";
+        let access_token = format!("yggaccess.{grant_id}.{}", "a".repeat(64));
+
+        let created = json!({
+            "kind": "pairing_created",
+            "pairing": {
+                "id": pairing_id,
+                "device_name": "Legacy device",
+                "scopes": ["observe"],
+                "secret_digest": credential_digest("pairing", "legacy-pairing-token"),
+                "created_at_ms": now_ms,
+                "expires_at_ms": now_ms + 60_000,
+                "grant_expires_at_ms": now_ms + 3_600_000,
+                "status": { "kind": "pending" }
+            }
+        });
+        let claimed = json!({
+            "kind": "pairing_claimed",
+            "pairing_id": pairing_id,
+            "claimed_at_ms": now_ms + 1,
+            "grant": {
+                "id": grant_id,
+                "device_name": "Legacy device",
+                "scopes": ["observe"],
+                "token_digest": credential_digest("access", &access_token),
+                "created_at_ms": now_ms + 1,
+                "expires_at_ms": now_ms + 3_600_000,
+                "revoked_at_ms": null
+            }
+        });
+
+        for (sequence, payload) in [(0, created), (1, claimed)] {
+            store
+                .append_with_sequence_if_next(
+                    HOST_ACCESS_JOURNAL_SESSION.to_string(),
+                    sequence,
+                    HOST_ACCESS_JOURNAL_WRITER.to_string(),
+                    HOST_ACCESS_JOURNAL_EVENT.to_string(),
+                    1,
+                    payload,
+                    json!({"legacy_fixture": true}),
+                )
+                .await?
+                .expect("legacy journal event appends contiguously");
+        }
+
+        assert_eq!(
+            hydrate_host_access_control_plane(store, registry.clone()).await?,
+            2
+        );
+        let identity = registry
+            .authenticate(&access_token)
+            .expect("legacy grant remains authenticatable");
+        assert!(identity.allows_project("any-project"));
+        assert!(identity.allows_target("any-target"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn delegated_grant_is_project_exact_and_parent_revocation_cascades() -> anyhow::Result<()>
+    {
+        let store = InMemoryEventStore::default();
+        let registry = HostAccessRegistry::default();
+        let project_a = BTreeSet::from([HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Project,
+            id: Some("project-a".to_string()),
+        }]);
+        let (_, parent_pairing_token) = create_pairing_record(
+            &store,
+            &registry,
+            "Admin tablet".to_string(),
+            BTreeSet::from([HostAccessScope::Observe, HostAccessScope::AccessManage]),
+            project_a.clone(),
+            None,
+            0,
+            300,
+            3600,
+        )
+        .await?;
+        let (parent, _) = claim_pairing_record(&store, &registry, &parent_pairing_token).await?;
+
+        let (_, child_pairing_token) = create_pairing_record(
+            &store,
+            &registry,
+            "Project phone".to_string(),
+            BTreeSet::from([HostAccessScope::Observe]),
+            project_a,
+            Some(parent.id.clone()),
+            1,
+            300,
+            3500,
+        )
+        .await?;
+        let (_, child_access_token) =
+            claim_pairing_record(&store, &registry, &child_pairing_token).await?;
+        let child = authenticate_host_access_token(&store, &registry, &child_access_token)
+            .await?
+            .expect("child grant authenticates while its parent is active");
+        assert!(child.allows_project("project-a"));
+        assert!(!child.allows_project("project-ab"));
+        assert_eq!(child.delegation_chain, vec![parent.id.clone()]);
+
+        revoke_grant_record(&store, &registry, &parent.id).await?;
+        assert!(
+            authenticate_host_access_token(&store, &registry, &child_access_token)
+                .await?
+                .is_none(),
+            "revoking an ancestor must invalidate descendants"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn hydration_rejects_an_overbroad_delegated_authority() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let source = HostAccessRegistry::default();
+        let project_a = BTreeSet::from([HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Project,
+            id: Some("project-a".to_string()),
+        }]);
+        let (_, parent_pairing_token) = create_pairing_record(
+            store.as_ref(),
+            &source,
+            "Parent".to_string(),
+            BTreeSet::from([HostAccessScope::Observe, HostAccessScope::AccessManage]),
+            project_a,
+            None,
+            0,
+            300,
+            3600,
+        )
+        .await?;
+        let (parent, _) =
+            claim_pairing_record(store.as_ref(), &source, &parent_pairing_token).await?;
+        let now_ms = Utc::now().timestamp_millis();
+        let overbroad = StoredPairing {
+            id: "malformed-child-pairing".to_string(),
+            device_name: "Malformed child".to_string(),
+            scopes: BTreeSet::from([HostAccessScope::Observe]),
+            resources: BTreeSet::from([HostAccessResourceSelector {
+                kind: HostAccessResourceKind::Project,
+                id: Some("project-b".to_string()),
+            }]),
+            parent_grant_id: Some(parent.id),
+            delegation_depth: 1,
+            secret_digest: credential_digest("pairing", "not-a-credential"),
+            created_at_ms: now_ms,
+            expires_at_ms: now_ms + 60_000,
+            grant_expires_at_ms: now_ms + 3_000_000,
+            status: HostPairingStatus::Pending,
+        };
+        store
+            .append_with_sequence_if_next(
+                HOST_ACCESS_JOURNAL_SESSION.to_string(),
+                2,
+                HOST_ACCESS_JOURNAL_WRITER.to_string(),
+                HOST_ACCESS_JOURNAL_EVENT.to_string(),
+                1,
+                serde_json::to_value(HostAccessJournalEvent::PairingCreated {
+                    pairing: overbroad,
+                })?,
+                json!({"malformed_fixture": true}),
+            )
+            .await?
+            .expect("malformed event is present in the raw store fixture");
+
+        let hydrated = Arc::new(HostAccessRegistry::default());
+        assert!(
+            hydrate_host_access_control_plane(store, hydrated)
+                .await
+                .is_err(),
+            "journal replay must fail closed when delegated resources exceed the parent"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn concurrent_revocation_has_one_winner_and_invalidates_the_credential(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let registry = Arc::new(HostAccessRegistry::default());
+        let (_, pairing_token) = create_pairing_record(
+            store.as_ref(),
+            registry.as_ref(),
+            "Concurrent revoke device".to_string(),
+            BTreeSet::from([HostAccessScope::Observe]),
+            default_host_access_resources(),
+            None,
+            0,
+            300,
+            3600,
+        )
+        .await?;
+        let (grant, access_token) =
+            claim_pairing_record(store.as_ref(), registry.as_ref(), &pairing_token).await?;
+
+        let barrier = Arc::new(tokio::sync::Barrier::new(3));
+        let revoke = |store: Arc<InMemoryEventStore>,
+                      registry: Arc<HostAccessRegistry>,
+                      barrier: Arc<tokio::sync::Barrier>| {
+            let grant_id = grant.id.clone();
+            tokio::spawn(async move {
+                barrier.wait().await;
+                revoke_grant_record(store.as_ref(), registry.as_ref(), &grant_id).await
+            })
+        };
+        let left = revoke(store.clone(), registry.clone(), barrier.clone());
+        let right = revoke(store.clone(), registry.clone(), barrier.clone());
+        barrier.wait().await;
+        let (left, right) = tokio::join!(left, right,);
+        let left = left?;
+        let right = right?;
+        assert_eq!(
+            usize::from(left.is_ok()) + usize::from(right.is_ok()),
+            1,
+            "the append-if-next journal must serialize concurrent revocation"
+        );
+        assert!(
+            authenticate_host_access_token(store.as_ref(), registry.as_ref(), &access_token)
+                .await?
+                .is_none()
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn expired_grant_never_authenticates() -> anyhow::Result<()> {
+        let store = InMemoryEventStore::default();
+        let registry = HostAccessRegistry::default();
+        let (_, pairing_token) = create_pairing_record(
+            &store,
+            &registry,
+            "Expired device".to_string(),
+            BTreeSet::from([HostAccessScope::Observe]),
+            default_host_access_resources(),
+            None,
+            0,
+            300,
+            0,
+        )
+        .await?;
+        let (_, access_token) = claim_pairing_record(&store, &registry, &pairing_token).await?;
+        assert!(
+            authenticate_host_access_token(&store, &registry, &access_token)
+                .await?
+                .is_none()
+        );
         Ok(())
     }
 }

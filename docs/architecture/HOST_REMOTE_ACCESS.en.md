@@ -2,7 +2,7 @@
 
 > [English](./HOST_REMOTE_ACCESS.en.md) · [中文](./HOST_REMOTE_ACCESS.md)
 
-Yggdrasil's Web/PWA, Desktop, and future CLI are clients of the same Host. Remote access does not create a second mutation interface and does not copy the root token onto a phone. It adds revocable, expiring, action-scoped device identities in front of the existing Host API and RPC. Public application traffic is a separate, explicit data-plane boundary; configuring a domain does not publish routes implicitly.
+Yggdrasil's Web/PWA, Desktop, and CLI are clients of the same Host. Remote access does not create a second mutation interface and does not copy the root token onto a phone. It adds revocable, expiring device identities attenuated by both actions and structured project/target resources in front of the existing Host API and RPC. Public application traffic is a separate, explicit data-plane boundary; configuring a domain does not publish routes implicitly.
 
 ## Two planes
 
@@ -25,7 +25,7 @@ flowchart LR
 | Identity | Credential | Purpose |
 |---|---|---|
 | Host root | Bearer token from `YGG_HTTP_ACCESS_TOKEN` / `--access-token`; Desktop may exchange a one-time bootstrap nonce for a root cookie | Local administration, first authorization, and recovery; owns every scope |
-| Paired device | `yggaccess.*` token; after PWA claim it exists only in the `__Host-ygg_remote_session` cookie | Routine remote control; owns only the grant's scopes |
+| Paired device | `yggaccess.*` token; after PWA claim it exists only in the `__Host-ygg_remote_session` cookie | Routine remote control; owns only the grant's scopes and project/target selectors |
 
 Optional authentication with no configured root token is a loopback development mode. `host serve` refuses a non-loopback bind without a non-empty root token. The root token is a root credential and must never enter a pairing URL, browser persistence, application upstream, or logs.
 
@@ -43,11 +43,19 @@ Optional authentication with no configured root token is a loopback development 
 
 Unknown HTTP paths, unknown RPC methods, and broad administrative mutations require `access_manage`, so scoped devices fail closed. A new grant must be a subset of the caller's authority and must contain `observe`; only root can delegate `access_manage`. The Web UI selects only `observe` by default, and each additional action is explicit.
 
-Scopes are currently Host action scopes, not a project-level tenant boundary. Hardening project identity through `ProtocolContext.session_id` remains separate follow-up work.
+## Project and target resources
+
+A grant's `resources` are structured selectors shaped as `{ kind: "project" | "target", id?: string }`. Omitting `id` selects every resource of that kind; an explicit id is compared structurally and exactly, never by string prefix. Legacy journal grants without `resources` rehydrate with the compatible all-projects + all-targets meaning. New Web and CLI pairings submit selectors explicitly.
+
+The server checks or filters HTTP project paths and static project bundles, canonical and legacy RPC, project lists, sessions/events, ChangeSets, deployment jobs/revisions, private `/p` routes, and target/exec/port/proxy objects. A device identity is no longer collapsed into `HostDev` at `/rpc`. The Host writes and verifies `metadata.project_id` on project sessions; forks preserve the binding, and a caller-supplied `session_id` is not authority by itself.
+
+A child grant cannot exceed its parent's scopes, resources, or expiry. Authentication validates the complete delegation chain, so revoking or expiring any ancestor invalidates descendants immediately. Device protocol allow/deny decisions are written to the `host_control_authority` journal with grant, delegation, canonical method, action, structured resources, and correlation—but never tokens, cookies, or raw request parameters.
+
+A sandboxed surface frame has an opaque origin and cannot safely carry a Host Cookie or bearer token. After validating project authority, `host.surface.bundle.resolve` replaces the internal `/surface-bundles/...` location with a random, five-minute, read-only `/surface-assets/<lease>/...` handle constrained to that bundle root; relative modules and CSS stay under the same root. The handle is bound to the device grant and fails immediately after revocation or expiry, while raw bundle paths still require a Host identity. It contains no Host credential and cannot call RPC or read another project.
 
 ## Pairing lifecycle
 
-1. A client with `access_manage` calls `POST /host/v1/access/pairings` with a device name, scopes, and expiration.
+1. A client with `access_manage` calls `POST /host/v1/access/pairings` with a device name, scopes, project/target selectors, and expiration.
 2. The Host returns a one-time `yggpair.*` token valid for at most ten minutes. The Web UI places it in `/pair` under an operator-supplied HTTPS Host origin.
 3. The new device removes the token from the address bar immediately and retains it in memory only. It first calls the public inspect endpoint so the user can verify device name, scopes, and expiry.
 4. On confirmation, the public claim endpoint atomically consumes the pairing, creates a grant valid for at most 365 days, and sets a Secure, HttpOnly, SameSite=Strict, host-only cookie.
@@ -59,7 +67,7 @@ Routes:
 |---|---|---|
 | public + pairing token | `POST /host/v1/access/pair/inspect` | Inspect an invitation before consuming it |
 | public + pairing token | `POST /host/v1/access/pair` | Claim a grant once |
-| any Host identity | `GET /host/v1/access/me` | Inspect the current identity and scopes |
+| any Host identity | `GET /host/v1/access/me` | Inspect the current identity, scopes, resources, and delegation chain |
 | `access_manage` | `GET /host/v1/access` | Inspect grant and pairing projections |
 | `access_manage` | `POST /host/v1/access/pairings` | Create an invitation |
 | `access_manage` | `POST .../pairings/:id/cancel` | Cancel a pending invitation |
@@ -72,7 +80,24 @@ Routes:
 - The journal stores only domain-separated SHA-256 credential digests, never pairing tokens, access tokens, or cookie values.
 - Pairing claim/cancel and grant revoke use expected-tail compare-and-append. Only one concurrent claim can commit.
 - Grant revocation and expiry are checked on every authentication, rather than relying on the browser to refresh state.
+- Delegated grants retain `parent_grant_id` and `delegation_depth`; authentication walks ancestors fail-closed, and parent revocation cascades.
 - Bearer and cookie credentials have explicit precedence. Query credentials are accepted only by `GET /kernel/v1/event.subscribe/:session_id` and `GET /host/v1/build-deploy/:job_id/events`, the two browser SSE entry points; no other route treats a URL token as a credential.
+
+## CLI management
+
+The CLI uses the same Host API as Web/PWA and never writes the grant journal directly:
+
+The CLI permits plaintext HTTP only for loopback. Non-loopback Hosts require HTTPS, and Host-access requests do not follow redirects, preventing a bearer credential from being forwarded to another origin.
+
+```bash
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" me
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" list
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  pair --device-name phone --scopes observe,project_operate,deploy \
+  --project my-project__abc12345 --target local
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  revoke <grant-id>
+```
 
 ## HTTPS and same-origin requirements
 
@@ -106,7 +131,7 @@ A public route's application owns internet-input validation, application identit
 ## Deliberately absent
 
 - Remote execution targets or remote package transport; deployed upstreams remain local loopback services.
-- Project-isolated multi-tenant identities and cross-Host delegation chains.
+- Multi-user project membership, workload-grade hard sandboxing, and cross-Host delegation chains. Current project selectors are a single-Host control-plane boundary.
 - Automatic root-token synchronization to phones, or a local CLI mutation path that bypasses the Host API.
 - Deployment, public routes, or side-effect replay without explicit user confirmation.
 - Application login, public CORS, or internet-edge protection supplied on behalf of deployed apps.

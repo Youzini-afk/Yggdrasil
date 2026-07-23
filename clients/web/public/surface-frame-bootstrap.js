@@ -127,7 +127,7 @@ function isAllowedAssetUrl(value) {
   try {
     const url = new URL(value, window.location.href);
     return url.origin === window.location.origin
-      && (url.pathname.startsWith('/surface-bundles/')
+      && (url.pathname.startsWith('/surface-assets/')
         || url.pathname.startsWith('/assets/')
         || url.pathname === '/surface-frame-bootstrap.js');
   } catch {

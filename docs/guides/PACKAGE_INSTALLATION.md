@@ -110,7 +110,7 @@ yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 
 原生项目的 `project.yaml` 引用项目需要的 package manifest，并给出 `entry_surface_id`。该 surface 应由其中一个 package 贡献，通常是 `slot: experience_entry`。
 
-原生项目安装后的实际链路是：source → 内容寻址 store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`。项目 package 的 `surface_bundle` 是 static/non-executing 浏览器入口，只描述 iframe 要加载的 bundle、样式、字体与 mount export；它不走 wasm sentinel，也不会把浏览器 bundle 当作可执行 package entry。
+原生项目安装后的实际链路是：source → 内容寻址 store → nested manifests/profile autoload → project registry → project dist → 内部 `/surface-bundles/projects/<project_id>/...` → 授权后的短期 `/surface-assets/<lease>/...`。项目 package 的 `surface_bundle` 是 static/non-executing 浏览器入口，只描述 iframe 要加载的 bundle、样式、字体与 mount export；它不走 wasm sentinel，也不会把浏览器 bundle 当作可执行 package entry。
 
 详见 [`PROJECT_MODEL.md`](PROJECT_MODEL.md)。
 
@@ -255,7 +255,7 @@ yg install github.com/user/repo#v1.0
     ├─ 写入 ProjectRegistry 记录
     └─ 写入 lockfile（原子）
             ↓
-7. host serve 加载 profile 后通过 /surface-bundles/projects/<project_id>/... 暴露静态 bundle
+7. host serve 加载 profile 后保留受保护的 `/surface-bundles/projects/<project_id>/...`，并在项目授权后签发短期 `/surface-assets/<lease>/...` 给 sandbox
             ↓
 8. 完成
 ```

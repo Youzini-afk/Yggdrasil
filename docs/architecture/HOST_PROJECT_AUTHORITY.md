@@ -2,7 +2,15 @@
 
 > [English](./HOST_PROJECT_AUTHORITY.en.md) · [中文](./HOST_PROJECT_AUTHORITY.md)
 
-状态：**实施前设计合同**。本文定义 Host 项目操作的授权边界；在对应实现与 conformance 完成前，不把候选字段或方法视为 Stable。
+状态：**Candidate 实现**。Phase 1 已实现本文的项目/目标级授权边界；字段与行为仍按 Candidate 管理，在跨平台 CI 和后续长操作 lease/receipt 闭环持续验证前不视为 Stable。
+
+当前实现快照（2026-07-23）：
+
+- HTTP、Cookie、Bearer 与 RPC 统一保留 `host_device` principal、grant、delegation chain、action 和结构化资源 selector；
+- project/session/event/proposal/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，legacy adapter 复用 canonical policy；
+- pairing journal 支持衰减委托、期限、祖先撤销级联和旧全局 grant 的显式 wildcard 水化；Web/PWA 与 `yg host access` CLI 使用同一 API；
+- 设备调用写入不含凭据与请求 payload 的 `host/control/v1/authority.decision` allow/deny journal；
+- 全局 package/capability/asset/projection 与 surface contribution 尚无项目归属，因此精确项目设备只能通过已验证项目/session 路径操作资源和解析其项目 bundle，不能枚举 Host 全局 catalog；opaque-origin frame 只获得绑定 grant 和 bundle root 的五分钟只读 asset lease，原始静态路径仍要求 Host 身份。长时间部署的 authority lease、route ownership 持久化和 effect-receipt 串联属于 Phase 2。
 
 ## 目标
 

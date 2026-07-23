@@ -147,7 +147,7 @@ Then in the UI:
 2. Click Play.
 3. The project becomes Running.
 4. The host creates a project session.
-5. `kernel.v1.surface.resolve_bundle` returns `/surface-bundles/projects/<project_id>/bundle.mjs`, and the surface bundle is mounted in an iframe.
+5. `host.surface.bundle.resolve` validates the project and returns a short-lived `/surface-assets/<lease>/projects/<project_id>/bundle.mjs`; the surface bundle mounts in the iframe while the raw internal `/surface-bundles/...` path is not exposed to the sandbox.
 6. Open the API Connections drawer.
 7. Choose an OpenAI / Anthropic / Gemini provider.
 8. Paste the API key.

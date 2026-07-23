@@ -6,12 +6,19 @@ where
 {
     // --- Project ---
 
-    fn ensure_project_admin(context: &ProtocolContext, method: &str) -> anyhow::Result<()> {
-        if !matches!(
-            context.principal,
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
-        ) {
-            anyhow::bail!("{method} permission denied: requires host admin/dev principal");
+    fn ensure_project_access(
+        context: &ProtocolContext,
+        action: &str,
+        project_id: &ProjectId,
+        method: &str,
+    ) -> anyhow::Result<()> {
+        if !context.allows_host_action(action)
+            || !context.allows_host_resource("host", "project", project_id.as_str())
+        {
+            anyhow::bail!(
+                "{method} permission denied: authenticated authority does not include action '{action}' for project '{}'",
+                project_id
+            );
         }
         Ok(())
     }
@@ -126,7 +133,11 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        Self::ensure_project_admin(context, "kernel.v1.project.list")?;
+        if !context.allows_host_action("observe") {
+            anyhow::bail!(
+                "kernel.v1.project.list permission denied: authenticated authority lacks observe"
+            );
+        }
         let filter_state = params
             .get("filter_state")
             .map(|value| serde_json::from_value::<ProjectState>(value.clone()))
@@ -136,6 +147,13 @@ where
             .project_registry
             .list()
             .into_iter()
+            .filter(|entry| {
+                context.allows_host_resource(
+                    "host",
+                    "project",
+                    entry.descriptor.project.id.as_str(),
+                )
+            })
             .filter(|entry| filter_state.map_or(true, |state| entry.state == state))
             .map(|entry| Self::project_summary(&entry))
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -147,8 +165,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        Self::ensure_project_admin(context, "kernel.v1.project.get")?;
         let id = Self::project_id_param(params, "kernel.v1.project.get")?;
+        Self::ensure_project_access(context, "observe", &id, "kernel.v1.project.get")?;
         let entry = self
             .config
             .project_registry
@@ -175,8 +193,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        Self::ensure_project_admin(context, "kernel.v1.project.status")?;
         let id = Self::project_id_param(params, "kernel.v1.project.status")?;
+        Self::ensure_project_access(context, "observe", &id, "kernel.v1.project.status")?;
         let entry = self
             .config
             .project_registry
@@ -205,8 +223,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        Self::ensure_project_admin(context, "kernel.v1.project.start")?;
         let id = Self::project_id_param(params, "kernel.v1.project.start")?;
+        Self::ensure_project_access(context, "project_operate", &id, "kernel.v1.project.start")?;
         let entry = self
             .config
             .project_registry
@@ -285,8 +303,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        Self::ensure_project_admin(context, "kernel.v1.project.stop")?;
         let id = Self::project_id_param(params, "kernel.v1.project.stop")?;
+        Self::ensure_project_access(context, "project_operate", &id, "kernel.v1.project.stop")?;
         let entry = self
             .config
             .project_registry

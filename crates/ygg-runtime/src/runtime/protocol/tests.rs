@@ -280,6 +280,222 @@ mod y2_tests {
 }
 
 #[cfg(test)]
+mod host_resource_authority_tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use crate::{
+        InMemoryEventStore, ProjectRegistry, ProtocolContext, ProtocolResourceSelector, Runtime,
+        RuntimeConfig,
+    };
+    use ygg_core::project::{
+        ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy,
+    };
+
+    fn project(id: &str, title: &str) -> ProjectDescriptor {
+        ProjectDescriptor {
+            schema_version: 1,
+            project: ProjectInner {
+                id: ProjectId::new(id).expect("valid project id"),
+                title: title.to_string(),
+                description: String::new(),
+                project_type: ProjectType::YggdrasilNative,
+                icon: None,
+                entry_surface_id: None,
+                packages: vec!["packages/test/manifest.yaml".to_string()],
+                optional_packages: Vec::new(),
+                required_surfaces: Vec::new(),
+                required_capabilities: Vec::new(),
+                secret_policy: SecretPolicy::default(),
+                external: None,
+                metadata: BTreeMap::new(),
+            },
+        }
+    }
+
+    fn project_device(project_id: &str) -> ProtocolContext {
+        ProtocolContext::host_device(
+            "grant-project-a",
+            vec!["observe".into(), "project_operate".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "project".into(),
+                id: Some(project_id.into()),
+            }],
+            Vec::new(),
+            "test",
+        )
+    }
+
+    #[tokio::test]
+    async fn project_device_cannot_list_or_open_another_project() {
+        let project_a = "authority_project_a__abc12345";
+        let project_b = "authority_project_b__abc12345";
+        let registry = Arc::new(ProjectRegistry::new());
+        registry
+            .register(project(project_a, "Project A"))
+            .expect("register A");
+        registry
+            .register(project(project_b, "Project B"))
+            .expect("register B");
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig {
+                project_registry: registry,
+                ..RuntimeConfig::default()
+            },
+        );
+        let context = project_device(project_a);
+        let listed = runtime
+            .call_protocol(&context, "host.project.list", serde_json::json!({}))
+            .await
+            .expect("list allowed projects");
+        let projects = listed["projects"].as_array().expect("projects array");
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0]["id"], project_a);
+
+        assert!(runtime
+            .call_protocol(
+                &context,
+                "host.project.get",
+                serde_json::json!({"project_id": project_b}),
+            )
+            .await
+            .is_err());
+
+        let started = runtime
+            .call_protocol(
+                &context,
+                "host.project.start",
+                serde_json::json!({"project_id": project_a}),
+            )
+            .await
+            .expect("start allowed project");
+        let session_id = started["session_id"].as_str().expect("session id");
+        let session = runtime
+            .get_session(session_id)
+            .await
+            .expect("session exists");
+        assert_eq!(session.metadata["project_id"], project_a);
+
+        let forked = runtime
+            .call_protocol(
+                &context,
+                "session.fork",
+                serde_json::json!({
+                    "parent_session_id": session_id,
+                    "forked_from_sequence": 0,
+                    "metadata": {"reason": "authority-test"}
+                }),
+            )
+            .await
+            .expect("fork allowed project session");
+        let child_session_id = forked["child_session_id"]
+            .as_str()
+            .expect("child session id");
+        let child = runtime
+            .get_session(child_session_id)
+            .await
+            .expect("forked session exists");
+        assert_eq!(child.metadata["project_id"], project_a);
+        runtime
+            .call_protocol(
+                &context,
+                "session.get",
+                serde_json::json!({"session_id": child_session_id}),
+            )
+            .await
+            .expect("forked session retains the project authority binding");
+    }
+
+    #[tokio::test]
+    async fn target_device_list_is_filtered_structurally() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let denied = ProtocolContext::host_device(
+            "grant-target-other",
+            vec!["observe".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "target".into(),
+                id: Some("local-copy".into()),
+            }],
+            Vec::new(),
+            "test",
+        );
+        let listed = runtime
+            .call_protocol(&denied, "host.target.list", serde_json::json!({}))
+            .await
+            .expect("target list");
+        assert_eq!(listed, serde_json::json!([]));
+        assert!(runtime
+            .call_protocol(
+                &denied,
+                "host.target.status",
+                serde_json::json!({"target_id": "local"}),
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn exact_project_device_cannot_enumerate_global_surface_catalogue() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let exact = project_device("authority_project_a__abc12345");
+        assert!(runtime
+            .call_protocol(
+                &exact,
+                "kernel.v1.surface.contribution.list",
+                serde_json::json!({}),
+            )
+            .await
+            .is_err());
+        for method in [
+            "kernel.v1.package.list",
+            "kernel.v1.capability.discover",
+            "kernel.v1.asset.list",
+            "kernel.v1.projection.list",
+        ] {
+            assert!(
+                runtime
+                    .call_protocol(&exact, method, serde_json::json!({}))
+                    .await
+                    .is_err(),
+                "exact-project authority must not enumerate Host-global method {method}"
+            );
+        }
+
+        let global = ProtocolContext::host_device(
+            "grant-all-projects",
+            vec!["observe".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "project".into(),
+                id: None,
+            }],
+            Vec::new(),
+            "test",
+        );
+        assert_eq!(
+            runtime
+                .call_protocol(
+                    &global,
+                    "kernel.v1.surface.contribution.list",
+                    serde_json::json!({}),
+                )
+                .await
+                .expect("all-project device can enumerate the Host catalogue"),
+            serde_json::json!([])
+        );
+    }
+}
+
+#[cfg(test)]
 mod surface_tests {
     use std::collections::BTreeMap;
     use std::sync::Arc;
@@ -485,6 +701,8 @@ mod deployment_hub_tests {
         let context = ProtocolContext {
             principal: ProtocolPrincipal::Anonymous,
             transport: "in_process".to_string(),
+            authority: None,
+            host_operation: None,
             session_id: None,
             correlation_id: None,
             parent_invocation_id: None,

@@ -102,6 +102,11 @@ where
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 self.append_event(request).await
             }
+            ProtocolPrincipal::HostDevice { .. } => {
+                self.ensure_host_session_access(context, "access_manage", &request.session_id)
+                    .await?;
+                self.append_event(request).await
+            }
             ProtocolPrincipal::Package { package_id } => {
                 request.writer_package_id = package_id.clone();
                 self.append_event(request).await
@@ -243,6 +248,11 @@ where
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 self.list_events(session_id).await
             }
+            ProtocolPrincipal::HostDevice { .. } => {
+                self.ensure_host_session_access(context, "observe", session_id)
+                    .await?;
+                self.list_events(session_id).await
+            }
             ProtocolPrincipal::Package { package_id } => {
                 self.list_events_for(session_id, Some(package_id)).await
             }
@@ -268,6 +278,11 @@ where
     ) -> anyhow::Result<Vec<EventEnvelope>> {
         match &context.principal {
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
+                self.list_events_range(request).await
+            }
+            ProtocolPrincipal::HostDevice { .. } => {
+                self.ensure_host_session_access(context, "observe", &request.session_id)
+                    .await?;
                 self.list_events_range(request).await
             }
             ProtocolPrincipal::Package { package_id } => {

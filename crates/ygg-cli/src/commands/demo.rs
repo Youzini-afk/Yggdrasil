@@ -172,6 +172,8 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant)?,
         transport: "demo".to_string(),
+        authority: None,
+        host_operation: None,
         session_id: None,
         correlation_id: None,
         parent_invocation_id: None,

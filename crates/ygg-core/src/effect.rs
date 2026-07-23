@@ -20,6 +20,9 @@ pub enum PrincipalIdentity {
     Kernel,
     HostAdmin,
     HostDev,
+    HostDevice {
+        grant_id: String,
+    },
     Package {
         package_id: String,
     },

@@ -79,7 +79,7 @@ The current implementation exposes unmounting as `SurfaceHostHandle.unmount()`; 
 
 A surface bundle must be an ESM module loadable via dynamic `import(bundleUrl)`, and it must expose a named export. `exportName` comes from surface metadata, for example `YdlTavernPlaySurface`.
 
-Installed project browser bundles are public static artifacts. The host serves them from `/surface-bundles/projects/<project_id>/...` and makes them CORS-readable for sandboxed iframes. `dist/` participates in install `tree_hash`, so bundle-only updates are detected by install-lab and refresh project dist. Do not put secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must flow through capabilities, `secret_ref`, outbound audit, and bridge permissions — never through the bundle.
+Installed project browser bundles are static, non-executing package entries, but they are no longer anonymously enumerable. The internal `/surface-bundles/projects/<project_id>/...` path requires a Host identity with exact project authority. After `host.surface.bundle.resolve` succeeds, the Host issues the opaque-origin iframe a random, five-minute, read-only `/surface-assets/<lease>/...` handle bound to the grant and bundle root, with a CORS-readable response. Relative modules, stylesheets, fonts, and images stay under that lease root; revoking or expiring the device grant invalidates the handle immediately. `dist/` participates in install `tree_hash`, so bundle-only updates are detected by install-lab and refresh project dist. An asset lease is still not a secret container: do not put secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must flow through capabilities, `secret_ref`, outbound audit, and bridge permissions — never through the bundle.
 
 The frame accepts two mount contracts:
 
@@ -156,7 +156,7 @@ The host then sends the mount instruction:
 }
 ```
 
-The host creates an ephemeral `bridge_token` for each mount. The frame only accepts mount/unmount/RPC result messages from `window.parent`; bundle URLs and stylesheet URLs must be same-origin `/surface-bundles/` or `/assets/` paths; `exportName` must be a bounded JavaScript identifier. On the host side, frame messages are checked against `event.source`, `bridge_token`, session id, and the capability allowlist.
+The host creates an ephemeral `bridge_token` for each mount. The frame only accepts mount/unmount/RPC result messages from `window.parent`; bundle and stylesheet URLs must be same-origin `/surface-assets/` leases or public `/assets/` paths and cannot load raw `/surface-bundles/` locations directly; `exportName` must be a bounded JavaScript identifier. The asset lease authorizes static reads only, while the `bridge_token` authenticates messages from the current frame; neither is a Host credential. On the host side, frame messages are checked against `event.source`, `bridge_token`, session id, and the capability allowlist.
 
 When a surface needs host RPC, code in the frame calls `window.yggHost.callRpc(method, params)`, which sends:
 
@@ -235,7 +235,7 @@ When Home opens a project, the web shell opens `/project/<project_id>` in a sepa
 
 ## v0 limitations
 
-- **Same-origin bundles:** the iframe currently loads same-origin bundle URLs only. Cross-origin bundles need an explicit allowlist, CSP changes, and origin checks.
+- **Same-origin leased bundles:** the iframe currently loads only Host same-origin `/surface-assets/` lease URLs. Cross-origin bundles need an explicit allowlist, CSP changes, and origin checks.
 - **No persistent frame state:** mount/unmount discards iframe memory. The host should own recoverable state and pass it back through `initialProps`.
 - **No direct Tauri API:** iframe code cannot use Tauri APIs directly. Desktop capabilities must be exposed through controlled host bridge methods.
 - **No implicit kernel access:** every RPC is explicitly wired by the host and should continue to use the public protocol and permission boundary.

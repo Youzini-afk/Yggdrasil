@@ -35,11 +35,22 @@ where
             .get(&parent_session_id)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("parent session '{parent_session_id}' is not open"))?;
+        let mut child_metadata = parent.metadata.clone();
+        if !child_metadata.is_object() {
+            child_metadata = json!({});
+        }
+        if let Value::Object(values) = &mut child_metadata {
+            values.insert("forked_from".to_string(), json!(parent_session_id.clone()));
+            values.insert(
+                "forked_from_sequence".to_string(),
+                json!(forked_from_sequence),
+            );
+        }
         let child = self
             .open_session(super::OpenSessionRequest {
                 labels: parent.labels.clone(),
                 active_package_set: parent.active_package_set.clone(),
-                metadata: json!({"forked_from": parent_session_id, "forked_from_sequence": forked_from_sequence}),
+                metadata: child_metadata,
             })
             .await?;
         let branch = BranchRecord {

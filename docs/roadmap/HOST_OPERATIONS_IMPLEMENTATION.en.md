@@ -21,6 +21,15 @@ flowchart LR
 
 Some release/health work may develop alongside Phase 2, but remote targets do not activate before Phase 1 and 2 gates.
 
+## Implementation progress
+
+| Phase | Status | Current result |
+|---|---|---|
+| Phase 0 | Complete | Bilingual design contracts, threats, and failure boundaries are frozen as the implementation baseline |
+| Phase 1 | Candidate implementation complete | Project/target authority, delegation, server-side filtering, Web/CLI, and redacted decision journals are closed; GitHub CI validates the full matrix |
+| Phase 2 | In progress | Next: durable intent/operation/lease/receipt and startup reconciliation |
+| Phase 3–5 | Not started | They remain dependency-gated; remote targets do not open early |
+
 ## Phase 0: design contracts
 
 Deliver project authority, durable deployment, target agent, operations/data/release documents, this roadmap, threat tables, failure matrices, compatibility, and migration boundaries. Gate: Project/target/deploy remain Host Control Plane resources and remote client/target/package boundaries are unambiguous.

@@ -2,7 +2,7 @@
 
 > [English](./HOST_REMOTE_ACCESS.en.md) · [中文](./HOST_REMOTE_ACCESS.md)
 
-Yggdrasil 的 Web/PWA、桌面和后续 CLI 都是同一个 Host 的客户端。远程访问不会建立第二套写入接口，也不会把 root token 复制到手机；它在现有 Host API / RPC 前增加可撤销、可过期、按动作衰减的设备身份。应用数据面的公开访问则是另一条显式边界，不能由“配置了域名”隐式开启。
+Yggdrasil 的 Web/PWA、桌面和 CLI 都是同一个 Host 的客户端。远程访问不会建立第二套写入接口，也不会把 root token 复制到手机；它在现有 Host API / RPC 前增加可撤销、可过期、同时按动作和结构化 project/target 资源衰减的设备身份。应用数据面的公开访问则是另一条显式边界，不能由“配置了域名”隐式开启。
 
 ## 两个平面
 
@@ -25,7 +25,7 @@ flowchart LR
 | 身份 | 凭据 | 用途 |
 |---|---|---|
 | Host root | `YGG_HTTP_ACCESS_TOKEN` / `--access-token` 的 Bearer token；桌面可通过一次性 bootstrap 换取 root cookie | 本机管理、首次授权、紧急恢复；拥有全部 scope |
-| Paired device | `yggaccess.*` token；PWA claim 后只放入 `__Host-ygg_remote_session` Cookie | 日常远程控制；仅拥有 grant 中列出的 scope |
+| Paired device | `yggaccess.*` token；PWA claim 后只放入 `__Host-ygg_remote_session` Cookie | 日常远程控制；仅拥有 grant 中列出的 scope 与 project/target selector |
 
 未配置 root token 时的可选认证只用于 loopback 开发。`host serve` 绑定非 loopback 地址时会拒绝没有非空 root token 的启动。root token 是根凭据，不应进入 pairing URL、浏览器持久存储、应用上游或日志。
 
@@ -43,11 +43,19 @@ flowchart LR
 
 未知 HTTP 路径、未知 RPC 方法和宽泛管理变更默认需要 `access_manage`，因此 scoped device 会 fail closed。新 grant 只能是调用者权限的子集，必须包含 `observe`；只有 root 可以把 `access_manage` 授予新设备。Web UI 默认只选择 `observe`，额外动作必须逐项开启。
 
-当前 scope 是 Host 动作级，不是项目级租户边界。`ProtocolContext.session_id` 的项目身份加固仍是独立后续工作。
+## Project 与 target 资源
+
+grant 的 `resources` 使用结构化 selector：`{ kind: "project" | "target", id?: string }`。省略 `id` 表示该 kind 的全部资源；带 `id` 时只做结构化精确比较，不做字符串前缀匹配。旧 journal 中没有 `resources` 的 grant 会按兼容语义恢复为 all-projects + all-targets；新 Web/CLI pairing 会显式提交 selector。
+
+HTTP project 路径与静态 project bundle、canonical/legacy RPC、项目列表、session/event、ChangeSet、部署 job/revision、私有 `/p` route 和 target/exec/port/proxy 对象都在服务端检查或过滤。设备身份不会在 `/rpc` 被折叠为 `HostDev`。项目 session 由 Host 写入并验证 `metadata.project_id`；fork 保留该绑定，调用方提交的 `session_id` 本身不构成权威。
+
+子 grant 的 scope、resource、期限都不能超过父 grant；认证会验证完整 delegation chain，撤销或过期任一祖先会使后代立即失效。设备协议 allow/deny 写入 `host_control_authority` journal，记录 grant、delegation、canonical method、action、结构化资源和 correlation，但不记录 token、Cookie 或原始请求参数。
+
+sandbox surface frame 是 opaque origin，不能安全携带 Host Cookie 或 Bearer。`host.surface.bundle.resolve` 先验证 project authority，再把内部 `/surface-bundles/...` 地址换成随机、五分钟、只读且只覆盖该 bundle root 的 `/surface-assets/<lease>/...` 句柄；相对 module/CSS 资源保持在同一 root。句柄绑定设备 grant，撤销/过期会立即失效；原始 bundle 路径继续要求 Host 身份。这个句柄不包含 Host credential，也不能调用 RPC 或读取另一项目。
 
 ## Pairing 生命周期
 
-1. 拥有 `access_manage` 的客户端调用 `POST /host/v1/access/pairings`，提交设备名、scope 和期限。
+1. 拥有 `access_manage` 的客户端调用 `POST /host/v1/access/pairings`，提交设备名、scope、project/target selector 和期限。
 2. Host 返回最多存活 10 分钟的一次性 `yggpair.*` token。Web UI 把它放进用户指定的 HTTPS Host origin 下的 `/pair` URL。
 3. 新设备打开链接后立即从地址栏清除 token，只在内存中保留；先调用公开 inspect，让用户核对设备名、scope 和过期时间。
 4. 用户确认后调用公开 claim。Host 原子消费 pairing，创建最长 365 天的 grant，并设置 Secure、HttpOnly、SameSite=Strict、host-only Cookie。
@@ -59,7 +67,7 @@ flowchart LR
 |---|---|---|
 | public + pairing token | `POST /host/v1/access/pair/inspect` | 在消费前查看邀请内容 |
 | public + pairing token | `POST /host/v1/access/pair` | 一次性领取 grant |
-| any Host identity | `GET /host/v1/access/me` | 查看当前身份和 scope |
+| any Host identity | `GET /host/v1/access/me` | 查看当前身份、scope、resource 与 delegation chain |
 | `access_manage` | `GET /host/v1/access` | 查看 grant 与 pairing 投影 |
 | `access_manage` | `POST /host/v1/access/pairings` | 创建邀请 |
 | `access_manage` | `POST .../pairings/:id/cancel` | 取消 pending 邀请 |
@@ -72,7 +80,24 @@ flowchart LR
 - journal 只保存带 domain separation 的 SHA-256 credential digest，不保存 pairing token、access token 或 Cookie 原值。
 - pairing claim、cancel、grant revoke 使用 expected-tail compare-and-append；并发领取只有一个能成功。
 - grant 的撤销和过期在每次认证时检查，不依赖浏览器主动刷新状态。
+- 委派 grant 保存 `parent_grant_id` 与 `delegation_depth`；每次认证沿祖先链 fail closed，父 grant 撤销会级联失效。
 - Bearer / Cookie 有明确优先级。查询参数凭据仅允许在 `GET /kernel/v1/event.subscribe/:session_id` 和 `GET /host/v1/build-deploy/:job_id/events` 这两个浏览器 SSE 入口使用；其他路径不会把 URL token 当作凭据。
+
+## CLI 管理
+
+CLI 使用与 Web/PWA 相同的 Host API，不直接读写 grant journal：
+
+CLI 只允许 loopback 使用明文 HTTP；非 loopback Host 必须使用 HTTPS，并且 Host access 请求不跟随重定向，避免 Bearer credential 被转发到另一 origin。
+
+```bash
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" me
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" list
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  pair --device-name phone --scopes observe,project_operate,deploy \
+  --project my-project__abc12345 --target local
+yg host access --endpoint https://host.example.com --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  revoke <grant-id>
+```
 
 ## HTTPS 与同源要求
 
@@ -106,7 +131,7 @@ route_access: host_authenticated # 默认；旧描述符也按此解释
 ## 刻意未提供
 
 - 远程执行 target 或远端 package transport；当前部署 upstream 仍在本机 loopback。
-- 按项目隔离的多租户身份和跨 Host delegation chain。
+- 多用户项目成员模型、workload 级强沙箱和跨 Host delegation chain；当前 project selector 是单 Host 控制面边界。
 - 把 root token 自动同步到手机，或用本地 CLI 绕开 Host API 写入。
 - 未经用户确认的部署、公开 route 或自动重放副作用。
 - 为被部署应用代做登录、公开 CORS 或互联网边缘防护。

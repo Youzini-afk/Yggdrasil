@@ -315,6 +315,40 @@ pub enum HostCommand {
         #[arg(long, env = "YGG_APP_BASE_DOMAIN")]
         app_base_domain: Option<String>,
     },
+    /// Manage a running Host through the same authenticated HTTP API used by Web/PWA.
+    Access {
+        #[arg(long, default_value = "http://127.0.0.1:8787", env = "YGG_HOST_URL")]
+        endpoint: String,
+        #[arg(long, env = "YGG_HTTP_ACCESS_TOKEN", hide_env_values = true)]
+        access_token: String,
+        #[command(subcommand)]
+        command: HostAccessCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum HostAccessCommand {
+    /// Show the authenticated Host identity.
+    Me,
+    /// List grants and pending pairing invitations.
+    List,
+    /// Create a one-time pairing invitation.
+    Pair {
+        #[arg(long)]
+        device_name: String,
+        #[arg(long, value_delimiter = ',', default_value = "observe")]
+        scopes: Vec<String>,
+        /// Exact project ids. Omit to grant all projects.
+        #[arg(long = "project", value_delimiter = ',')]
+        projects: Vec<String>,
+        /// Exact target ids. Omit to grant all targets.
+        #[arg(long = "target", value_delimiter = ',')]
+        targets: Vec<String>,
+        #[arg(long, default_value_t = 90)]
+        grant_days: u64,
+    },
+    /// Revoke a device grant.
+    Revoke { grant_id: String },
 }
 
 #[derive(Debug, Subcommand)]

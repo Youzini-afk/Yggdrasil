@@ -106,7 +106,7 @@ Encryption: the same master key, from `~/.yggdrasil/secret-store.key` or the OS 
 
 ## Soft isolation + platform fallback
 
-Project isolation is soft, not tenant-grade hard isolation. Default behavior:
+“Soft isolation” here describes package/workload secret and data-sharing policy; it does not mean Host control-plane callers may cross project boundaries. Host device grants can now use structured, exact project selectors to limit project lists, sessions/events, development, deployment, and private routes. This is still neither a multi-user membership system nor a hard sandbox for untrusted workloads. Default secret behavior:
 
 - The project's own secret wins (`secret_ref:project:NAME`).
 - If missing in the project, fall back to platform when `secret_policy.fallback_to_platform: true`.
@@ -201,13 +201,13 @@ After a user clicks Play on a Home card, the web shell and host follow a fixed p
 1. The user clicks Play on a project card.
 2. `clients/web` calls `kernel.v1.project.start`.
 3. The host transitions the project to Running and creates or reuses a project session.
-4. The session stores `metadata.project_id` and gets a `project:<id>` label.
+4. The Host stores the verified `project_id` in session `metadata.project_id` and adds a `project:<id>` label.
 5. `project.start` returns `session_id` and `already_running`.
 6. `clients/web` calls `kernel.v1.surface.resolve_bundle` to resolve the project's `entry_surface_id` to a surface bundle URL.
 7. `mountSurface` mounts a sandboxed iframe.
 8. The iframe `initialProps` include `sessionId` and `projectId`.
 9. Inside the surface, `callHostRpc` / `invokeCapability` automatically carries `session_id`.
-10. The host carries `ProtocolContext.session_id` into later capability and outbound dispatch.
+10. The host carries the authenticated principal, resource authority, and server-verified session/project binding into later capability and outbound dispatch.
 
 This chain lets project-level secret resolution find the project scope from session metadata, and it keeps real model calls in the same project session. For the end-to-end path, see [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md).
 
@@ -230,7 +230,7 @@ This path is explicit. It never runs automatically when opening a project. See [
 
 ## Protocol
 
-Host project-management methods are HostAdmin/HostDev only; ordinary packages cannot call them:
+Host project-management methods allow HostAdmin/HostDev, or a HostDevice with the corresponding action and exact project selector; ordinary packages cannot call them:
 
 ```text
 kernel.v1.project.list      list installed projects
@@ -240,7 +240,7 @@ kernel.v1.project.stop      stop a project
 kernel.v1.project.status    get project status
 ```
 
-Deployment runtime protocols are also HostAdmin/HostDev only; ordinary packages cannot call them:
+Deployment runtime protocols allow HostAdmin/HostDev, or a HostDevice with `deploy` / `observe` and a matching target selector; ordinary packages cannot call them:
 
 ```text
 kernel.v1.target.*   execution targets
@@ -284,6 +284,6 @@ An external project defaults to a managed `external_workspace`, copied/fetched i
 
 - Multi-user project membership / access control
 - Project import/export bundles (sharing-lab already has bundle formats)
-- Concurrent multi-tenancy (`project_id` in `ProtocolContext`) — deferred / planned
+- Multi-user project membership, workload-grade hard sandboxing, and cross-Host project authority
 - Automatic project archive cleanup (manual for now)
 - Project marketplace (against the platform's open principle)

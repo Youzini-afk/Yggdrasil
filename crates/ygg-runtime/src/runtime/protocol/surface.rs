@@ -91,12 +91,9 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        if !matches!(
-            context.principal,
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
-        ) {
+        if !context.allows_host_action("observe") {
             anyhow::bail!(
-                "kernel.v1.surface.resolve_bundle permission denied: requires host admin/dev principal"
+                "kernel.v1.surface.resolve_bundle permission denied: authenticated authority lacks observe"
             );
         }
 
@@ -106,13 +103,22 @@ where
             .ok_or_else(|| anyhow::anyhow!("surface_id required"))?;
 
         for entry in self.config.project_registry.list() {
+            if !context.allows_host_resource(
+                "host",
+                "project",
+                entry.descriptor.project.id.as_str(),
+            ) {
+                continue;
+            }
             if let Some(bundle) = self.try_resolve_via_project(&entry, surface_id)? {
                 return Ok(serde_json::to_value(bundle)?);
             }
         }
 
-        if let Some(bundle) = self.try_resolve_via_dev_path(surface_id)? {
-            return Ok(serde_json::to_value(bundle)?);
+        if context.allows_all_host_resources("host", "project") {
+            if let Some(bundle) = self.try_resolve_via_dev_path(surface_id)? {
+                return Ok(serde_json::to_value(bundle)?);
+            }
         }
 
         anyhow::bail!("surface_not_found: {surface_id}")
@@ -179,7 +185,12 @@ where
         }))
     }
 
-    pub(crate) async fn dispatch_surface_list(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_surface_list(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        self.ensure_surface_catalog_access(context, "kernel.v1.surface.contribution.list")?;
         let slot = params
             .get("slot")
             .and_then(Value::as_str)
@@ -187,7 +198,12 @@ where
         Ok(self.list_surface_contributions(slot).await)
     }
 
-    pub(crate) async fn dispatch_surface_describe(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_surface_describe(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        self.ensure_surface_catalog_access(context, "kernel.v1.surface.contribution.describe")?;
         let surface_id = params
             .get("surface_id")
             .and_then(Value::as_str)
@@ -195,6 +211,26 @@ where
                 anyhow::anyhow!("kernel.v1.surface.contribution.describe requires surface_id")
             })?;
         self.describe_surface_contribution(surface_id).await
+    }
+
+    fn ensure_surface_catalog_access(
+        &self,
+        context: &ProtocolContext,
+        method: &str,
+    ) -> anyhow::Result<()> {
+        if !context.allows_host_action("observe") {
+            anyhow::bail!("{method} permission denied: authenticated authority lacks observe");
+        }
+        // Contributions are currently installed at Host scope and do not carry
+        // project ownership. Until that relationship is explicit, an exact-project
+        // device may resolve its project's bundle but cannot enumerate the global
+        // contribution catalogue.
+        if !context.allows_all_host_resources("host", "project") {
+            anyhow::bail!(
+                "{method} permission denied: global surface catalogue requires all-project authority"
+            );
+        }
+        Ok(())
     }
 }
 

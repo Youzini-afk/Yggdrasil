@@ -108,7 +108,7 @@ managed external workspace 独立存放在：
 
 ## 软隔离 + 平台回退
 
-项目隔离是软的，不是租户级硬隔离。默认行为：
+这里的“软隔离”描述 package/workload 的 secret 与数据共享策略，不表示 Host 控制面可以跨项目访问。Host 设备 grant 已可用结构化、精确的 project selector 限定项目列表、session/event、开发、部署和私有 route；但它仍不是多用户成员系统，也不是把不可信 workload 放进强安全沙箱。默认 secret 行为：
 
 - 项目自己的 secret 优先（`secret_ref:project:NAME`）
 - 项目内没有 → 回退平台（`secret_policy.fallback_to_platform: true` 是默认）
@@ -204,13 +204,13 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 1. 用户点项目卡上的 Play。
 2. `clients/web` 调 `kernel.v1.project.start`。
 3. host 把项目状态转为 Running，创建或复用项目 session。
-4. session 写入 `metadata.project_id`，并加上 `project:<id>` label。
+4. Host 把已验证的 `project_id` 写入 session `metadata.project_id`，并加上 `project:<id>` label。
 5. `project.start` 返回 `session_id` 与 `already_running`。
 6. `clients/web` 调 `kernel.v1.surface.resolve_bundle`，用项目的 `entry_surface_id` 拿 surface 包 URL。
 7. `mountSurface` 挂载 sandboxed iframe。
 8. iframe `initialProps` 注入 `sessionId` 与 `projectId`。
 9. surface 内的 `callHostRpc` / `invokeCapability` 自动带 `session_id`。
-10. host 后续把 `ProtocolContext.session_id` 传到 capability 与 outbound dispatch。
+10. host 后续把认证 principal、resource authority 与经服务端验证的 session/project binding 传到 capability 与 outbound dispatch。
 
 这条链路让项目级 secret 解析能从 session metadata 找到项目范围，也让真实模型调用回到同一个项目 session。端到端说明见 [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md)。
 
@@ -233,7 +233,7 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 ## 协议
 
-宿主管理项目的协议（HostAdmin/HostDev only，普通包不能调）：
+宿主管理项目的协议（HostAdmin/HostDev，或同时拥有对应 action 与精确 project selector 的 HostDevice；普通包不能调）：
 
 ```text
 kernel.v1.project.list      列出已安装项目
@@ -243,7 +243,7 @@ kernel.v1.project.stop      停止项目
 kernel.v1.project.status    项目状态
 ```
 
-部署运行时协议（HostAdmin/HostDev only，普通包不能调）：
+部署运行时协议（HostAdmin/HostDev，或拥有 `deploy` / `observe` 与匹配 target selector 的 HostDevice；普通包不能调）：
 
 ```text
 kernel.v1.target.*   运行目标
@@ -288,6 +288,6 @@ kernel/v1/project.uninstalled
 
 - 多用户/项目成员/access control
 - 项目导入/导出 bundle (sharing-lab 已有 bundle 格式)
-- 多并发租户 (`project_id` 进 `ProtocolContext`) — 延后 / 计划中
+- 多用户项目成员、workload 级强沙箱与跨 Host 项目授权
 - 项目自动归档清理 (留给用户手动)
 - 项目市场/marketplace (违反平台开放原则)

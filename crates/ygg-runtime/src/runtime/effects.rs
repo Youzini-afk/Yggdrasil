@@ -314,6 +314,9 @@ pub(crate) fn principal_identity(principal: &ProtocolPrincipal) -> PrincipalIden
     match principal {
         ProtocolPrincipal::HostAdmin => PrincipalIdentity::HostAdmin,
         ProtocolPrincipal::HostDev => PrincipalIdentity::HostDev,
+        ProtocolPrincipal::HostDevice { grant_id } => PrincipalIdentity::HostDevice {
+            grant_id: grant_id.clone(),
+        },
         ProtocolPrincipal::Package { package_id } => PrincipalIdentity::Package {
             package_id: package_id.clone(),
         },

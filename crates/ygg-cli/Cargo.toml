@@ -31,6 +31,7 @@ dirs = "5"
 heck = "0.5"
 jsonschema.workspace = true
 prettyplease = "0.2"
+reqwest.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true

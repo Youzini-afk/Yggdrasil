@@ -8,7 +8,7 @@ This document is about where Yggdrasil goes next. Completed state lives in [`../
 
 - The kernel is content-free. Official packages have no privileges. Public protocol is the only entry.
 - The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
-- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, the explicit Docker Deploy broker, durable deployment jobs, controlled Host development ChangeSets, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, action-scoped revocable Host device identity, mobile PWA control, private-by-default and explicitly public application routes, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, the managed-Host desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
+- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, the explicit Docker Deploy broker, durable deployment jobs, controlled Host development ChangeSets, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, revocable Host device identity attenuated by actions and project/target resources, mobile PWA and remote CLI control, private-by-default and explicitly public application routes, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, the managed-Host desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
 - Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
 - Contract V1 is the public platform spec; all 161 schemas (80 methods + 59 events + 22 top-level) validate, and 474 conformance cases pass.
 - All nine Contract v2 layering-migration phases are complete: on top of the first eight substrate milestones, clients now use canonical APIs and Contract Registry `0.5.0` completes the real Deprecated → Legacy Adapter transition for `kernel.v1.host.info` and `kernel.v1.target.list`. See [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md) for the implementation record.
@@ -18,6 +18,8 @@ The next stage isn't more substrate sprawl. Real project deployment, human testi
 The dependency order among project authority, reliable deployment, operational safety, remote targets, and unified clients is fixed in
 [`HOST_OPERATIONS_IMPLEMENTATION.en.md`](HOST_OPERATIONS_IMPLEMENTATION.en.md). Implementation must satisfy project isolation and local recovery gates
 before enabling remote targets; real-project pressure still drives this work, and none of it becomes kernel content ontology.
+
+As of 2026-07-23, the Phase 0 design contracts and Phase 1 Candidate project-authority implementation are complete. The main line is now Phase 2: lifting the existing deployment jobs into a restart-recoverable local controller with leases, receipts, and observed-state reconciliation.
 
 > “Complete” here means current v1 operational closure, not that every `kernel.v1.*`
 > boundary is permanent constitutional substrate. The long-term layering candidate is
@@ -68,12 +70,12 @@ These are known to-dos. Priority follows real friction.
 
 ### Project and multi-tenancy
 
-- Multi-tenant project scoping based on `ProtocolContext.session_id`: make project identity explicit in runtime permission, event, and resolver context.
+- Extend Phase 1's verified project/session binding to development-artifact read authority, retention, encryption, and reachability GC; runtime permission, event, and resolver paths now consume the same project binding.
 - Project archive auto-cleanup beyond 30 days.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
-- Next for Host device identity: project-level multi-tenant scopes, delegation chains / bulk revoke, finer audit, and dedicated remote-CLI UX. Action scopes, remote identity, per-grant revoke, and mobile PWA control now use the same Host API; the root token remains the root credential.
-- Remote CLI continues to reuse the same Host API and Bearer device token, with no local side-channel mutation interface. Mobile already uses HTTPS pairing plus a Secure cookie.
+- Host device identity now has project/target selectors, delegation chains, ancestor-revocation cascade, and redacted allow/deny journals. Remaining work is an explicit administrator bulk-revoke operation and continuous lease-epoch reauthorization for long operations.
+- The `yg host access` CLI reuses the same Host API and Bearer device token, with no local side-channel mutation interface. Mobile continues to use HTTPS pairing plus a Secure cookie.
 - Development-artifact read authority, encryption/retention policy, reachability GC, and more declarative verifier / sandbox backends.
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
 - Deployment descriptor polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and external-project wizard generation.
@@ -102,7 +104,7 @@ These are known to-dos. Priority follows real friction.
 - Executable wiring for structured shell descriptors: package-contributed `quick_action` / `workshop_card` entries are discovery affordances today. If they become executable later, they must go through proposal / permission / audit and must not silently invoke capabilities.
 - Surface lifecycle hooks (`onClose`, `onProposalDraft`, and related callbacks).
 - Cross-origin surface-bundle allowlist, including CSP and origin checks.
-- Community-marketplace surface allowlists, integrity pins, version pins, and audit metadata; installed project bundles remain same-origin by default.
+- Community-marketplace surface allowlists, integrity pins, version pins, and audit metadata; installed project bundles remain Host same-origin through short-lived project/grant-bound asset leases.
 - The project-console update entry already uses `check_for_updates` / `update_project`; next steps are richer update progress, failure recovery, and history.
 - Wire up real stderr / exit metadata for the Failure modal, project `size_bytes` for Disk usage, and a more precise `storage_summary` measurement state once the host exposes them.
 - Richer failure and health monitoring.

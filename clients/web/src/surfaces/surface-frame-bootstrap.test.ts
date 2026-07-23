@@ -14,6 +14,12 @@ function assertContains(fragment: string) {
   }
 }
 
+function assertNotContains(fragment: string) {
+  if (bootstrap.includes(fragment)) {
+    throw new Error(`surface-frame-bootstrap.js must not include ${fragment}`);
+  }
+}
+
 assertContains("let bridgeToken = ''");
 assertContains("globalThis.process ??= {};");
 assertContains("globalThis.process.env ??= {};");
@@ -28,4 +34,5 @@ assertContains("code: 'invalid_bundle_url'");
 assertContains("code: 'invalid_stylesheet_url'");
 assertContains("type: 'mount.error'");
 assertContains("postToHost({ type: 'rpc.call'");
-assertContains("url.pathname.startsWith('/surface-bundles/')");
+assertContains("url.pathname.startsWith('/surface-assets/')");
+assertNotContains("url.pathname.startsWith('/surface-bundles/')");

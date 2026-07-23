@@ -32,6 +32,15 @@ flowchart LR
 
 Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remote target 不得在 Phase 1、2 的安全门槛前启用。
 
+## 实施进度
+
+| 阶段 | 状态 | 当前结果 |
+|---|---|---|
+| Phase 0 | 完成 | 双语设计合同、威胁与故障边界已冻结为实施基线 |
+| Phase 1 | Candidate 实现完成 | project/target authority、delegation、server-side filtering、Web/CLI 与脱敏判定日志已闭环；完整矩阵由 GitHub CI 验收 |
+| Phase 2 | 进行中 | 下一步建立 durable intent/operation/lease/receipt 与 startup reconcile |
+| Phase 3–5 | 未开始 | 依赖前置 gate，不提前开放 remote target |
+
 ## Phase 0：设计合同
 
 交付：

@@ -7,7 +7,8 @@ pub mod templates;
 
 use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, ContractCommand,
-    HostCommand, ManifestCommand, PackageCommand, PerfCommand, WorldBundleCommand,
+    HostAccessCommand, HostCommand, ManifestCommand, PackageCommand, PerfCommand,
+    WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
@@ -39,6 +40,37 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                 )
                 .await
             }
+            HostCommand::Access {
+                endpoint,
+                access_token,
+                command,
+            } => match command {
+                HostAccessCommand::Me => commands::host_access::me(&endpoint, &access_token).await,
+                HostAccessCommand::List => {
+                    commands::host_access::list(&endpoint, &access_token).await
+                }
+                HostAccessCommand::Pair {
+                    device_name,
+                    scopes,
+                    projects,
+                    targets,
+                    grant_days,
+                } => {
+                    commands::host_access::pair(
+                        &endpoint,
+                        &access_token,
+                        device_name,
+                        scopes,
+                        projects,
+                        targets,
+                        grant_days,
+                    )
+                    .await
+                }
+                HostAccessCommand::Revoke { grant_id } => {
+                    commands::host_access::revoke(&endpoint, &access_token, &grant_id).await
+                }
+            },
         },
         Command::HostStdio => host::host_stdio().await,
         Command::Manifest { command } => match command {

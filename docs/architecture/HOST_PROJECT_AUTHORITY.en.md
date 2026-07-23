@@ -2,7 +2,15 @@
 
 > [English](./HOST_PROJECT_AUTHORITY.en.md) · [中文](./HOST_PROJECT_AUTHORITY.md)
 
-Status: **pre-implementation design contract**. This document defines authorization boundaries for Host project operations. Candidate fields and methods are not Stable until implementation and conformance are complete.
+Status: **Candidate implementation**. Phase 1 implements the project/target authorization boundary defined here. Fields and behavior remain Candidate rather than Stable while cross-platform CI and the later long-operation lease/receipt closure continue to validate them.
+
+Implementation snapshot (2026-07-23):
+
+- HTTP, Cookie, Bearer, and RPC retain the same `host_device` principal, grant, delegation chain, actions, and structured resource selectors;
+- project/session/event/proposal/surface/target/exec/port/proxy paths enforce exact resources or server-side filtering, and legacy adapters reuse canonical policy;
+- the pairing journal supports attenuated delegation, expiry, ancestor-revocation cascade, and explicit wildcard hydration for legacy global grants; Web/PWA and the `yg host access` CLI use the same API;
+- device calls append redacted `host/control/v1/authority.decision` allow/deny records without credentials or request payloads;
+- global package/capability/asset/projection objects and surface contributions do not yet carry project ownership, so exact-project devices operate through verified project/session paths and may resolve their project bundle but cannot enumerate Host-global catalogues. An opaque-origin frame receives only a five-minute, read-only asset lease bound to its grant and bundle root; raw static paths still require a Host identity. Durable authority leases for long deployments, persistent route ownership, and effect-receipt linkage belong to Phase 2.
 
 ## Goal
 

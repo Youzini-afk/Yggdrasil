@@ -32,9 +32,10 @@ use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use ygg_core::{EventEnvelope, KernelSession, PackageId, PackageManifest, ProjectId, SessionId};
 use ygg_runtime::{
-    contract_diagnostics, host_info as runtime_host_info, CapabilityInvocationRequest,
-    CapabilityInvocationResult, EventListRequest, PackageRecord, ProtocolContext, ProtocolError,
-    ProtocolRequest, ProtocolResponse, RegisteredCapability,
+    contract_diagnostics, host_info as runtime_host_info, resolve_contract_method,
+    CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest, PackageRecord,
+    ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
+    RegisteredCapability,
 };
 use ygg_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
@@ -56,7 +57,8 @@ pub use development::{
 };
 pub use host_access::{
     host_access_registry, hydrate_host_access_control_plane, HostAccessGrantView,
-    HostAccessIdentity, HostAccessIdentityKind, HostAccessRegistry, HostAccessScope,
+    HostAccessIdentity, HostAccessIdentityKind, HostAccessRegistry, HostAccessResourceKind,
+    HostAccessResourceSelector, HostAccessScope,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -83,11 +85,23 @@ const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
 const BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT: usize = 64;
 const BUILD_DEPLOY_LOG_RING: usize = 256;
 const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
+const SURFACE_ASSET_LEASE_TTL_MS: i64 = 5 * 60 * 1_000;
+const SURFACE_ASSET_LEASE_LIMIT: usize = 1_024;
 const HOST_SESSION_COOKIE: &str = "ygg_host_session";
 const DESKTOP_BOOTSTRAP_PATH: &str = "/host/bootstrap";
 const DEPLOYMENT_JOURNAL_PREFIX: &str = "host/control/v1/deployment.";
 const DEPLOYMENT_JOB_SNAPSHOT_EVENT: &str = "host/control/v1/deployment.job.snapshot";
 const DEPLOYMENT_REVISION_ACTIVATED_EVENT: &str = "host/control/v1/deployment.revision.activated";
+
+#[derive(Debug, Clone)]
+struct SurfaceAssetLease {
+    root: String,
+    grant_id: Option<String>,
+    host_access_instance_id: uuid::Uuid,
+    expires_at_ms: i64,
+}
+
+static SURFACE_ASSET_LEASES: OnceLock<Mutex<HashMap<String, SurfaceAssetLease>>> = OnceLock::new();
 const DEPLOYMENT_REVISION_DEACTIVATED_EVENT: &str =
     "host/control/v1/deployment.revision.deactivated";
 const DEPLOYMENT_JOURNAL_SESSION: &str = "host_control_deployments";
@@ -316,6 +330,10 @@ where
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
+        .route(
+            "/surface-bundles/:prefix/*file",
+            get(surface_bundle_file::<S>),
+        )
         .route_layer(middleware::from_fn_with_state(
             access_control.clone(),
             require_access_token::<S>,
@@ -325,8 +343,8 @@ where
         .route("/health", get(health))
         .route("/healthz", get(health))
         .route(
-            "/surface-bundles/:prefix/*file",
-            get(surface_bundle_file::<S>),
+            "/surface-assets/:lease_id/:prefix/*file",
+            get(surface_asset_file::<S>),
         )
         .merge(host_access::public_routes::<S>())
         .merge(protected)
@@ -395,6 +413,25 @@ where
             )
                 .into_response();
         }
+    }
+    if let Some(project_id) = project_id_from_host_path(request.uri().path()) {
+        if !identity.allows_project(project_id) {
+            return (
+                StatusCode::FORBIDDEN,
+                "the Host access grant does not include this project",
+            )
+                .into_response();
+        }
+    }
+    if requires_global_project_authority(request.uri().path())
+        && identity.kind == HostAccessIdentityKind::Device
+        && !identity.allows_all(HostAccessResourceKind::Project)
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            "this Host-global catalogue requires all-project authority",
+        )
+            .into_response();
     }
     request.extensions_mut().insert(identity);
     strip_host_session_cookie(request.headers_mut());
@@ -670,6 +707,7 @@ fn is_reserved_vhost_slug(slug: &str) -> bool {
             | "rpc"
             | "health"
             | "surface-bundles"
+            | "surface-assets"
             | "p"
             | "static"
     )
@@ -890,7 +928,53 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
     if path == "/p" || path.starts_with("/p/") {
         return Some(HostAccessScope::Observe);
     }
+    if path.starts_with("/surface-bundles/") {
+        return Some(HostAccessScope::Observe);
+    }
     Some(HostAccessScope::AccessManage)
+}
+
+fn project_id_from_host_path(path: &str) -> Option<&str> {
+    let remainder = path
+        .strip_prefix("/host/v1/projects/")
+        .or_else(|| path.strip_prefix("/surface-bundles/projects/"))?;
+    let project_id = remainder.split('/').next()?;
+    (!project_id.is_empty()).then_some(project_id)
+}
+
+fn requires_global_project_authority(path: &str) -> bool {
+    path.starts_with("/kernel/v1/package.")
+        || path == "/kernel/v1/capability.discover"
+        || (path.starts_with("/surface-bundles/")
+            && !path.starts_with("/surface-bundles/projects/"))
+}
+
+fn require_identity_project(
+    identity: &HostAccessIdentity,
+    project_id: &str,
+) -> Result<(), ServiceError> {
+    if identity.allows_project(project_id) {
+        Ok(())
+    } else {
+        Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "the Host access grant does not include this project",
+        ))
+    }
+}
+
+fn require_identity_target(
+    identity: &HostAccessIdentity,
+    target_id: &str,
+) -> Result<(), ServiceError> {
+    if identity.allows_target(target_id) {
+        Ok(())
+    } else {
+        Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "the Host access grant does not include this execution target",
+        ))
+    }
 }
 
 fn host_session_cookie_value(access_token: &str) -> String {
@@ -943,11 +1027,23 @@ fn strip_host_session_cookie(headers: &mut HeaderMap) {
 
 async fn open_session<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Json(request): Json<OpenSessionHttpRequest>,
 ) -> anyhow::Result<Json<KernelSession>, ServiceError>
 where
     S: EventStore,
 {
+    let requested_project = request.metadata.get("project_id").and_then(Value::as_str);
+    if let Some(project_id) = requested_project {
+        require_identity_project(&identity, project_id)?;
+    } else if identity.kind == HostAccessIdentityKind::Device
+        && !identity.allows_all(HostAccessResourceKind::Project)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "project-scoped devices must open sessions with metadata.project_id",
+        ));
+    }
     Ok(Json(
         state
             .runtime
@@ -962,6 +1058,7 @@ where
 
 async fn append_event<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path(session_id): Path<SessionId>,
     Json(request): Json<AppendEventHttpRequest>,
 ) -> anyhow::Result<Json<EventEnvelope>, ServiceError>
@@ -972,7 +1069,7 @@ where
         state
             .runtime
             .append_event_with_context(
-                &ProtocolContext::host_dev("http_ad_hoc"),
+                &identity.protocol_context("http_ad_hoc"),
                 AppendEventRequest {
                     session_id,
                     writer_package_id: request.writer_package_id,
@@ -987,6 +1084,7 @@ where
 
 async fn list_events<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path(session_id): Path<SessionId>,
     Query(query): Query<EventListQuery>,
 ) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError>
@@ -1003,13 +1101,14 @@ where
     Ok(Json(
         state
             .runtime
-            .list_events_range_with_context(&ProtocolContext::host_dev("http_ad_hoc"), &request)
+            .list_events_range_with_context(&identity.protocol_context("http_ad_hoc"), &request)
             .await?,
     ))
 }
 
 async fn subscribe_events<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path(session_id): Path<SessionId>,
     Query(query): Query<EventListQuery>,
 ) -> anyhow::Result<Sse<impl Stream<Item = Result<SseEvent, Infallible>>>, ServiceError>
@@ -1025,7 +1124,7 @@ where
     };
     let replay = state
         .runtime
-        .list_events_range_with_context(&ProtocolContext::host_dev("http_sse"), &request)
+        .list_events_range_with_context(&identity.protocol_context("http_sse"), &request)
         .await?;
     let replay = VecDeque::from(replay);
     let rx = state.runtime.subscribe_events();
@@ -1134,6 +1233,7 @@ where
 
 async fn invoke_capability<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Json(request): Json<CapabilityInvocationRequest>,
 ) -> anyhow::Result<Json<CapabilityInvocationResult>, ServiceError>
 where
@@ -1142,7 +1242,7 @@ where
     Ok(Json(
         state
             .runtime
-            .invoke_capability_with_context(&ProtocolContext::host_dev("http_ad_hoc"), request)
+            .invoke_capability_with_context(&identity.protocol_context("http_ad_hoc"), request)
             .await?,
     ))
 }
@@ -1183,6 +1283,8 @@ async fn host_info() -> impl IntoResponse {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HostDeployRequest {
+    #[serde(default)]
+    pub project_id: Option<ProjectId>,
     pub image: String,
     pub container_port: u16,
     pub port_name: String,
@@ -1574,6 +1676,7 @@ struct BuildDeployJobRecord {
 struct DeploymentProjection {
     revisions: HashMap<ProjectId, Vec<DeploymentRevision>>,
     active_revisions: HashMap<ProjectId, String>,
+    direct_route_owners: HashMap<String, ProjectId>,
 }
 
 #[derive(Debug)]
@@ -1968,6 +2071,7 @@ impl BuildDeployJobRegistry {
 
     fn register_revision(&self, revision: DeploymentRevision) {
         let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
+        deployment.direct_route_owners.remove(&revision.route_id);
         let revisions = deployment
             .revisions
             .entry(revision.project_id.clone())
@@ -2060,6 +2164,41 @@ impl BuildDeployJobRegistry {
                     })
                     .cloned()
             })
+    }
+
+    fn register_direct_route_owner(&self, route_id: String, project_id: ProjectId) {
+        self.deployment
+            .lock()
+            .expect("deployment lock poisoned")
+            .direct_route_owners
+            .insert(route_id, project_id);
+    }
+
+    fn remove_direct_route_owner(&self, route_id: &str) {
+        self.deployment
+            .lock()
+            .expect("deployment lock poisoned")
+            .direct_route_owners
+            .remove(route_id);
+    }
+
+    fn project_for_route(&self, route_id: &str) -> Option<ProjectId> {
+        let deployment = self.deployment.lock().expect("deployment lock poisoned");
+        deployment
+            .active_revisions
+            .iter()
+            .find_map(|(project_id, revision_id)| {
+                deployment
+                    .revisions
+                    .get(project_id)?
+                    .iter()
+                    .any(|revision| {
+                        revision.revision_id == revision_id.as_str()
+                            && revision.route_id == route_id
+                    })
+                    .then(|| project_id.clone())
+            })
+            .or_else(|| deployment.direct_route_owners.get(route_id).cloned())
     }
 }
 
@@ -2246,13 +2385,42 @@ struct GitFetchTreeInvocation {
 
 async fn deploy_project<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Json(request): Json<HostDeployRequest>,
 ) -> anyhow::Result<Json<HostDeployResponse>, ServiceError>
 where
     S: EventStore,
 {
     validate_host_deploy_request(&request)?;
-    let context = ProtocolContext::host_dev("host_deploy");
+    if let Some(project_id) = request.project_id.as_ref() {
+        require_identity_project(&identity, project_id.as_str())?;
+    } else if identity.kind == HostAccessIdentityKind::Device
+        && !identity.allows_all(HostAccessResourceKind::Project)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "project-scoped devices must provide project_id for direct deployments",
+        ));
+    }
+    require_identity_target(&identity, "local")?;
+    let mut context = identity.protocol_context("host_deploy");
+    if let Some(project_id) = request.project_id.as_ref() {
+        context = context.with_host_operation(
+            "deploy",
+            vec![
+                ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: "project".to_string(),
+                    id: Some(project_id.to_string()),
+                },
+                ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: "target".to_string(),
+                    id: Some("local".to_string()),
+                },
+            ],
+        );
+    }
     let mut container_id: Option<String> = None;
 
     let lease = match call_host_protocol(
@@ -2400,6 +2568,12 @@ where
         return Err(anyhow::anyhow!("proxy route disappeared before readiness promotion").into());
     }
 
+    if let Some(project_id) = request.project_id.clone() {
+        state
+            .build_jobs
+            .register_direct_route_owner(route_id.clone(), project_id);
+    }
+
     Ok(Json(HostDeployResponse {
         route_id,
         public_url,
@@ -2412,12 +2586,15 @@ where
 
 async fn build_deploy_project<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Query(query): Query<BuildDeploySubmitQuery>,
     Json(request): Json<HostBuildDeployRequest>,
 ) -> anyhow::Result<Json<BuildDeploySubmitOrStatusResponse>, ServiceError>
 where
     S: EventStore,
 {
+    require_identity_project(&identity, request.project_id.as_str())?;
+    require_identity_target(&identity, "local")?;
     validate_host_build_deploy_request(&request).map_err(redacted_build_deploy_error)?;
     let created = state.build_jobs.create_job(&request).map_err(|error| {
         let message = error.to_string();
@@ -2467,23 +2644,31 @@ where
 
 async fn build_deploy_job_status<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path(job_id): Path<String>,
 ) -> anyhow::Result<Json<BuildDeployJobStatusResponse>, ServiceError>
 where
     S: EventStore,
 {
-    state.build_jobs.status(&job_id).map(Json).ok_or_else(|| {
+    let status = state.build_jobs.status(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
-    })
+    })?;
+    require_identity_project(&identity, status.project_id.as_str())?;
+    Ok(Json(status))
 }
 
 async fn cancel_build_deploy_job<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path(job_id): Path<String>,
 ) -> anyhow::Result<Json<BuildDeployCancelResponse>, ServiceError>
 where
     S: EventStore,
 {
+    let status = state.build_jobs.status(&job_id).ok_or_else(|| {
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+    })?;
+    require_identity_project(&identity, status.project_id.as_str())?;
     let (state_value, cancelled) = state.build_jobs.cancel(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
@@ -2501,11 +2686,16 @@ where
 
 async fn build_deploy_job_events<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path(job_id): Path<String>,
 ) -> anyhow::Result<Sse<impl Stream<Item = Result<SseEvent, Infallible>>>, ServiceError>
 where
     S: EventStore,
 {
+    let status = state.build_jobs.status(&job_id).ok_or_else(|| {
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+    })?;
+    require_identity_project(&identity, status.project_id.as_str())?;
     let replay = state.build_jobs.events(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
@@ -3211,15 +3401,27 @@ struct DeploymentCleanupResult {
 
 async fn stop_project_deployment<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Json(request): Json<HostDeployStopRequest>,
-) -> Json<HostDeployStopResponse>
+) -> Result<Json<HostDeployStopResponse>, ServiceError>
 where
     S: EventStore,
 {
     let route_id = request.route_id.trim().to_string();
     let active = state.build_jobs.active_by_route(&route_id);
+    if let Some(project_id) = state.build_jobs.project_for_route(&route_id) {
+        require_identity_project(&identity, project_id.as_str())?;
+    } else if identity.kind == HostAccessIdentityKind::Device
+        && !identity.allows_all(HostAccessResourceKind::Project)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "project-scoped devices cannot stop an unowned deployment route",
+        ));
+    }
     let mut cleanup = stop_project_deployment_inner(&state, &route_id).await;
     if cleanup.safe_to_redeploy {
+        state.build_jobs.remove_direct_route_owner(&route_id);
         if let Some(revision) = active {
             let deactivation = DeploymentRevisionDeactivated {
                 project_id: revision.project_id,
@@ -3237,7 +3439,7 @@ where
             }
         }
     }
-    Json(cleanup.response)
+    Ok(Json(cleanup.response))
 }
 
 async fn stop_project_deployment_inner<S>(
@@ -4419,6 +4621,7 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
     validate_runtime_env_specs(&request.runtime_env)?;
     validate_runtime_mount_specs(&request.runtime_mounts)?;
     validate_host_deploy_request(&HostDeployRequest {
+        project_id: Some(request.project_id.clone()),
         image: "yggdrasil/placeholder:build".to_string(),
         container_port: request.container_port,
         port_name: request.port_name.clone(),
@@ -5000,10 +5203,149 @@ fn protocol_error_to_anyhow(error: ProtocolError) -> anyhow::Error {
     anyhow::anyhow!("{}: {}", error.code, error.message)
 }
 
+fn surface_asset_lease_registry() -> &'static Mutex<HashMap<String, SurfaceAssetLease>> {
+    SURFACE_ASSET_LEASES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn surface_asset_root(relative: &str) -> Option<String> {
+    let path = relative.split('?').next()?;
+    let mut parts = path.split('/').filter(|part| !part.is_empty());
+    let prefix = parts.next()?;
+    if prefix == "projects" {
+        let project_id = parts.next()?;
+        ygg_core::project::ProjectId::new(project_id).ok()?;
+        Some(format!("projects/{project_id}"))
+    } else {
+        (!prefix.is_empty()).then(|| prefix.to_string())
+    }
+}
+
+fn rewrite_surface_asset_url(
+    value: &str,
+    lease_id: &str,
+    expected_root: &str,
+) -> anyhow::Result<String> {
+    let relative = value
+        .strip_prefix("/surface-bundles/")
+        .ok_or_else(|| anyhow::anyhow!("surface asset URL is outside the Host bundle namespace"))?;
+    anyhow::ensure!(
+        surface_asset_root(relative).as_deref() == Some(expected_root),
+        "surface asset URL escaped its resolved bundle root"
+    );
+    Ok(format!("/surface-assets/{lease_id}/{relative}"))
+}
+
+fn mint_surface_asset_lease(
+    result: &mut Value,
+    identity: &HostAccessIdentity,
+    host_access: &HostAccessRegistry,
+) -> anyhow::Result<()> {
+    let bundle_url = result
+        .get("bundle_url")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("resolved surface bundle is missing bundle_url"))?;
+    let relative = bundle_url
+        .strip_prefix("/surface-bundles/")
+        .ok_or_else(|| anyhow::anyhow!("resolved surface bundle URL is outside the Host"))?;
+    let root = surface_asset_root(relative)
+        .ok_or_else(|| anyhow::anyhow!("resolved surface bundle root is invalid"))?;
+    let lease_id = uuid::Uuid::new_v4().simple().to_string();
+    let rewritten_bundle_url = rewrite_surface_asset_url(bundle_url, &lease_id, &root)?;
+    let rewritten_stylesheets = result
+        .get("stylesheets")
+        .and_then(Value::as_array)
+        .map(|stylesheets| {
+            stylesheets
+                .iter()
+                .map(|stylesheet| {
+                    let value = stylesheet.as_str().ok_or_else(|| {
+                        anyhow::anyhow!("resolved stylesheet URL is not a string")
+                    })?;
+                    rewrite_surface_asset_url(value, &lease_id, &root)
+                })
+                .collect::<anyhow::Result<Vec<_>>>()
+        })
+        .transpose()?;
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let expires_at_ms = now_ms.saturating_add(SURFACE_ASSET_LEASE_TTL_MS);
+    {
+        let mut leases = surface_asset_lease_registry()
+            .lock()
+            .expect("surface asset lease lock poisoned");
+        leases.retain(|_, lease| lease.expires_at_ms > now_ms);
+        if leases.len() >= SURFACE_ASSET_LEASE_LIMIT {
+            if let Some(oldest) = leases
+                .iter()
+                .min_by_key(|(_, lease)| lease.expires_at_ms)
+                .map(|(id, _)| id.clone())
+            {
+                leases.remove(&oldest);
+            }
+        }
+        leases.insert(
+            lease_id.clone(),
+            SurfaceAssetLease {
+                root: root.clone(),
+                grant_id: identity.grant_id.clone(),
+                host_access_instance_id: host_access.instance_id(),
+                expires_at_ms,
+            },
+        );
+    }
+    result["bundle_url"] = Value::String(rewritten_bundle_url);
+    if let Some(stylesheets) = rewritten_stylesheets {
+        result["stylesheets"] = Value::Array(stylesheets.into_iter().map(Value::String).collect());
+    }
+    Ok(())
+}
+
+fn surface_asset_lease_is_valid(
+    host_access: &HostAccessRegistry,
+    lease_id: &str,
+    requested_root: &str,
+) -> bool {
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let mut leases = surface_asset_lease_registry()
+        .lock()
+        .expect("surface asset lease lock poisoned");
+    leases.retain(|_, lease| lease.expires_at_ms > now_ms);
+    leases.get(lease_id).is_some_and(|lease| {
+        lease.host_access_instance_id == host_access.instance_id()
+            && lease.root == requested_root
+            && lease
+                .grant_id
+                .as_deref()
+                .is_none_or(|grant_id| host_access.grant_is_currently_active(grant_id))
+    })
+}
+
+async fn surface_asset_file<S>(
+    State(state): State<AppState<S>>,
+    Path((lease_id, prefix, file)): Path<(String, String, String)>,
+) -> impl IntoResponse
+where
+    S: EventStore,
+{
+    let Some(root) = surface_asset_root(&format!("{prefix}/{file}")) else {
+        return (StatusCode::NOT_FOUND, "surface asset lease not found").into_response();
+    };
+    if !surface_asset_lease_is_valid(state.host_access.as_ref(), &lease_id, &root) {
+        return (StatusCode::NOT_FOUND, "surface asset lease not found").into_response();
+    }
+    serve_surface_bundle(state, &prefix, &file).await
+}
+
 async fn surface_bundle_file<S>(
     State(state): State<AppState<S>>,
     Path((prefix, file)): Path<(String, String)>,
 ) -> impl IntoResponse
+where
+    S: EventStore,
+{
+    serve_surface_bundle(state, &prefix, &file).await
+}
+
+async fn serve_surface_bundle<S>(state: AppState<S>, prefix: &str, file: &str) -> Response
 where
     S: EventStore,
 {
@@ -5015,6 +5357,10 @@ where
             response.headers_mut().insert(
                 header::CACHE_CONTROL,
                 HeaderValue::from_static("no-cache, must-revalidate"),
+            );
+            response.headers_mut().insert(
+                header::REFERRER_POLICY,
+                HeaderValue::from_static("no-referrer"),
             );
             response
         }
@@ -5075,6 +5421,28 @@ async fn proxy_request<S>(
 where
     S: EventStore,
 {
+    if access_mode == ProxyAccessMode::PathPrefix {
+        let Some(identity) = request.extensions().get::<HostAccessIdentity>() else {
+            return (StatusCode::UNAUTHORIZED, "missing Host access identity").into_response();
+        };
+        if let Some(project_id) = state.build_jobs.project_for_route(&route_id) {
+            if !identity.allows_project(project_id.as_str()) {
+                return (
+                    StatusCode::FORBIDDEN,
+                    "the Host access grant does not include this project route",
+                )
+                    .into_response();
+            }
+        } else if identity.kind == HostAccessIdentityKind::Device
+            && !identity.allows_all(HostAccessResourceKind::Project)
+        {
+            return (
+                StatusCode::FORBIDDEN,
+                "project-scoped devices cannot access an unowned route",
+            )
+                .into_response();
+        }
+    }
     if is_upgrade_request(request.headers()) {
         if !is_websocket_upgrade_request(request.headers()) {
             return (
@@ -5628,6 +5996,8 @@ fn is_reserved_service_path(path: &str) -> bool {
         || path.starts_with("/host/")
         || path == "/surface-bundles"
         || path.starts_with("/surface-bundles/")
+        || path == "/surface-assets"
+        || path.starts_with("/surface-assets/")
 }
 
 fn is_spa_fallback_path(path: &str) -> bool {
@@ -5709,10 +6079,9 @@ fn public_static_headers(content_type: &'static str, cache_control: &'static str
         HeaderValue::from_static(cache_control),
     );
     // Surface frames are sandboxed without `allow-same-origin`; browser module
-    // loading treats the frame as an opaque origin. Public browser assets must be
-    // CORS-readable so `/surface-frame-bootstrap.js` and installed surface
-    // bundles can load inside that sandbox while RPC/kernel routes remain token
-    // gated separately.
+    // loading treats the frame as an opaque origin. Public shell assets and
+    // attenuated `/surface-assets/<lease>/...` responses must be CORS-readable;
+    // raw bundle, RPC, and kernel routes keep their Host authority gates.
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_ORIGIN,
         HeaderValue::from_static("*"),
@@ -5862,7 +6231,12 @@ where
         contract,
         params,
     } = request;
-    let required_scope = required_host_scope_for_protocol_method(&method);
+    let resolved_method = resolve_contract_method(&method).ok();
+    let policy_method = resolved_method
+        .as_ref()
+        .map(|resolved| resolved.contract.canonical_id.as_str())
+        .unwrap_or(method.as_str());
+    let required_scope = required_host_scope_for_protocol_method(policy_method);
     if !identity.allows(required_scope) {
         return Json(ProtocolResponse {
             id,
@@ -5875,13 +6249,24 @@ where
             diagnostics,
         });
     }
-    let mut context = ProtocolContext::host_dev("http_rpc");
+    let operation_resources = host_operation_resources_for_protocol_method(policy_method, &params);
+    let mut context = identity.protocol_context("http_rpc");
+    if identity.kind == HostAccessIdentityKind::Device && !operation_resources.is_empty() {
+        context = context.with_host_operation(required_scope.as_str(), operation_resources);
+    }
     context.session_id = session_id;
-    match state
+    let result = state
         .runtime
         .call_protocol_negotiated(&context, &method, params, contract.as_ref())
         .await
-    {
+        .and_then(|mut result| {
+            if policy_method == "host.surface.bundle.resolve" {
+                mint_surface_asset_lease(&mut result, &identity, state.host_access.as_ref())
+                    .map_err(ProtocolError::from_anyhow)?;
+            }
+            Ok(result)
+        });
+    match result {
         Ok(result) => Json(ProtocolResponse {
             id,
             result: Some(result),
@@ -5995,6 +6380,64 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
     }
 }
 
+fn host_operation_resources_for_protocol_method(
+    method: &str,
+    params: &Value,
+) -> Vec<ProtocolResourceSelector> {
+    let project_method = matches!(
+        method,
+        "host.project.get"
+            | "host.project.start"
+            | "host.project.stop"
+            | "host.project.status"
+            | "kernel.v1.project.get"
+            | "kernel.v1.project.start"
+            | "kernel.v1.project.stop"
+            | "kernel.v1.project.status"
+    );
+    if project_method {
+        return params
+            .get("project_id")
+            .and_then(Value::as_str)
+            .map(|project_id| {
+                vec![ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: "project".to_string(),
+                    id: Some(project_id.to_string()),
+                }]
+            })
+            .unwrap_or_default();
+    }
+
+    let target_method = matches!(
+        method,
+        "host.target.status"
+            | "host.target.register"
+            | "host.target.unregister"
+            | "host.exec.start"
+            | "host.port.lease"
+            | "kernel.v1.target.status"
+            | "kernel.v1.target.register"
+            | "kernel.v1.target.unregister"
+            | "kernel.v1.exec.start"
+            | "kernel.v1.port.lease"
+    );
+    if target_method {
+        return params
+            .get("target_id")
+            .and_then(Value::as_str)
+            .map(|target_id| {
+                vec![ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: "target".to_string(),
+                    id: Some(target_id.to_string()),
+                }]
+            })
+            .unwrap_or_default();
+    }
+    Vec::new()
+}
+
 pub struct ServiceError {
     error: anyhow::Error,
     status: Option<StatusCode>,
@@ -6049,6 +6492,7 @@ impl axum::response::IntoResponse for ServiceError {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::net::SocketAddr;
 
     use axum::body::{to_bytes, Body};
@@ -6059,8 +6503,9 @@ mod tests {
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
     use tokio_tungstenite::tungstenite::Message;
     use tower::ServiceExt;
+    use ygg_core::project::{ProjectDescriptor, ProjectInner, ProjectType, SecretPolicy};
     use ygg_runtime::{
-        ExecutionTargetId, PortLeaseRequest, PortProtocol, ProxyProtocol,
+        ExecutionTargetId, PortLeaseRequest, PortProtocol, ProjectRegistry, ProxyProtocol,
         ProxyRouteRegisterRequest, ProxyRouteUpstream,
     };
 
@@ -7222,6 +7667,313 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn device_authority_is_project_exact_across_http_and_rpc() -> anyhow::Result<()> {
+        fn project(id: &str, title: &str) -> ProjectDescriptor {
+            ProjectDescriptor {
+                schema_version: 1,
+                project: ProjectInner {
+                    id: ProjectId::new(id).expect("valid project id"),
+                    title: title.to_string(),
+                    description: String::new(),
+                    project_type: ProjectType::YggdrasilNative,
+                    icon: None,
+                    entry_surface_id: None,
+                    packages: vec!["packages/test/manifest.yaml".to_string()],
+                    optional_packages: Vec::new(),
+                    required_surfaces: Vec::new(),
+                    required_capabilities: Vec::new(),
+                    secret_policy: SecretPolicy::default(),
+                    external: None,
+                    metadata: BTreeMap::new(),
+                },
+            }
+        }
+
+        async fn rpc(
+            app: Router,
+            token: &str,
+            method: &str,
+            params: Value,
+        ) -> anyhow::Result<Value> {
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri("/rpc")
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                        .body(Body::from(
+                            json!({"id": "authority-test", "method": method, "params": params})
+                                .to_string(),
+                        ))?,
+                )
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            Ok(serde_json::from_slice(
+                &to_bytes(response.into_body(), usize::MAX).await?,
+            )?)
+        }
+
+        let project_a = "authority_project_a__abc12345";
+        let project_b = "authority_project_b__abc12345";
+        let projects = Arc::new(ProjectRegistry::new());
+        projects.register(project(project_a, "Project A"))?;
+        projects.register(project(project_b, "Project B"))?;
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                project_registry: projects,
+                ..RuntimeConfig::default()
+            },
+        ));
+        let access_registry = Arc::new(HostAccessRegistry::default());
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("root-authority-token".to_string()),
+            app_base_domain: None,
+            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            development: development_registry(),
+            host_access: access_registry.clone(),
+        });
+
+        let unauthenticated_surface = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri(format!("/surface-bundles/projects/{project_a}/bundle.mjs"))
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(unauthenticated_surface.status(), StatusCode::UNAUTHORIZED);
+
+        let pairing = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/access/pairings")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, "Bearer root-authority-token")
+                    .body(Body::from(
+                        json!({
+                            "device_name": "Project A device",
+                            "scopes": ["observe", "project_operate", "develop_propose", "access_manage"],
+                            "resources": [
+                                {"kind": "project", "id": project_a},
+                                {"kind": "target"}
+                            ],
+                            "pairing_ttl_secs": 60,
+                            "grant_ttl_secs": 3600
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(pairing.status(), StatusCode::CREATED);
+        let pairing_body: Value =
+            serde_json::from_slice(&to_bytes(pairing.into_body(), usize::MAX).await?)?;
+        let pairing_token = pairing_body["pairing_token"]
+            .as_str()
+            .expect("pairing token returned");
+
+        let claim = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/access/pair")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        json!({"pairing_token": pairing_token}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(claim.status(), StatusCode::CREATED);
+        let cookie = claim
+            .headers()
+            .get(header::SET_COOKIE)
+            .and_then(|value| value.to_str().ok())
+            .expect("pairing claim returns a device cookie");
+        let access_token = cookie
+            .strip_prefix(&format!("{}=", host_access::REMOTE_HOST_SESSION_COOKIE))
+            .and_then(|value| value.split(';').next())
+            .expect("device access token is encoded in the cookie")
+            .to_string();
+
+        let overbroad_delegation = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/access/pairings")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::from(
+                        json!({
+                            "device_name": "Project B child",
+                            "scopes": ["observe"],
+                            "resources": [{"kind": "project", "id": project_b}],
+                            "pairing_ttl_secs": 60,
+                            "grant_ttl_secs": 3500
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(overbroad_delegation.status(), StatusCode::FORBIDDEN);
+
+        let attenuated_delegation = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/access/pairings")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::from(
+                        json!({
+                            "device_name": "Project A child",
+                            "scopes": ["observe"],
+                            "resources": [{"kind": "project", "id": project_a}],
+                            "pairing_ttl_secs": 60,
+                            "grant_ttl_secs": 3500
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(attenuated_delegation.status(), StatusCode::CREATED);
+
+        for path in [
+            format!("/surface-bundles/projects/{project_b}/bundle.mjs"),
+            "/surface-bundles/ydltavern/bundle.mjs".to_string(),
+            "/kernel/v1/package.list".to_string(),
+            "/kernel/v1/capability.discover".to_string(),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::GET)
+                        .uri(path)
+                        .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                        .body(Body::empty())?,
+                )
+                .await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "project-scoped device must not read another project or Host-global catalogue"
+            );
+        }
+
+        let listed = rpc(app.clone(), &access_token, "host.project.list", json!({})).await?;
+        let visible = listed["result"]["projects"]
+            .as_array()
+            .expect("project list response");
+        assert_eq!(visible.len(), 1);
+        assert_eq!(visible[0]["id"], project_a);
+
+        let denied_rpc = rpc(
+            app.clone(),
+            &access_token,
+            "host.project.get",
+            json!({"project_id": project_b}),
+        )
+        .await?;
+        assert_eq!(
+            denied_rpc["error"]["code"],
+            "kernel/v1/error/permission_denied"
+        );
+        let denied_legacy_rpc = rpc(
+            app.clone(),
+            &access_token,
+            "kernel.v1.project.get",
+            json!({"project_id": project_b}),
+        )
+        .await?;
+        assert_eq!(
+            denied_legacy_rpc["error"]["code"], "kernel/v1/error/permission_denied",
+            "legacy adapters must share the canonical resource policy"
+        );
+        let authority_events = store
+            .list_session_range(&"host_control_authority".to_string(), None, None)
+            .await?;
+        assert!(authority_events.iter().any(|event| {
+            event.kind == "host/control/v1/authority.decision"
+                && event.payload["canonical_method"] == "host.project.get"
+                && event.payload["decision"] == "deny"
+                && event.payload["operation_resources"][0]["id"] == project_b
+        }));
+        assert!(authority_events.iter().any(|event| {
+            event.payload["canonical_method"] == "host.project.get"
+                && event.payload["requested_method"] == "kernel.v1.project.get"
+                && event.payload["decision"] == "deny"
+        }));
+        assert!(!serde_json::to_string(&authority_events)?.contains(&access_token));
+
+        let denied_path = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri(format!("/host/v1/projects/{project_b}/changes"))
+                    .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(denied_path.status(), StatusCode::FORBIDDEN);
+
+        let device_identity = host_access::authenticate_host_access_token(
+            store.as_ref(),
+            access_registry.as_ref(),
+            &access_token,
+        )
+        .await?
+        .expect("device remains authenticated before revocation");
+        let grant_id = device_identity
+            .grant_id
+            .clone()
+            .expect("device identity has a grant id");
+        let mut resolved = json!({
+            "bundle_url": format!("/surface-bundles/projects/{project_a}/bundle.mjs"),
+            "stylesheets": []
+        });
+        mint_surface_asset_lease(&mut resolved, &device_identity, access_registry.as_ref())?;
+        let leased_url = resolved["bundle_url"].as_str().expect("leased URL");
+        let lease_id = leased_url
+            .trim_start_matches('/')
+            .split('/')
+            .nth(1)
+            .expect("lease id");
+        let lease_root = format!("projects/{project_a}");
+        assert!(surface_asset_lease_is_valid(
+            access_registry.as_ref(),
+            lease_id,
+            &lease_root
+        ));
+
+        let revoked = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/host/v1/access/grants/{grant_id}/revoke"))
+                    .header(header::AUTHORIZATION, "Bearer root-authority-token")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(revoked.status(), StatusCode::OK);
+        assert!(
+            !surface_asset_lease_is_valid(access_registry.as_ref(), lease_id, &lease_root),
+            "revoking a device grant must invalidate its outstanding asset leases"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn desktop_bootstrap_nonce_is_one_time_and_issues_http_only_session() -> anyhow::Result<()>
     {
         let store = Arc::new(InMemoryEventStore::default());
@@ -7360,6 +8112,7 @@ mod tests {
         });
 
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -7478,6 +8231,7 @@ mod tests {
         });
 
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/p/missing/app")
@@ -8263,8 +9017,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn surface_bundles_are_public_static_artifacts_when_token_gate_enabled(
-    ) -> anyhow::Result<()> {
+    async fn surface_bundles_require_host_auth_when_token_gate_enabled() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
         let bundle_dir = dir.path().join("surface");
         std::fs::create_dir_all(&bundle_dir)?;
@@ -8276,6 +9029,7 @@ mod tests {
             .surface_dev_paths
             .insert("test".to_string(), bundle_dir.to_string_lossy().to_string());
         let runtime = Arc::new(Runtime::new(store, config));
+        let access_registry = host_access_registry();
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -8283,13 +9037,25 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
-            host_access: host_access_registry(),
+            host_access: access_registry.clone(),
         });
 
-        let response = app
+        let denied = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/surface-bundles/test/main.mjs")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/surface-bundles/test/main.mjs")
+                    .header(header::AUTHORIZATION, "Bearer bundle-token")
                     .body(Body::empty())?,
             )
             .await?;
@@ -8304,6 +9070,93 @@ mod tests {
         );
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"export const ok = true;");
+
+        let forged_lease = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/surface-assets/not-a-lease/test/main.mjs")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(forged_lease.status(), StatusCode::NOT_FOUND);
+
+        let mut resolved = json!({
+            "bundle_url": "/surface-bundles/test/main.mjs?v=lease-test",
+            "stylesheets": []
+        });
+        mint_surface_asset_lease(
+            &mut resolved,
+            &HostAccessIdentity::root(),
+            access_registry.as_ref(),
+        )?;
+        let leased = app
+            .oneshot(
+                Request::builder()
+                    .uri(resolved["bundle_url"].as_str().expect("leased bundle URL"))
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(leased.status(), StatusCode::OK);
+        let bytes = to_bytes(leased.into_body(), usize::MAX).await?;
+        assert_eq!(&bytes[..], b"export const ok = true;");
+        Ok(())
+    }
+
+    #[test]
+    fn surface_asset_lease_is_root_scoped_and_preserves_cache_keys() -> anyhow::Result<()> {
+        let project_id = "lease_project__abc12345";
+        let registry = HostAccessRegistry::default();
+        let mut resolved = json!({
+            "bundle_url": format!("/surface-bundles/projects/{project_id}/bundle.mjs?v=abc"),
+            "stylesheets": [
+                format!("/surface-bundles/projects/{project_id}/styles/surface.css?v=def")
+            ]
+        });
+        mint_surface_asset_lease(&mut resolved, &HostAccessIdentity::root(), &registry)?;
+        let bundle_url = resolved["bundle_url"].as_str().expect("bundle URL");
+        let mut segments = bundle_url.trim_start_matches('/').split('/');
+        assert_eq!(segments.next(), Some("surface-assets"));
+        let lease_id = segments.next().expect("lease id");
+        assert!(bundle_url.ends_with("bundle.mjs?v=abc"));
+        assert!(resolved["stylesheets"][0]
+            .as_str()
+            .expect("stylesheet URL")
+            .contains(&format!(
+                "/surface-assets/{lease_id}/projects/{project_id}/"
+            )));
+        assert!(surface_asset_lease_is_valid(
+            &registry,
+            lease_id,
+            &format!("projects/{project_id}")
+        ));
+        assert!(!surface_asset_lease_is_valid(
+            &registry,
+            lease_id,
+            "projects/another_project__abc12345"
+        ));
+        assert!(!surface_asset_lease_is_valid(
+            &HostAccessRegistry::default(),
+            lease_id,
+            &format!("projects/{project_id}")
+        ));
+        surface_asset_lease_registry()
+            .lock()
+            .expect("surface asset lease lock")
+            .insert(
+                "expired-lease".to_string(),
+                SurfaceAssetLease {
+                    root: format!("projects/{project_id}"),
+                    grant_id: None,
+                    host_access_instance_id: registry.instance_id(),
+                    expires_at_ms: 0,
+                },
+            );
+        assert!(!surface_asset_lease_is_valid(
+            &registry,
+            "expired-lease",
+            &format!("projects/{project_id}")
+        ));
         Ok(())
     }
 
@@ -8410,6 +9263,7 @@ mod tests {
             "/kernel/anything",
             "/p/anything",
             "/surface-bundles/anything",
+            "/surface-assets/anything",
             "/surface-bundlesx",
         ] {
             let response = app

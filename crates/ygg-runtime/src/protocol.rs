@@ -520,6 +520,9 @@ pub enum MethodStatus {
 pub enum ProtocolPrincipal {
     HostAdmin,
     HostDev,
+    HostDevice {
+        grant_id: String,
+    },
     Package {
         package_id: String,
     },
@@ -534,9 +537,55 @@ pub enum ProtocolPrincipal {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ProtocolResourceSelector {
+    pub owner: String,
+    pub kind: String,
+    /// An omitted id selects every resource of this owner/kind. Resource
+    /// matching is structural and exact; callers must never use string-prefix
+    /// matching for authority decisions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+}
+
+impl ProtocolResourceSelector {
+    pub fn matches(&self, owner: &str, kind: &str, id: &str) -> bool {
+        self.owner == owner
+            && self.kind == kind
+            && self.id.as_deref().is_none_or(|selected| selected == id)
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ProtocolAuthorityContext {
+    #[serde(default)]
+    pub actions: Vec<String>,
+    #[serde(default)]
+    pub resources: Vec<ProtocolResourceSelector>,
+    #[serde(default)]
+    pub delegation_chain: Vec<String>,
+}
+
+/// Request-specific Host operation facts established by a trusted transport
+/// adapter after it has parsed and authorized the request. Unlike authority,
+/// this is never populated from the request body itself.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct ProtocolHostOperationContext {
+    pub action: String,
+    #[serde(default)]
+    pub resources: Vec<ProtocolResourceSelector>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProtocolContext {
     pub principal: ProtocolPrincipal,
     pub transport: String,
+    /// Authenticated Host authority carried by transport adapters. This is
+    /// additive so older callers remain source- and wire-compatible. A
+    /// HostDevice principal without authority is deliberately powerless.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority: Option<ProtocolAuthorityContext>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_operation: Option<ProtocolHostOperationContext>,
     /// Optional kernel session id this call is operating under.
     /// Used by outbound dispatch to scope secret resolution to the
     /// session's project.
@@ -555,6 +604,44 @@ impl ProtocolContext {
         Self {
             principal: ProtocolPrincipal::HostDev,
             transport: transport.into(),
+            authority: None,
+            host_operation: None,
+            session_id: None,
+            correlation_id: Some(Uuid::new_v4()),
+            parent_invocation_id: None,
+        }
+    }
+
+    pub fn host_admin(transport: impl Into<String>) -> Self {
+        Self {
+            principal: ProtocolPrincipal::HostAdmin,
+            transport: transport.into(),
+            authority: None,
+            host_operation: None,
+            session_id: None,
+            correlation_id: Some(Uuid::new_v4()),
+            parent_invocation_id: None,
+        }
+    }
+
+    pub fn host_device(
+        grant_id: impl Into<String>,
+        actions: Vec<String>,
+        resources: Vec<ProtocolResourceSelector>,
+        delegation_chain: Vec<String>,
+        transport: impl Into<String>,
+    ) -> Self {
+        Self {
+            principal: ProtocolPrincipal::HostDevice {
+                grant_id: grant_id.into(),
+            },
+            transport: transport.into(),
+            authority: Some(ProtocolAuthorityContext {
+                actions,
+                resources,
+                delegation_chain,
+            }),
+            host_operation: None,
             session_id: None,
             correlation_id: Some(Uuid::new_v4()),
             parent_invocation_id: None,
@@ -567,6 +654,8 @@ impl ProtocolContext {
                 package_id: package_id.into(),
             },
             transport: transport.into(),
+            authority: None,
+            host_operation: None,
             session_id: None,
             correlation_id: Some(Uuid::new_v4()),
             parent_invocation_id: None,
@@ -578,8 +667,68 @@ impl ProtocolContext {
         self
     }
 
+    pub fn with_host_operation(
+        mut self,
+        action: impl Into<String>,
+        resources: Vec<ProtocolResourceSelector>,
+    ) -> Self {
+        self.host_operation = Some(ProtocolHostOperationContext {
+            action: action.into(),
+            resources,
+        });
+        self
+    }
+
     pub fn effective_correlation_id(&self) -> Uuid {
         self.correlation_id.unwrap_or_else(Uuid::new_v4)
+    }
+
+    pub fn allows_host_action(&self, action: &str) -> bool {
+        match self.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => true,
+            ProtocolPrincipal::HostDevice { .. } => self
+                .authority
+                .as_ref()
+                .is_some_and(|authority| authority.actions.iter().any(|item| item == action)),
+            _ => false,
+        }
+    }
+
+    pub fn allows_host_resource(&self, owner: &str, kind: &str, id: &str) -> bool {
+        match self.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => true,
+            ProtocolPrincipal::HostDevice { .. } => self.authority.as_ref().is_some_and(|auth| {
+                auth.resources
+                    .iter()
+                    .any(|selector| selector.matches(owner, kind, id))
+            }),
+            _ => false,
+        }
+    }
+
+    pub fn allows_all_host_resources(&self, owner: &str, kind: &str) -> bool {
+        match self.principal {
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => true,
+            ProtocolPrincipal::HostDevice { .. } => self.authority.as_ref().is_some_and(|auth| {
+                auth.resources.iter().any(|selector| {
+                    selector.owner == owner && selector.kind == kind && selector.id.is_none()
+                })
+            }),
+            _ => false,
+        }
+    }
+
+    pub fn host_operation_is_authorized(&self) -> bool {
+        let Some(operation) = self.host_operation.as_ref() else {
+            return false;
+        };
+        self.allows_host_action(&operation.action)
+            && !operation.resources.is_empty()
+            && operation.resources.iter().all(|resource| {
+                resource.id.as_deref().is_some_and(|id| {
+                    self.allows_host_resource(&resource.owner, &resource.kind, id)
+                })
+            })
     }
 }
 
@@ -1158,6 +1307,8 @@ mod tests {
         let ctx = ProtocolContext {
             principal: ProtocolPrincipal::HostAdmin,
             transport: "http".into(),
+            authority: None,
+            host_operation: None,
             session_id: Some("session-abc".into()),
             correlation_id: None,
             parent_invocation_id: None,
@@ -1171,6 +1322,8 @@ mod tests {
         let ctx = ProtocolContext {
             principal: ProtocolPrincipal::HostAdmin,
             transport: "http".into(),
+            authority: None,
+            host_operation: None,
             session_id: None,
             correlation_id: None,
             parent_invocation_id: None,
@@ -1184,6 +1337,26 @@ mod tests {
         let json = r#"{"principal":{"kind":"host_admin"},"transport":"http"}"#;
         let ctx: ProtocolContext = serde_json::from_str(json).unwrap();
         assert!(ctx.session_id.is_none());
+        assert!(ctx.authority.is_none());
+    }
+
+    #[test]
+    fn host_device_authority_matches_exact_structured_resources() {
+        let context = ProtocolContext::host_device(
+            "grant-1",
+            vec!["observe".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "project".into(),
+                id: Some("project-a".into()),
+            }],
+            Vec::new(),
+            "http",
+        );
+        assert!(context.allows_host_action("observe"));
+        assert!(!context.allows_host_action("deploy"));
+        assert!(context.allows_host_resource("host", "project", "project-a"));
+        assert!(!context.allows_host_resource("host", "project", "project-ab"));
     }
 
     // --- KernelMethod / registry alignment tests ---

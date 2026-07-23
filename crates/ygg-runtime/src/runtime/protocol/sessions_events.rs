@@ -6,20 +6,64 @@ where
 {
     // --- Session ---
 
-    pub(crate) async fn dispatch_session_close(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_session_open(
+        &self,
+        context: &ProtocolContext,
+        params: Value,
+    ) -> anyhow::Result<Value> {
+        let request: OpenSessionRequest = serde_json::from_value(params)?;
+        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+            if !context.allows_host_action("project_operate") {
+                anyhow::bail!(
+                    "kernel.v1.session.open permission denied: Host device lacks project_operate"
+                );
+            }
+            match request.metadata.get("project_id").and_then(Value::as_str) {
+                Some(project_id) if context.allows_host_resource("host", "project", project_id) => {
+                }
+                Some(project_id) => anyhow::bail!(
+                    "kernel.v1.session.open permission denied for project '{}'",
+                    project_id
+                ),
+                None if context.allows_all_host_resources("host", "project") => {}
+                None => anyhow::bail!(
+                    "project-scoped Host devices must open sessions with metadata.project_id"
+                ),
+            }
+        }
+        Ok(serde_json::to_value(self.open_session(request).await?)?)
+    }
+
+    pub(crate) async fn dispatch_session_close(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.close requires session_id"))?
             .to_string();
+        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+            self.ensure_host_session_access(context, "project_operate", &session_id)
+                .await?;
+        }
         Ok(serde_json::to_value(self.close_session(session_id).await?)?)
     }
 
-    pub(crate) async fn dispatch_session_get(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_session_get(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.get requires session_id"))?;
+        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+            self.ensure_host_session_access(context, "observe", session_id)
+                .await?;
+        }
         Ok(serde_json::to_value(
             self.get_session(session_id)
                 .await
@@ -27,12 +71,20 @@ where
         )?)
     }
 
-    pub(crate) async fn dispatch_session_fork(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_session_fork(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let parent_session_id = params
             .get("parent_session_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.fork requires parent_session_id"))?
             .to_string();
+        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+            self.ensure_host_session_access(context, "project_operate", &parent_session_id)
+                .await?;
+        }
         let forked_from_sequence = params
             .get("forked_from_sequence")
             .and_then(Value::as_u64)
@@ -48,6 +100,7 @@ where
 
     pub(crate) async fn dispatch_session_branch_list(
         &self,
+        context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
         let session_id = params
@@ -55,6 +108,10 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.branch.list requires session_id"))?
             .to_string();
+        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+            self.ensure_host_session_access(context, "observe", &session_id)
+                .await?;
+        }
         Ok(serde_json::to_value(self.list_branches(&session_id).await)?)
     }
 

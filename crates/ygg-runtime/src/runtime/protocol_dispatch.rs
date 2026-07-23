@@ -6,6 +6,10 @@ use crate::{
     ProtocolContext, ProtocolPrincipal,
 };
 
+const HOST_AUTHORITY_AUDIT_SESSION: &str = "host_control_authority";
+const HOST_AUTHORITY_AUDIT_EVENT: &str = "host/control/v1/authority.decision";
+const HOST_AUTHORITY_AUDIT_WRITER: &str = "host/control-plane";
+
 impl<S> Runtime<S>
 where
     S: EventStore,
@@ -38,8 +42,17 @@ where
         let result = self
             .dispatch_protocol_method(context, resolved.method, params)
             .await
-            .map_err(crate::ProtocolError::from_anyhow)?;
-        resolved.adapt_response(result)
+            .map_err(crate::ProtocolError::from_anyhow)
+            .and_then(|value| resolved.adapt_response(value));
+        self.audit_host_authority_decision(
+            context,
+            resolved.method,
+            resolved.contract.canonical_id.as_str(),
+            resolved.requested_id(),
+            &result,
+        )
+        .await;
+        result
     }
 
     pub async fn call_subprocess_protocol(
@@ -68,65 +81,150 @@ where
         })?;
         let kernel_method = resolved.method;
         let params = resolved.adapt_request(params)?;
-        if is_deployment_hub_method(kernel_method) {
-            ensure_deployment_hub_control_allowed(context)
-                .map_err(crate::ProtocolError::from_anyhow)?;
-        }
-        let result: anyhow::Result<Value> = match kernel_method {
-            KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
-            KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
-            KernelMethod::OutboundWebSocketOpen => {
-                self.dispatch_outbound_websocket_open(context, params).await
+        let gate = ensure_global_host_catalog_access(context, kernel_method).and_then(|()| {
+            if is_deployment_hub_method(kernel_method) {
+                ensure_deployment_hub_control_allowed(context, kernel_method)
+            } else {
+                Ok(())
             }
-            KernelMethod::OutboundWebSocketSend => {
-                self.dispatch_outbound_websocket_send(context, &params)
-                    .await
+        });
+        let result: anyhow::Result<Value> = if let Err(error) = gate {
+            Err(error)
+        } else {
+            match kernel_method {
+                KernelMethod::OutboundExecute => {
+                    self.dispatch_outbound_execute(context, params).await
+                }
+                KernelMethod::OutboundStream => {
+                    self.dispatch_outbound_stream(context, params).await
+                }
+                KernelMethod::OutboundWebSocketOpen => {
+                    self.dispatch_outbound_websocket_open(context, params).await
+                }
+                KernelMethod::OutboundWebSocketSend => {
+                    self.dispatch_outbound_websocket_send(context, &params)
+                        .await
+                }
+                KernelMethod::OutboundWebSocketClose => {
+                    self.dispatch_outbound_websocket_close(context, &params)
+                        .await
+                }
+                KernelMethod::TargetList => self.dispatch_target_list(context).await,
+                KernelMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
+                KernelMethod::TargetRegister => {
+                    self.dispatch_target_register(context, params).await
+                }
+                KernelMethod::TargetUnregister => {
+                    self.dispatch_target_unregister(context, &params).await
+                }
+                KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
+                KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
+                KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
+                KernelMethod::ExecLogs => self.dispatch_exec_logs(context, params).await,
+                KernelMethod::ExecList => self.dispatch_exec_list(context).await,
+                KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
+                KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
+                KernelMethod::PortStatus => self.dispatch_port_status(context, &params).await,
+                KernelMethod::PortList => self.dispatch_port_list(context).await,
+                KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
+                KernelMethod::ProxyUnregister => {
+                    self.dispatch_proxy_unregister(context, &params).await
+                }
+                KernelMethod::ProxyStatus => self.dispatch_proxy_status(context, &params).await,
+                KernelMethod::ProxyList => self.dispatch_proxy_list(context).await,
+                KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
+                KernelMethod::HostInfo => {
+                    serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from)
+                }
+                KernelMethod::HostPing => Ok(json!({"ok": true})),
+                KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
+                KernelMethod::CapabilityDiscover => {
+                    serde_json::to_value(self.discover_capabilities().await)
+                        .map_err(anyhow::Error::from)
+                }
+                KernelMethod::CapabilityInvoke => match serde_json::from_value(params) {
+                    Ok(request) => self
+                        .invoke_capability_with_context(context, request)
+                        .await
+                        .and_then(|result| {
+                            serde_json::to_value(result).map_err(anyhow::Error::from)
+                        }),
+                    Err(error) => Err(anyhow::Error::from(error)),
+                },
+                other => Err(anyhow::anyhow!(
+                    "protocol method '{}' is not available over subprocess reverse stdio yet",
+                    other
+                )),
             }
-            KernelMethod::OutboundWebSocketClose => {
-                self.dispatch_outbound_websocket_close(context, &params)
-                    .await
-            }
-            KernelMethod::TargetList => self.dispatch_target_list().await,
-            KernelMethod::TargetStatus => self.dispatch_target_status(&params).await,
-            KernelMethod::TargetRegister => self.dispatch_target_register(params).await,
-            KernelMethod::TargetUnregister => self.dispatch_target_unregister(&params).await,
-            KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
-            KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
-            KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
-            KernelMethod::ExecLogs => self.dispatch_exec_logs(params).await,
-            KernelMethod::ExecList => self.dispatch_exec_list().await,
-            KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
-            KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
-            KernelMethod::PortStatus => self.dispatch_port_status(&params).await,
-            KernelMethod::PortList => self.dispatch_port_list().await,
-            KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
-            KernelMethod::ProxyUnregister => self.dispatch_proxy_unregister(context, &params).await,
-            KernelMethod::ProxyStatus => self.dispatch_proxy_status(&params).await,
-            KernelMethod::ProxyList => self.dispatch_proxy_list().await,
-            KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
-            KernelMethod::HostInfo => {
-                serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from)
-            }
-            KernelMethod::HostPing => Ok(json!({"ok": true})),
-            KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
-            KernelMethod::CapabilityDiscover => {
-                serde_json::to_value(self.discover_capabilities().await)
-                    .map_err(anyhow::Error::from)
-            }
-            KernelMethod::CapabilityInvoke => match serde_json::from_value(params) {
-                Ok(request) => self
-                    .invoke_capability_with_context(context, request)
-                    .await
-                    .and_then(|result| serde_json::to_value(result).map_err(anyhow::Error::from)),
-                Err(error) => Err(anyhow::Error::from(error)),
-            },
-            other => Err(anyhow::anyhow!(
-                "protocol method '{}' is not available over subprocess reverse stdio yet",
-                other
-            )),
         };
-        let result = result.map_err(crate::ProtocolError::from_anyhow)?;
-        resolved.adapt_response(result)
+        let result = result
+            .map_err(crate::ProtocolError::from_anyhow)
+            .and_then(|value| resolved.adapt_response(value));
+        self.audit_host_authority_decision(
+            context,
+            kernel_method,
+            resolved.contract.canonical_id.as_str(),
+            resolved.requested_id(),
+            &result,
+        )
+        .await;
+        result
+    }
+
+    async fn audit_host_authority_decision(
+        &self,
+        context: &ProtocolContext,
+        method: KernelMethod,
+        canonical_method: &str,
+        requested_method: &str,
+        result: &Result<Value, crate::ProtocolError>,
+    ) {
+        let ProtocolPrincipal::HostDevice { grant_id } = &context.principal else {
+            return;
+        };
+        let authority = context.authority.as_ref();
+        let operation_resources = context
+            .host_operation
+            .as_ref()
+            .map(|operation| operation.resources.clone())
+            .unwrap_or_default();
+        let payload = json!({
+            "principal": &context.principal,
+            "grant_id": grant_id,
+            "delegation_chain": authority
+                .map(|value| value.delegation_chain.clone())
+                .unwrap_or_default(),
+            "canonical_method": canonical_method,
+            "requested_method": requested_method,
+            "action": context
+                .host_operation
+                .as_ref()
+                .map(|operation| operation.action.as_str())
+                .unwrap_or_else(|| host_action_for_method(method)),
+            "operation_resources": operation_resources,
+            "granted_resources": authority
+                .map(|value| value.resources.clone())
+                .unwrap_or_default(),
+            "decision": if result.is_ok() { "allow" } else { "deny" },
+            "error_code": result.as_ref().err().map(|error| error.code.as_str()),
+            "correlation_id": context.correlation_id,
+            "parent_invocation_id": context.parent_invocation_id,
+            "transport": context.transport,
+        });
+        if let Err(error) = self
+            .store
+            .append_with_sequence(
+                HOST_AUTHORITY_AUDIT_SESSION.to_string(),
+                HOST_AUTHORITY_AUDIT_WRITER.to_string(),
+                HOST_AUTHORITY_AUDIT_EVENT.to_string(),
+                1,
+                payload,
+                json!({"credential_material": "none"}),
+            )
+            .await
+        {
+            eprintln!("failed to append Host authority decision audit: {error}");
+        }
     }
 
     pub(crate) async fn dispatch_protocol_method(
@@ -135,8 +233,9 @@ where
         kernel_method: KernelMethod,
         params: Value,
     ) -> anyhow::Result<Value> {
+        ensure_global_host_catalog_access(context, kernel_method)?;
         if is_deployment_hub_method(kernel_method) {
-            ensure_deployment_hub_control_allowed(context)?;
+            ensure_deployment_hub_control_allowed(context, kernel_method)?;
         }
         match kernel_method {
             // Host domain
@@ -148,9 +247,11 @@ where
             KernelMethod::SurfaceResolveBundle => {
                 self.dispatch_surface_resolve_bundle(context, &params).await
             }
-            KernelMethod::SurfaceContributionList => self.dispatch_surface_list(&params).await,
+            KernelMethod::SurfaceContributionList => {
+                self.dispatch_surface_list(context, &params).await
+            }
             KernelMethod::SurfaceContributionDescribe => {
-                self.dispatch_surface_describe(&params).await
+                self.dispatch_surface_describe(context, &params).await
             }
 
             // Outbound domain
@@ -180,20 +281,20 @@ where
 
             // Proposal domain
             KernelMethod::ProposalCreate => self.dispatch_proposal_create(context, &params).await,
-            KernelMethod::ProposalGet => self.dispatch_proposal_get(&params).await,
-            KernelMethod::ProposalList => self.dispatch_proposal_list().await,
+            KernelMethod::ProposalGet => self.dispatch_proposal_get(context, &params).await,
+            KernelMethod::ProposalList => self.dispatch_proposal_list(context).await,
             KernelMethod::ProposalApprove => self.dispatch_proposal_approve(context, &params).await,
             KernelMethod::ProposalReject => self.dispatch_proposal_reject(context, &params).await,
             KernelMethod::ProposalApply => self.dispatch_proposal_apply(context, &params).await,
 
             // Session domain
-            KernelMethod::SessionOpen => Ok(serde_json::to_value(
-                self.open_session(serde_json::from_value(params)?).await?,
-            )?),
-            KernelMethod::SessionClose => self.dispatch_session_close(&params).await,
-            KernelMethod::SessionFork => self.dispatch_session_fork(&params).await,
-            KernelMethod::SessionBranchList => self.dispatch_session_branch_list(&params).await,
-            KernelMethod::SessionGet => self.dispatch_session_get(&params).await,
+            KernelMethod::SessionOpen => self.dispatch_session_open(context, params).await,
+            KernelMethod::SessionClose => self.dispatch_session_close(context, &params).await,
+            KernelMethod::SessionFork => self.dispatch_session_fork(context, &params).await,
+            KernelMethod::SessionBranchList => {
+                self.dispatch_session_branch_list(context, &params).await
+            }
+            KernelMethod::SessionGet => self.dispatch_session_get(context, &params).await,
 
             // Event domain
             KernelMethod::EventAppend => Ok(serde_json::to_value(
@@ -220,23 +321,25 @@ where
             KernelMethod::ProjectStatus => self.dispatch_project_status(context, &params).await,
 
             // Deployment Hub Phase 1 primitives
-            KernelMethod::TargetList => self.dispatch_target_list().await,
-            KernelMethod::TargetStatus => self.dispatch_target_status(&params).await,
-            KernelMethod::TargetRegister => self.dispatch_target_register(params).await,
-            KernelMethod::TargetUnregister => self.dispatch_target_unregister(&params).await,
+            KernelMethod::TargetList => self.dispatch_target_list(context).await,
+            KernelMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
+            KernelMethod::TargetRegister => self.dispatch_target_register(context, params).await,
+            KernelMethod::TargetUnregister => {
+                self.dispatch_target_unregister(context, &params).await
+            }
             KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
             KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
             KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
-            KernelMethod::ExecLogs => self.dispatch_exec_logs(params).await,
-            KernelMethod::ExecList => self.dispatch_exec_list().await,
+            KernelMethod::ExecLogs => self.dispatch_exec_logs(context, params).await,
+            KernelMethod::ExecList => self.dispatch_exec_list(context).await,
             KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
             KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
-            KernelMethod::PortStatus => self.dispatch_port_status(&params).await,
-            KernelMethod::PortList => self.dispatch_port_list().await,
+            KernelMethod::PortStatus => self.dispatch_port_status(context, &params).await,
+            KernelMethod::PortList => self.dispatch_port_list(context).await,
             KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
             KernelMethod::ProxyUnregister => self.dispatch_proxy_unregister(context, &params).await,
-            KernelMethod::ProxyStatus => self.dispatch_proxy_status(&params).await,
-            KernelMethod::ProxyList => self.dispatch_proxy_list().await,
+            KernelMethod::ProxyStatus => self.dispatch_proxy_status(context, &params).await,
+            KernelMethod::ProxyList => self.dispatch_proxy_list(context).await,
 
             // Capability domain
             KernelMethod::CapabilityDiscover => {
@@ -317,11 +420,135 @@ fn is_deployment_hub_method(method: KernelMethod) -> bool {
     )
 }
 
-fn ensure_deployment_hub_control_allowed(context: &ProtocolContext) -> anyhow::Result<()> {
+fn ensure_global_host_catalog_access(
+    context: &ProtocolContext,
+    method: KernelMethod,
+) -> anyhow::Result<()> {
+    let global = matches!(
+        method,
+        KernelMethod::HostDiagnostics
+            | KernelMethod::PackageLoad
+            | KernelMethod::PackageList
+            | KernelMethod::PackageStatus
+            | KernelMethod::PackageUnload
+            | KernelMethod::PackageRestart
+            | KernelMethod::PackageLogs
+            | KernelMethod::PackageDescribe
+            | KernelMethod::CapabilityDiscover
+            | KernelMethod::CapabilityDescribe
+            | KernelMethod::ExtensionPointList
+            | KernelMethod::ExtensionPointDescribe
+            | KernelMethod::HookList
+            | KernelMethod::AssetPut
+            | KernelMethod::AssetGet
+            | KernelMethod::AssetList
+            | KernelMethod::ProjectionRegister
+            | KernelMethod::ProjectionRebuild
+            | KernelMethod::ProjectionGet
+            | KernelMethod::ProjectionList
+    );
+    if !global {
+        return Ok(());
+    }
+    let action = host_action_for_method(method);
+    anyhow::ensure!(
+        context.allows_host_action(action),
+        "{} permission denied: authenticated authority lacks {action}",
+        method
+    );
+    anyhow::ensure!(
+        context.allows_all_host_resources("host", "project"),
+        "{} permission denied: Host-global objects require all-project authority",
+        method
+    );
+    Ok(())
+}
+
+fn host_action_for_method(method: KernelMethod) -> &'static str {
+    match method {
+        KernelMethod::ProjectStart
+        | KernelMethod::ProjectStop
+        | KernelMethod::SessionOpen
+        | KernelMethod::SessionClose
+        | KernelMethod::SessionFork => "project_operate",
+        KernelMethod::ProposalCreate => "develop_propose",
+        KernelMethod::ProposalApprove | KernelMethod::ProposalReject => "develop_approve",
+        KernelMethod::ProposalApply => "develop_execute",
+        KernelMethod::TargetRegister
+        | KernelMethod::TargetUnregister
+        | KernelMethod::ExecStart
+        | KernelMethod::ExecStop
+        | KernelMethod::PortLease
+        | KernelMethod::PortRelease
+        | KernelMethod::ProxyRegister
+        | KernelMethod::ProxyUnregister => "deploy",
+        KernelMethod::HostInfo
+        | KernelMethod::HostPing
+        | KernelMethod::HostDiagnostics
+        | KernelMethod::ProjectList
+        | KernelMethod::ProjectGet
+        | KernelMethod::ProjectStatus
+        | KernelMethod::TargetList
+        | KernelMethod::TargetStatus
+        | KernelMethod::ExecStatus
+        | KernelMethod::ExecLogs
+        | KernelMethod::ExecList
+        | KernelMethod::PortStatus
+        | KernelMethod::PortList
+        | KernelMethod::ProxyStatus
+        | KernelMethod::ProxyList
+        | KernelMethod::SessionBranchList
+        | KernelMethod::SessionGet
+        | KernelMethod::SessionList
+        | KernelMethod::EventList
+        | KernelMethod::EventSubscribe
+        | KernelMethod::PackageLogs
+        | KernelMethod::PackageList
+        | KernelMethod::PackageStatus
+        | KernelMethod::PackageDescribe
+        | KernelMethod::CapabilityDiscover
+        | KernelMethod::CapabilityDescribe
+        | KernelMethod::ExtensionPointList
+        | KernelMethod::ExtensionPointDescribe
+        | KernelMethod::HookList
+        | KernelMethod::AssetGet
+        | KernelMethod::AssetList
+        | KernelMethod::ProjectionGet
+        | KernelMethod::ProjectionList
+        | KernelMethod::ProposalGet
+        | KernelMethod::ProposalList
+        | KernelMethod::SurfaceResolveBundle
+        | KernelMethod::SurfaceContributionList
+        | KernelMethod::SurfaceContributionDescribe => "observe",
+        _ => "access_manage",
+    }
+}
+
+fn ensure_deployment_hub_control_allowed(
+    context: &ProtocolContext,
+    method: KernelMethod,
+) -> anyhow::Result<()> {
+    let action = if matches!(
+        method,
+        KernelMethod::TargetList
+            | KernelMethod::TargetStatus
+            | KernelMethod::ExecStatus
+            | KernelMethod::ExecLogs
+            | KernelMethod::ExecList
+            | KernelMethod::PortStatus
+            | KernelMethod::PortList
+            | KernelMethod::ProxyStatus
+            | KernelMethod::ProxyList
+    ) {
+        "observe"
+    } else {
+        "deploy"
+    };
     match &context.principal {
         ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => Ok(()),
+        ProtocolPrincipal::HostDevice { .. } if context.allows_host_action(action) => Ok(()),
         _ => anyhow::bail!(
-            "permission denied: deployment hub control methods require host_admin or host_dev principal"
+            "permission denied: deployment hub method requires authenticated Host action '{action}'"
         ),
     }
 }

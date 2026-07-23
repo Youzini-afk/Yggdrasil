@@ -641,6 +641,43 @@ where
                 )
                 .await
             }
+            ProtocolPrincipal::HostDevice { .. } => {
+                if context.host_operation.is_some() {
+                    anyhow::ensure!(
+                        context.host_operation_is_authorized(),
+                        "Host device capability invocation carries an invalid Host operation context"
+                    );
+                    request.caller_package_id = None;
+                    return self
+                        .invoke_capability_authorized(
+                            request,
+                            context.effective_correlation_id(),
+                            effect_context(),
+                        )
+                        .await;
+                }
+                let session_id = context
+                    .session_id
+                    .as_deref()
+                    .or(request.session_id.as_deref())
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Host device capability invocation requires a bound session"
+                        )
+                    })?;
+                self.ensure_host_session_access(context, "access_manage", session_id)
+                    .await?;
+                if context.session_id.is_some() {
+                    request.session_id = context.session_id.clone();
+                }
+                request.caller_package_id = None;
+                self.invoke_capability_authorized(
+                    request,
+                    context.effective_correlation_id(),
+                    effect_context(),
+                )
+                .await
+            }
             ProtocolPrincipal::Package { package_id } => {
                 request.session_id = context.session_id.clone();
                 request.caller_package_id = Some(package_id.clone());

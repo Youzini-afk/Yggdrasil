@@ -22,12 +22,12 @@ The same HTTP service exposes:
 - `GET /` and web assets from `/app/public`
 - `POST /rpc` (requires token when configured)
 - `GET /kernel/v1/event.subscribe/:session_id` (requires token when configured)
-- `GET /surface-bundles/...` (public read-only browser artifacts)
+- `GET /surface-bundles/...` (Host identity required) and short-lived `/surface-assets/<lease>/...` reads after authorized resolution
 - `GET /healthz`
 
 When `YGG_HTTP_ACCESS_TOKEN` is set, `/rpc` and `/kernel/...` routes require `Authorization: Bearer <token>`. Browser SSE uses `?access_token=<token>` because EventSource cannot send custom headers. Normally, open the web URL directly and paste the token into the login screen; the web client validates it, stores it in `localStorage`, and sends it on future RPC/SSE calls. As an optional bootstrap path, you can also visit once with `?ygg_token=<token>` or `?access_token=<token>`; the web client reads it once and scrubs it from the address bar.
 
-Surface bundles under `/surface-bundles/...` are public frontend artifacts in this quick-validation deployment so sandboxed iframe dynamic imports, stylesheets, fonts, and images can load reliably. Do not put secrets in bundles or assets. The security boundary is the host RPC/kernel token plus the SurfaceHost bridge capability policy, not hiding frontend JavaScript or CSS.
+Raw `/surface-bundles/...` paths cross Host identity and project authorization. A sandboxed iframe carries no Host credential; after authorization, the resolver returns a random, five-minute, read-only `/surface-assets/<lease>/...` path bound to the grant and bundle root so dynamic imports, stylesheets, fonts, and images load reliably. An asset lease is still not a secret container, so do not put secrets in bundles or assets. Host credentials, project authority, and SurfaceHost bridge policy continue to protect capabilities and data.
 
 ## Zeabur settings
 
@@ -69,7 +69,7 @@ curl http://127.0.0.1:8080/healthz
 
 - Quick validation only; this does not replace packaged desktop distribution.
 - The access token is quick-validation auth only, not production-grade session auth.
-- Surface bundles/assets are public read-only browser artifacts; never embed secrets in them.
+- Surface bundles/assets reach the sandbox through short-lived read-only leases; never embed secrets in them.
 - No new official package namespace or install model is introduced by this adapter.
 - Use a throwaway `/data` volume for public validation and delete it after testing.
 - Do not enter real API keys or sensitive secrets on a public quick-validation URL.

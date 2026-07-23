@@ -20,6 +20,8 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let assistant_context = ProtocolContext {
         principal: serde_json::from_value(assistant.clone())?,
         transport: "conformance".to_string(),
+        authority: None,
+        host_operation: None,
         session_id: None,
         correlation_id: None,
         parent_invocation_id: None,

@@ -8,7 +8,7 @@
 
 - 内核对内容无意见，官方包没有特权，公开协议是唯一入口。
 - 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
-- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、显式 Docker Deploy broker、durable 部署作业、受控 Host 开发 ChangeSet、target/exec/port/proxy 部署原语、ygg-service HTTP/WebSocket 反代、按动作 scope 的可撤销 Host 设备身份、移动 PWA 控制、默认私有且显式公开的应用 route、Settings、真实模型端到端、流式 UX、受限 Surface bridge、managed-Host 桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
+- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、显式 Docker Deploy broker、durable 部署作业、受控 Host 开发 ChangeSet、target/exec/port/proxy 部署原语、ygg-service HTTP/WebSocket 反代、按 action 与 project/target 资源衰减的可撤销 Host 设备身份、移动 PWA 与远程 CLI 控制、默认私有且显式公开的应用 route、Settings、真实模型端到端、流式 UX、受限 Surface bridge、managed-Host 桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
 - 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
 - Contract V1 是公开平台规范，80 methods + 59 events + 22 top-level = 161 个 schema 全部通过校验，474 conformance cases 通过。
 - Contract v2 分层迁移的九个 Phase 已全部完成：在前八步底座之上，客户端已迁到 canonical API，Contract Registry `0.5.0` 也完成了 `kernel.v1.host.info` / `kernel.v1.target.list` 的真实 Deprecated → Legacy Adapter 转换；完整实施记录见 [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.md)。
@@ -18,6 +18,8 @@
 项目级权威、可靠部署、运行安全、remote target 与统一客户端之间的依赖顺序已经固定在
 [`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md)。实现必须先满足项目隔离和本地恢复门槛，
 再开放 remote target；这些能力仍由真实项目压力驱动，不构成新的内核内容本体。
+
+截至 2026-07-23，Phase 0 设计合同与 Phase 1 项目级权威 Candidate 实现已完成；当前主线进入 Phase 2，把已有部署作业提升为可重启恢复、带 lease/receipt 和实际状态 reconcile 的本地部署控制器。
 
 > 这里的「完整」指当前 v1 运行闭环，不代表现有 `kernel.v1.*` 边界已经成为永久宪法。
 > 长期分层候选见 [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)，逐项归属与临时实施顺序见
@@ -67,12 +69,12 @@
 
 ### 项目与多租户
 
-- 基于 `ProtocolContext.session_id` 的多租户项目范围加固：把项目身份显式传入运行时权限、事件与 resolver 上下文。
+- 继续把 Phase 1 的 verified project/session binding 扩展到开发 artifact 的读取、保留、加密和 reachability GC；运行时权限、事件与 resolver 已消费相同的项目绑定。
 - 项目归档超过 30 天自动清理。
 - `yg secret put / list / delete` CLI。
 - OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
-- Host 设备身份的下一步是项目级多租户 scope、delegation chain / 批量撤销、更细审计与远程 CLI UX；动作 scope、远端身份、单 grant 撤销和移动 PWA 已通过同一 Host API 落地，root token 保留为根凭据。
-- 远程 CLI 继续复用同一 Host API 与 Bearer device token，不建立本地旁路写入接口；移动端已有 HTTPS pairing + Secure Cookie 路径。
+- Host 设备身份已具备 project/target selector、delegation chain、祖先撤销级联与脱敏 allow/deny journal；后续补充面向管理员的显式批量撤销入口，以及长操作 lease epoch 的持续再授权。
+- `yg host access` CLI 已复用同一 Host API 与 Bearer device token，不建立本地旁路写入接口；移动端继续使用 HTTPS pairing + Secure Cookie 路径。
 - 开发 artifact 的读取权限、加密/保留策略和 reachability GC，以及更多声明式 verifier / sandbox backend。
 - 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
 - 部署描述符 polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及外部项目 wizard 自动生成描述符。
@@ -101,7 +103,7 @@
 - 结构化 shell descriptor 的下一步执行接线：包贡献的 `quick_action` / `workshop_card` 现在是发现入口，后续若要可执行，必须走 proposal / permission / audit，不得直接静默调用能力。
 - Surface lifecycle hooks（`onClose`、`onProposalDraft` 等）。
 - Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
-- 社区 marketplace 的 surface allowlist / integrity pin / version pin / audit metadata；默认 installed project bundle 仍走 same-origin 静态路由。
+- 社区 marketplace 的 surface allowlist / integrity pin / version pin / audit metadata；默认 installed project bundle 仍走 Host same-origin、绑定 project/grant 的短期 asset lease。
 - 项目控制台更新入口已接 `check_for_updates` / `update_project`；后续补更丰富的更新进度、失败恢复和历史记录。
 - 当 host 暴露后接入：真实 stderr / exit metadata 给 Failure modal、项目 `size_bytes` 给 Disk usage、更精确的 storage_summary 测量状态。
 - Failure 与 health 监控更丰富。

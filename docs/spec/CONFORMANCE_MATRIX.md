@@ -84,7 +84,8 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | 断言 | 覆盖 | 状态 |
 |---|---|---|
 | static surface bundle | `surface_bundle` 是静态浏览器入口，不走 wasm sentinel 或 package execution | implemented |
-| project-root install surface dist | 原生项目安装后的 dist 从 project root/project dist 暴露到 `/surface-bundles/projects/<project_id>/...` | implemented |
+| project-root install surface dist | 原生项目安装后的 dist 位于受 Host/project authority 保护的 `/surface-bundles/projects/<project_id>/...` | implemented |
+| sandbox asset attenuation | 授权解析签发绑定 grant/bundle root 的五分钟 `/surface-assets/<lease>/...`；跨 root、伪造、过期或撤销 grant 均拒绝 | implemented |
 | bridge allowlist | typed `allowed_capability_ids` 精确约束 surface bridge 可调用能力 | implemented |
 | metadata not authority | surface metadata 只描述入口，不授予权限 | implemented |
 | stream ownership | stream subscribe/unsubscribe 绑定发起 surface 与 session，不能接管他人 stream | implemented |
