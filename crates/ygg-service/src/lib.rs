@@ -302,7 +302,7 @@ where
         state.runtime.store(),
         state.host_access.clone(),
     );
-    let protected = Router::new()
+    let protected_control = Router::new()
         .route("/kernel/v1/session.open", post(open_session::<S>))
         .route(
             "/kernel/v1/event.append/:session_id",
@@ -360,6 +360,12 @@ where
         .merge(host_access::protected_routes::<S>())
         .merge(target_agent::protected_routes::<S>())
         .route("/rpc", post(rpc::<S>))
+        .route_layer(middleware::from_fn_with_state(
+            access_control.clone(),
+            require_access_token::<S>,
+        ))
+        .layer(browser_client_cors());
+    let protected_passthrough = Router::new()
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
         .route(
@@ -382,7 +388,8 @@ where
         )
         .merge(host_access::public_routes::<S>())
         .merge(target_agent::public_routes::<S>())
-        .merge(protected)
+        .merge(protected_control)
+        .merge(protected_passthrough)
         .fallback(static_fallback::<S>)
         .with_state(state.clone())
         .layer(middleware::from_fn_with_state(
@@ -393,7 +400,6 @@ where
             access_control,
             desktop_bootstrap_middleware::<S>,
         ))
-        .layer(browser_client_cors())
 }
 
 fn browser_client_cors() -> CorsLayer {
