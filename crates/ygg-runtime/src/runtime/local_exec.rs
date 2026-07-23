@@ -1224,6 +1224,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn actual_port_binding_preserves_target_lease_ownership() {
+        let registry = PortLeaseRegistry::new();
+        let leased = registry
+            .lease(PortLeaseRequest {
+                target_id: "remote-1".to_string(),
+                port_name: "http".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: Some(40_001),
+            })
+            .await
+            .lease;
+        assert!(registry
+            .bind_actual_port(&leased.id, "remote-2", "http", 49_152)
+            .await
+            .is_none());
+        let bound = registry
+            .bind_actual_port(&leased.id, "remote-1", "http", 49_152)
+            .await
+            .expect("matching target lease binds the observed port");
+        assert_eq!(bound.port, 49_152);
+        assert_eq!(bound.status, PortLeaseStatusKind::Active);
+        registry.release(&leased.id).await;
+        assert!(registry
+            .bind_actual_port(&leased.id, "remote-1", "http", 49_153)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
     async fn live_local_exec_timeout_kills_long_running_command() -> anyhow::Result<()> {
         let Some(sleep) = first_existing(&["/bin/sleep", "/usr/bin/sleep"]) else {
             eprintln!("skipping: sleep binary not found");
@@ -1691,6 +1720,32 @@ impl PortLeaseRegistry {
         let mut leases = self.leases.write().await;
         let lease = leases.get_mut(lease_id)?;
         lease.status = status;
+        Some(lease.clone())
+    }
+
+    pub async fn bind_actual_port(
+        &self,
+        lease_id: &str,
+        target_id: &str,
+        port_name: &str,
+        port: u16,
+    ) -> Option<PortLeaseRecord> {
+        if port == 0 {
+            return None;
+        }
+        let mut leases = self.leases.write().await;
+        let lease = leases.get_mut(lease_id)?;
+        if lease.target_id != target_id
+            || lease.port_name != port_name
+            || lease.protocol != PortProtocol::Tcp
+            || lease.bind != PortBindScope::LoopbackOnly
+            || lease.host != "127.0.0.1"
+            || lease.status == PortLeaseStatusKind::Released
+        {
+            return None;
+        }
+        lease.port = port;
+        lease.status = PortLeaseStatusKind::Active;
         Some(lease.clone())
     }
 

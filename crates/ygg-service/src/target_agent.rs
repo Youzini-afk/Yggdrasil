@@ -468,6 +468,10 @@ where
         TargetHeartbeatError::Unauthorized => target_unauthorized(),
         TargetHeartbeatError::Internal(error) => target_internal_error(error),
     })?;
+    if let Err(error) = operation::reconcile_target_deployment_projections(&state, &target.id).await
+    {
+        tracing::warn!(target_id = %target.id, error = %error, "target deployment projection could not refresh after heartbeat");
+    }
     Ok(Json(TargetAgentHeartbeatResponse {
         target,
         heartbeat_interval_seconds: HEARTBEAT_INTERVAL_SECS,
@@ -517,6 +521,10 @@ where
     )
     .await
     .map_err(target_conflict_error)?;
+    if let Err(error) = operation::reconcile_target_deployment_projections(&state, &target.id).await
+    {
+        tracing::warn!(target_id = %target.id, error = %error, "target deployment projection could not fence revoked target routes");
+    }
     Ok(Json(target))
 }
 
@@ -964,6 +972,15 @@ where
     registry.mark_offline_after_hydration();
     mirror_targets(registry.as_ref(), targets.as_ref()).await;
     Ok(loaded)
+}
+
+pub async fn reconcile_target_deployment_control_plane<S>(
+    state: &AppState<S>,
+) -> anyhow::Result<usize>
+where
+    S: EventStore,
+{
+    operation::reconcile_all_target_deployment_projections(state).await
 }
 
 fn enrollment_target(enrollment: &StoredEnrollment) -> ExecutionTarget {

@@ -943,6 +943,12 @@ where
             "warning: deployment reconcile paused; stale runtime records were preserved: {error}"
         ),
     }
+    match ygg_service::reconcile_target_deployment_control_plane(&state).await {
+        Ok(projected) => println!("  target deployment projections restored: {projected}"),
+        Err(error) => eprintln!(
+            "warning: target deployment projection reconcile paused; routes remain unavailable: {error}"
+        ),
+    }
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
     let bootstrap_token = std::env::var("YGG_HTTP_BOOTSTRAP_TOKEN")
         .ok()

@@ -65,14 +65,14 @@ pub use host_access::{
     HostAccessResourceSelector, HostAccessScope,
 };
 pub use target_agent::{
-    hydrate_target_agent_control_plane, target_agent_registry, verify_target_operation_authority,
-    ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse, CreateTargetOperationRequest,
-    CreateTargetOperationResponse, DeclarativeVerifierDescriptor, NextTargetOperationResponse,
-    TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse, TargetAgentRegistry,
-    TargetDeploymentDescriptor, TargetDeploymentRef, TargetOperationAuthority,
-    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
-    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
-    TargetOperationStatusKind,
+    hydrate_target_agent_control_plane, reconcile_target_deployment_control_plane,
+    target_agent_registry, verify_target_operation_authority, ClaimTargetEnrollmentRequest,
+    ClaimTargetEnrollmentResponse, CreateTargetOperationRequest, CreateTargetOperationResponse,
+    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetAgentHeartbeatRequest,
+    TargetAgentHeartbeatResponse, TargetAgentRegistry, TargetDeploymentDescriptor,
+    TargetDeploymentRef, TargetOperationAuthority, TargetOperationEffect,
+    TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
+    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -6896,7 +6896,11 @@ where
         let Some(identity) = request.extensions().get::<HostAccessIdentity>() else {
             return (StatusCode::UNAUTHORIZED, "missing Host access identity").into_response();
         };
-        if let Some(project_id) = state.build_jobs.project_for_route(&route_id) {
+        if let Some(project_id) = state
+            .build_jobs
+            .project_for_route(&route_id)
+            .or_else(|| state.target_agents.project_for_operation_route(&route_id))
+        {
             if !identity.allows_project(project_id.as_str()) {
                 return (
                     StatusCode::FORBIDDEN,

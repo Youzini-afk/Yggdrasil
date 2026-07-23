@@ -722,6 +722,17 @@ where
             if route.status != ProxyRouteStatusKind::Stale {
                 continue;
             }
+            let remote_target = self
+                .config
+                .port_lease_registry
+                .status(&route.upstream.port_lease_id)
+                .await
+                .is_some_and(|lease| lease.target_id != "local");
+            if remote_target {
+                // Host-local Docker observation cannot decide a remote target
+                // route. Its durable target-operation receipt owns recovery.
+                continue;
+            }
             let matching_running_container =
                 running_by_route.get(&route.id).is_some_and(|reports| {
                     reports
@@ -758,6 +769,9 @@ where
         let leases = self.config.port_lease_registry.list().await;
         for lease in leases {
             if lease.status != PortLeaseStatusKind::Reserved {
+                continue;
+            }
+            if lease.target_id != "local" {
                 continue;
             }
             if promoted_lease_ids.contains(&lease.id) {

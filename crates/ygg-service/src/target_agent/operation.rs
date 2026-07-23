@@ -347,6 +347,40 @@ impl TargetAgentRegistry {
         operations
     }
 
+    pub(crate) fn project_for_operation_route(&self, route_id: &str) -> Option<ProjectId> {
+        let state = self
+            .operations
+            .lock()
+            .expect("target operation state lock poisoned");
+        let mut projects = state
+            .operations
+            .values()
+            .filter(|operation| {
+                operation_deployment_ref(&operation.spec)
+                    .is_some_and(|deployment| deployment.route_id == route_id)
+            })
+            .map(|operation| operation.project_id.clone())
+            .collect::<Vec<_>>();
+        projects.sort();
+        projects.dedup();
+        (projects.len() == 1).then(|| projects.remove(0))
+    }
+
+    fn operation_target_ids(&self) -> Vec<String> {
+        let state = self
+            .operations
+            .lock()
+            .expect("target operation state lock poisoned");
+        let mut targets = state
+            .operations
+            .values()
+            .map(|operation| operation.target_id.clone())
+            .collect::<Vec<_>>();
+        targets.sort();
+        targets.dedup();
+        targets
+    }
+
     fn local_execution_lock(&self, operation_id: &str) -> Arc<tokio::sync::Mutex<()>> {
         self.operations
             .lock()
@@ -819,6 +853,16 @@ fn valid_deployment_image_reference(image: &str) -> bool {
     !name.is_empty() && !name.contains('@') && is_sha256_digest(digest)
 }
 
+fn operation_deployment_ref(spec: &TargetOperationSpec) -> Option<&TargetDeploymentRef> {
+    match spec {
+        TargetOperationSpec::DeploymentApply { deployment } => Some(&deployment.deployment),
+        TargetOperationSpec::DeploymentObserve { deployment }
+        | TargetOperationSpec::DeploymentDrain { deployment, .. }
+        | TargetOperationSpec::DeploymentStop { deployment, .. } => Some(deployment),
+        _ => None,
+    }
+}
+
 fn validate_create_request(
     target_id: &str,
     request: &CreateTargetOperationRequest,
@@ -871,6 +915,84 @@ fn required_capabilities(spec: &TargetOperationSpec) -> &'static [ExecutionTarge
             ExecutionTargetCapability::DeclarativeVerifier,
         ],
     }
+}
+
+async fn validate_deployment_topology<S>(
+    state: &AppState<S>,
+    target_id: &str,
+    request: &CreateTargetOperationRequest,
+) -> Result<(), ServiceError>
+where
+    S: EventStore,
+{
+    let Some(deployment) = operation_deployment_ref(&request.spec) else {
+        return Ok(());
+    };
+    for owner in [
+        state.build_jobs.project_for_route(&deployment.route_id),
+        state
+            .target_agents
+            .project_for_operation_route(&deployment.route_id),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if owner != request.project_id {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment route is owned by another project",
+            ));
+        }
+    }
+
+    let lease = state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(&deployment.port_lease_id)
+        .await
+        .ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment operation requires an existing target port lease",
+            )
+        })?;
+    let route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.route_id)
+        .await
+        .ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment operation requires an existing proxy route",
+            )
+        })?;
+    if lease.target_id != target_id
+        || lease.host != "127.0.0.1"
+        || lease.bind != ygg_runtime::PortBindScope::LoopbackOnly
+        || lease.protocol != ygg_runtime::PortProtocol::Tcp
+        || route.upstream.port_lease_id != deployment.port_lease_id
+        || route.upstream.port_name != lease.port_name
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment route and port lease ownership do not match the target",
+        ));
+    }
+    if let TargetOperationSpec::DeploymentApply { deployment } = &request.spec {
+        if lease.status == ygg_runtime::PortLeaseStatusKind::Released
+            || route.status == ygg_runtime::ProxyRouteStatusKind::Removed
+            || deployment.port_name != lease.port_name
+        {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment apply requires a live matching route and port lease",
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn protected_routes<S>() -> Router<AppState<S>>
@@ -932,6 +1054,7 @@ where
             "project is not registered",
         ));
     }
+    validate_deployment_topology(&state, &target_id, &request).await?;
     sync_target_agent_journal(
         state.runtime.store().as_ref(),
         state.target_agents.as_ref(),
@@ -1271,6 +1394,9 @@ where
             })?;
         if operation.status.is_terminal() {
             if operation.receipt.as_ref() == Some(&receipt) {
+                project_deployment_operation(&state, &operation)
+                    .await
+                    .map_err(target_internal_error)?;
                 return Ok(Json(operation));
             }
             return Err(ServiceError::with_status(
@@ -1324,6 +1450,9 @@ where
         .map_err(target_internal_error)?
         .is_some()
         {
+            project_deployment_operation(&state, &next)
+                .await
+                .map_err(target_internal_error)?;
             return Ok(Json(next));
         }
     }
@@ -1696,6 +1825,255 @@ fn managed_deployment_ref(
     }
 }
 
+async fn project_deployment_operation<S>(
+    state: &AppState<S>,
+    operation: &TargetOperationRecord,
+) -> anyhow::Result<bool>
+where
+    S: EventStore,
+{
+    if operation.status != TargetOperationStatusKind::Succeeded {
+        return Ok(false);
+    }
+    let Some(receipt) = operation.receipt.as_ref() else {
+        return Ok(false);
+    };
+    match &operation.spec {
+        TargetOperationSpec::DeploymentApply { deployment } => {
+            project_running_deployment(
+                state,
+                operation,
+                &deployment.deployment,
+                &deployment.port_name,
+                &receipt.output,
+            )
+            .await?;
+        }
+        TargetOperationSpec::DeploymentObserve { deployment } => {
+            let Some(observation) = receipt.output.get("deployment") else {
+                anyhow::bail!("deployment observation receipt has no deployment field");
+            };
+            if observation.is_null()
+                || !observation
+                    .get("running")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            {
+                project_stopped_deployment(state, deployment).await?;
+            } else {
+                let lease = required_deployment_lease(state, deployment).await?;
+                project_running_deployment(
+                    state,
+                    operation,
+                    deployment,
+                    &lease.port_name,
+                    observation,
+                )
+                .await?;
+            }
+        }
+        TargetOperationSpec::DeploymentDrain { deployment, .. }
+        | TargetOperationSpec::DeploymentStop { deployment, .. } => {
+            project_stopped_deployment(state, deployment).await?;
+        }
+        _ => return Ok(false),
+    }
+    Ok(true)
+}
+
+async fn required_deployment_lease<S>(
+    state: &AppState<S>,
+    deployment: &TargetDeploymentRef,
+) -> anyhow::Result<ygg_runtime::PortLeaseRecord>
+where
+    S: EventStore,
+{
+    state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(&deployment.port_lease_id)
+        .await
+        .context("target deployment port lease disappeared")
+}
+
+async fn project_running_deployment<S>(
+    state: &AppState<S>,
+    operation: &TargetOperationRecord,
+    deployment: &TargetDeploymentRef,
+    port_name: &str,
+    observation: &Value,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    anyhow::ensure!(
+        observation.get("bind_host").and_then(Value::as_str) == Some("127.0.0.1")
+            && observation.get("running").and_then(Value::as_bool) == Some(true),
+        "target deployment receipt is not a running loopback observation"
+    );
+    let host_port = observation
+        .get("host_port")
+        .and_then(Value::as_u64)
+        .and_then(|port| u16::try_from(port).ok())
+        .filter(|port| *port > 0)
+        .context("target deployment receipt has no actual host port")?;
+    let lease = required_deployment_lease(state, deployment).await?;
+    let route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.route_id)
+        .await
+        .context("target deployment proxy route disappeared")?;
+    if route.upstream.port_lease_id != deployment.port_lease_id {
+        // A later candidate may have atomically moved the durable route to a
+        // different lease. Historical receipts must not move it back.
+        return Ok(());
+    }
+    anyhow::ensure!(
+        lease.target_id == operation.target_id
+            && lease.port_name == port_name
+            && lease.host == "127.0.0.1"
+            && lease.bind == ygg_runtime::PortBindScope::LoopbackOnly
+            && lease.protocol == ygg_runtime::PortProtocol::Tcp
+            && route.upstream.port_name == port_name,
+        "target deployment receipt conflicts with its Host route or lease"
+    );
+    if lease.status == ygg_runtime::PortLeaseStatusKind::Released
+        || route.status == ygg_runtime::ProxyRouteStatusKind::Removed
+    {
+        return Ok(());
+    }
+    state
+        .runtime
+        .config()
+        .port_lease_registry
+        .bind_actual_port(
+            &deployment.port_lease_id,
+            &operation.target_id,
+            port_name,
+            host_port,
+        )
+        .await
+        .context("target deployment actual port could not bind its Host lease")?;
+    state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .set_status(
+            &deployment.route_id,
+            ygg_runtime::ProxyRouteStatusKind::Active,
+        )
+        .await
+        .context("target deployment proxy route disappeared during promotion")?;
+    let target_available = state
+        .runtime
+        .config()
+        .target_registry
+        .status(&operation.target_id)
+        .await
+        .is_some_and(|target| target.status == ExecutionTargetStatusKind::Available);
+    state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .set_ready_if_active_with_lease(
+            &deployment.route_id,
+            &deployment.port_lease_id,
+            target_available,
+        )
+        .await
+        .context("target deployment proxy route changed during promotion")?;
+    Ok(())
+}
+
+async fn project_stopped_deployment<S>(
+    state: &AppState<S>,
+    deployment: &TargetDeploymentRef,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    if let Some(route) = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.route_id)
+        .await
+    {
+        if route.upstream.port_lease_id == deployment.port_lease_id
+            && route.status != ygg_runtime::ProxyRouteStatusKind::Removed
+        {
+            let _ = state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .set_ready(&deployment.route_id, false)
+                .await;
+            let _ = state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .set_status(
+                    &deployment.route_id,
+                    ygg_runtime::ProxyRouteStatusKind::Stale,
+                )
+                .await;
+        }
+    }
+    if let Some(lease) = state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(&deployment.port_lease_id)
+        .await
+    {
+        if lease.status != ygg_runtime::PortLeaseStatusKind::Released {
+            let _ = state
+                .runtime
+                .config()
+                .port_lease_registry
+                .set_status(
+                    &deployment.port_lease_id,
+                    ygg_runtime::PortLeaseStatusKind::Reserved,
+                )
+                .await;
+        }
+    }
+    Ok(())
+}
+
+pub(super) async fn reconcile_target_deployment_projections<S>(
+    state: &AppState<S>,
+    target_id: &str,
+) -> anyhow::Result<usize>
+where
+    S: EventStore,
+{
+    let mut projected = 0usize;
+    for operation in state.target_agents.operations_for_target(target_id) {
+        if project_deployment_operation(state, &operation).await? {
+            projected = projected.saturating_add(1);
+        }
+    }
+    Ok(projected)
+}
+
+pub(super) async fn reconcile_all_target_deployment_projections<S>(
+    state: &AppState<S>,
+) -> anyhow::Result<usize>
+where
+    S: EventStore,
+{
+    let mut projected = 0usize;
+    for target_id in state.target_agents.operation_target_ids() {
+        projected = projected
+            .saturating_add(reconcile_target_deployment_projections(state, &target_id).await?);
+    }
+    Ok(projected)
+}
+
 async fn complete_local_operation<S>(
     state: &AppState<S>,
     operation_id: &str,
@@ -1712,6 +2090,7 @@ where
             .operation(operation_id)
             .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
         if current.status.is_terminal() {
+            project_deployment_operation(state, &current).await?;
             return Ok(current);
         }
         anyhow::ensure!(
@@ -1740,6 +2119,7 @@ where
         .await?
         .is_some()
         {
+            project_deployment_operation(state, &next).await?;
             return Ok(next);
         }
     }
@@ -2274,6 +2654,161 @@ mod tests {
         let replayed = TargetAgentRegistry::default();
         assert_eq!(sync_target_operation_journal(&store, &replayed).await?, 4);
         assert_eq!(replayed.operation(&requested.operation_id), Some(recovered));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn deployment_receipt_projects_actual_port_and_route_readiness() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(ygg_runtime::Runtime::new(
+            store,
+            ygg_runtime::RuntimeConfig::default(),
+        ));
+        let state = AppState {
+            runtime: runtime.clone(),
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
+            development: crate::development_registry(),
+            host_access: crate::host_access_registry(),
+            target_agents: Arc::new(TargetAgentRegistry::default()),
+        };
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(ygg_runtime::PortLeaseRequest {
+                target_id: "local".to_string(),
+                port_name: "http".to_string(),
+                protocol: ygg_runtime::PortProtocol::Tcp,
+                requested_port: Some(40_001),
+            })
+            .await
+            .lease;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ygg_runtime::ProxyRouteRegisterRequest {
+                route_id: Some("route-1".to_string()),
+                upstream: ygg_runtime::ProxyRouteUpstream {
+                    port_lease_id: lease.id.clone(),
+                    port_name: "http".to_string(),
+                },
+                protocol: ygg_runtime::ProxyProtocol::Http,
+                access: ygg_runtime::ProxyRouteAccess::HostAuthenticated,
+            })
+            .await;
+        let deployment = TargetDeploymentDescriptor {
+            deployment: TargetDeploymentRef {
+                deployment_id: "deployment-1".to_string(),
+                route_id: "route-1".to_string(),
+                port_lease_id: lease.id.clone(),
+            },
+            port_name: "http".to_string(),
+            image: "registry.example/app:latest".to_string(),
+            container_port: 8080,
+            requested_host_port: None,
+            pull_if_missing: false,
+        };
+        let create = CreateTargetOperationRequest {
+            project_id: ProjectId::new("project-1")?,
+            spec: TargetOperationSpec::DeploymentApply {
+                deployment: deployment.clone(),
+            },
+            idempotency_key: None,
+            expires_in_seconds: Some(120),
+        };
+        assert!(validate_deployment_topology(&state, "local", &create)
+            .await
+            .is_ok());
+        assert!(validate_deployment_topology(&state, "remote-1", &create)
+            .await
+            .is_err());
+
+        let now_ms = Utc::now().timestamp_millis();
+        let mut operation = TargetOperationRecord {
+            operation_id: "operation-1".to_string(),
+            target_id: "local".to_string(),
+            project_id: create.project_id,
+            revision: 4,
+            status: TargetOperationStatusKind::Succeeded,
+            execution_id: Some("a".repeat(32)),
+            spec: create.spec,
+            authority: TargetOperationAuthority {
+                target_id: "local".to_string(),
+                operation_id: "operation-1".to_string(),
+                step_id: OPERATION_STEP_ID.to_string(),
+                project_id: ProjectId::new("project-1")?,
+                effect: TargetOperationEffect::DeploymentApply,
+                artifact_digests: Vec::new(),
+                lease_epoch: 1,
+                policy_epoch: 1,
+                issued_at_ms: now_ms,
+                expires_at_ms: now_ms + 120_000,
+                nonce: "nonce".to_string(),
+                request_digest: format!("sha256:{}", "a".repeat(64)),
+                authority_digest: format!("sha256:{}", "b".repeat(64)),
+            },
+            idempotency_key: None,
+            receipt: Some(TargetOperationReceipt {
+                operation_id: "operation-1".to_string(),
+                target_id: "local".to_string(),
+                execution_id: "a".repeat(32),
+                step_id: OPERATION_STEP_ID.to_string(),
+                request_digest: format!("sha256:{}", "a".repeat(64)),
+                authority_digest: format!("sha256:{}", "b".repeat(64)),
+                status: TargetOperationReceiptStatus::Succeeded,
+                completed_at_ms: now_ms,
+                output: json!({
+                    "bind_host": "127.0.0.1",
+                    "host_port": 49_152,
+                    "running": true
+                }),
+                diagnostics: Vec::new(),
+            }),
+            created_at_ms: now_ms,
+            updated_at_ms: now_ms,
+        };
+        assert!(project_deployment_operation(&state, &operation).await?);
+        assert_eq!(
+            runtime
+                .config()
+                .port_lease_registry
+                .status(&lease.id)
+                .await
+                .map(|lease| (lease.port, lease.status)),
+            Some((49_152, ygg_runtime::PortLeaseStatusKind::Active))
+        );
+        assert!(runtime
+            .config()
+            .proxy_route_registry
+            .status("route-1")
+            .await
+            .is_some_and(|route| route.ready));
+
+        operation.spec = TargetOperationSpec::DeploymentDrain {
+            deployment: deployment.deployment,
+            grace_seconds: 10,
+        };
+        operation.authority.effect = TargetOperationEffect::DeploymentDrain;
+        assert!(project_deployment_operation(&state, &operation).await?);
+        assert_eq!(
+            runtime
+                .config()
+                .port_lease_registry
+                .status(&lease.id)
+                .await
+                .map(|lease| lease.status),
+            Some(ygg_runtime::PortLeaseStatusKind::Reserved)
+        );
+        assert!(runtime
+            .config()
+            .proxy_route_registry
+            .status("route-1")
+            .await
+            .is_some_and(|route| {
+                !route.ready && route.status == ygg_runtime::ProxyRouteStatusKind::Stale
+            }));
         Ok(())
     }
 
