@@ -2081,7 +2081,11 @@ fn redact_log_line(line: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    static DATA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn request(capability: &str, input: Value) -> InprocInvocation {
         InprocInvocation {
@@ -2305,6 +2309,9 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_build_image_accepts_nixpacks_strategy_shape() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
         let data_dir = temp.path().to_path_buf();
         let previous_data_dir = std::env::var_os("YGG_DATA_DIR");
@@ -2328,6 +2335,9 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_development_scratch_defaults_to_no_network() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
         let data_dir = temp.path().to_path_buf();
         let previous_data_dir = std::env::var_os("YGG_DATA_DIR");
@@ -2361,6 +2371,9 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_development_scratch_rejects_nixpacks() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
         let data_dir = temp.path().to_path_buf();
         let previous_data_dir = std::env::var_os("YGG_DATA_DIR");
