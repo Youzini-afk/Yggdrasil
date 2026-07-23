@@ -1,5 +1,6 @@
 use super::*;
 
+use anyhow::Context;
 use axum::body::Body;
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
@@ -23,12 +24,37 @@ const OPERATION_STEP_ID: &str = "execute";
 pub enum TargetOperationEffect {
     ArtifactMaterialize,
     ArtifactRelease,
+    DeploymentApply,
+    DeploymentObserve,
+    DeploymentDrain,
+    DeploymentStop,
     HealthProbe,
     VerifierRun,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub struct TargetDeploymentRef {
+    pub deployment_id: String,
+    pub route_id: String,
+    pub port_lease_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TargetDeploymentDescriptor {
+    pub deployment: TargetDeploymentRef,
+    pub port_name: String,
+    pub image: String,
+    pub container_port: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_host_port: Option<u16>,
+    #[serde(default)]
+    pub pull_if_missing: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DeclarativeVerifierDescriptor {
     ArtifactIntegrity {
         digest: String,
@@ -38,7 +64,7 @@ pub enum DeclarativeVerifierDescriptor {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum TargetOperationSpec {
     ArtifactMaterialize {
         digest: String,
@@ -47,6 +73,22 @@ pub enum TargetOperationSpec {
     },
     ArtifactRelease {
         digest: String,
+    },
+    DeploymentApply {
+        deployment: TargetDeploymentDescriptor,
+    },
+    DeploymentObserve {
+        deployment: TargetDeploymentRef,
+    },
+    DeploymentDrain {
+        deployment: TargetDeploymentRef,
+        grace_seconds: u16,
+    },
+    DeploymentStop {
+        deployment: TargetDeploymentRef,
+        grace_seconds: u16,
+        #[serde(default)]
+        force_remove: bool,
     },
     HealthProbe,
     VerifierRun {
@@ -59,6 +101,10 @@ impl TargetOperationSpec {
         match self {
             Self::ArtifactMaterialize { .. } => TargetOperationEffect::ArtifactMaterialize,
             Self::ArtifactRelease { .. } => TargetOperationEffect::ArtifactRelease,
+            Self::DeploymentApply { .. } => TargetOperationEffect::DeploymentApply,
+            Self::DeploymentObserve { .. } => TargetOperationEffect::DeploymentObserve,
+            Self::DeploymentDrain { .. } => TargetOperationEffect::DeploymentDrain,
+            Self::DeploymentStop { .. } => TargetOperationEffect::DeploymentStop,
             Self::HealthProbe => TargetOperationEffect::HealthProbe,
             Self::VerifierRun { .. } => TargetOperationEffect::VerifierRun,
         }
@@ -69,7 +115,11 @@ impl TargetOperationSpec {
             Self::ArtifactMaterialize { digest, .. } | Self::ArtifactRelease { digest } => {
                 vec![digest.clone()]
             }
-            Self::HealthProbe => Vec::new(),
+            Self::DeploymentApply { .. }
+            | Self::DeploymentObserve { .. }
+            | Self::DeploymentDrain { .. }
+            | Self::DeploymentStop { .. }
+            | Self::HealthProbe => Vec::new(),
             Self::VerifierRun {
                 verifier: DeclarativeVerifierDescriptor::ArtifactIntegrity { digest, .. },
             } => vec![digest.clone()],
@@ -96,6 +146,28 @@ impl TargetOperationSpec {
     fn validate(&self) -> Result<(), ServiceError> {
         for digest in self.artifact_digests() {
             validate_sha256_digest(&digest)?;
+        }
+        match self {
+            Self::DeploymentApply { deployment } => validate_deployment_descriptor(deployment)?,
+            Self::DeploymentObserve { deployment } => validate_deployment_ref(deployment)?,
+            Self::DeploymentDrain {
+                deployment,
+                grace_seconds,
+            }
+            | Self::DeploymentStop {
+                deployment,
+                grace_seconds,
+                ..
+            } => {
+                validate_deployment_ref(deployment)?;
+                if *grace_seconds > 300 {
+                    return Err(ServiceError::with_status(
+                        StatusCode::BAD_REQUEST,
+                        "deployment grace_seconds must be <= 300",
+                    ));
+                }
+            }
+            _ => {}
         }
         Ok(())
     }
@@ -161,6 +233,7 @@ impl From<TargetOperationReceiptStatus> for TargetOperationStatusKind {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct TargetOperationReceipt {
     pub operation_id: String,
     pub target_id: String,
@@ -196,6 +269,7 @@ pub struct TargetOperationRecord {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateTargetOperationRequest {
     pub project_id: ProjectId,
     pub spec: TargetOperationSpec,
@@ -217,6 +291,7 @@ pub struct NextTargetOperationResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct TargetOperationProgressRequest {
     pub request_digest: String,
     pub authority_digest: String,
@@ -234,6 +309,7 @@ pub(super) struct TargetOperationState {
     next_sequence: EventSequence,
     operations: HashMap<String, TargetOperationRecord>,
     idempotency: HashMap<(String, ProjectId, String), (String, String)>,
+    local_execution_locks: HashMap<String, Arc<tokio::sync::Mutex<()>>>,
 }
 
 impl TargetAgentRegistry {
@@ -269,6 +345,16 @@ impl TargetAgentRegistry {
                 .then_with(|| left.operation_id.cmp(&right.operation_id))
         });
         operations
+    }
+
+    fn local_execution_lock(&self, operation_id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.operations
+            .lock()
+            .expect("target operation state lock poisoned")
+            .local_execution_locks
+            .entry(operation_id.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
     }
 
     fn idempotent_operation(
@@ -600,7 +686,7 @@ fn validate_receipt_for_record(
             && receipt.diagnostics.iter().all(|diagnostic| {
                 diagnostic.len() <= MAX_RECEIPT_DIAGNOSTIC_BYTES
                     && !scan_effect_value_for_raw_secrets(
-                        &Value::String(diagnostic.clone()),
+                        &json!({ "diagnostic": diagnostic }),
                         "receipt.diagnostics",
                     )
                     .has_findings()
@@ -668,6 +754,71 @@ fn validate_sha256_digest(digest: &str) -> Result<(), ServiceError> {
     }
 }
 
+fn validate_deployment_ref(deployment: &TargetDeploymentRef) -> Result<(), ServiceError> {
+    if [
+        deployment.deployment_id.as_str(),
+        deployment.route_id.as_str(),
+        deployment.port_lease_id.as_str(),
+    ]
+    .into_iter()
+    .any(|value| {
+        value.is_empty()
+            || value.len() > 256
+            || !value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-._:/".contains(&byte))
+    }) {
+        return Err(ServiceError::with_status(
+            StatusCode::BAD_REQUEST,
+            "deployment identity fields must be label-safe ASCII",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_deployment_descriptor(
+    deployment: &TargetDeploymentDescriptor,
+) -> Result<(), ServiceError> {
+    validate_deployment_ref(&deployment.deployment)?;
+    if deployment.port_name.is_empty()
+        || deployment.port_name.len() > 64
+        || !deployment
+            .port_name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._".contains(&byte))
+        || !valid_deployment_image_reference(&deployment.image)
+        || scan_effect_value_for_raw_secrets(
+            &json!({ "image": deployment.image.as_str() }),
+            "operation.spec",
+        )
+        .has_findings()
+        || deployment.container_port == 0
+        || deployment.requested_host_port == Some(0)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::BAD_REQUEST,
+            "deployment descriptor contains an invalid image, port, or port name",
+        ));
+    }
+    Ok(())
+}
+
+fn valid_deployment_image_reference(image: &str) -> bool {
+    if image.is_empty()
+        || image.len() > 512
+        || image.contains("://")
+        || !image
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:/@+-".contains(&byte))
+    {
+        return false;
+    }
+    let Some((name, digest)) = image.rsplit_once('@') else {
+        return true;
+    };
+    !name.is_empty() && !name.contains('@') && is_sha256_digest(digest)
+}
+
 fn validate_create_request(
     target_id: &str,
     request: &CreateTargetOperationRequest,
@@ -710,6 +861,10 @@ fn required_capabilities(spec: &TargetOperationSpec) -> &'static [ExecutionTarge
         | TargetOperationSpec::ArtifactRelease { .. } => {
             &[ExecutionTargetCapability::ArtifactTransfer]
         }
+        TargetOperationSpec::DeploymentApply { .. }
+        | TargetOperationSpec::DeploymentObserve { .. }
+        | TargetOperationSpec::DeploymentDrain { .. }
+        | TargetOperationSpec::DeploymentStop { .. } => &[ExecutionTargetCapability::Deployment],
         TargetOperationSpec::HealthProbe => &[ExecutionTargetCapability::HealthProbe],
         TargetOperationSpec::VerifierRun { .. } => &[
             ExecutionTargetCapability::ArtifactTransfer,
@@ -809,6 +964,23 @@ where
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
             "target is offline or lacks a required effective capability",
+        ));
+    }
+    if driver == TargetDriverKind::Local
+        && matches!(
+            &request.spec,
+            TargetOperationSpec::DeploymentApply { .. }
+                | TargetOperationSpec::DeploymentObserve { .. }
+                | TargetOperationSpec::DeploymentDrain { .. }
+                | TargetOperationSpec::DeploymentStop { .. }
+        )
+        && ygg_runtime::validate_managed_target_deployment_runtime()
+            .await
+            .is_err()
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "local target deployment runtime is unavailable",
         ));
     }
 
@@ -1278,6 +1450,8 @@ async fn drive_local_operation<S>(
 where
     S: EventStore,
 {
+    let execution_lock = state.target_agents.local_execution_lock(operation_id);
+    let _execution_guard = execution_lock.lock().await;
     let execution_id = local_execution_id(operation_id);
     let accepted = advance_local_operation(
         state,
@@ -1300,15 +1474,43 @@ where
         return Ok(running);
     }
 
-    let completed_at_ms = Utc::now().timestamp_millis();
-    let (status, output, diagnostics) = match execute_local_operation(&running).await {
-        Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
-        Err(_) => (
+    let live_target = state
+        .runtime
+        .config()
+        .target_registry
+        .status(&running.target_id)
+        .await;
+    let authority_is_current = live_target.is_some_and(|target| {
+        target.status == ExecutionTargetStatusKind::Available
+            && resolve_target_driver(&target) == TargetDriverKind::Local
+            && target.lease_epoch == running.authority.lease_epoch
+            && target.policy_epoch == running.authority.policy_epoch
+            && required_capabilities(&running.spec)
+                .iter()
+                .all(|required| target.capabilities.contains(required))
+    });
+    let (status, output, diagnostics) = if !authority_is_current {
+        (
             TargetOperationReceiptStatus::Failed,
             Value::Null,
-            vec!["local target operation failed".to_string()],
-        ),
+            vec!["local target authority changed before execution".to_string()],
+        )
+    } else {
+        match execute_local_operation(&running).await {
+            Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
+            Err(error) if ygg_runtime::is_managed_target_deployment_outcome_unknown(&error) => (
+                TargetOperationReceiptStatus::OutcomeUnknown,
+                Value::Null,
+                vec!["local target deployment outcome is unknown".to_string()],
+            ),
+            Err(_) => (
+                TargetOperationReceiptStatus::Failed,
+                Value::Null,
+                vec!["local target operation failed".to_string()],
+            ),
+        }
     };
+    let completed_at_ms = Utc::now().timestamp_millis();
     complete_local_operation(
         state,
         operation_id,
@@ -1424,12 +1626,73 @@ where
 
 async fn execute_local_operation(operation: &TargetOperationRecord) -> anyhow::Result<Value> {
     match &operation.spec {
+        TargetOperationSpec::DeploymentApply { deployment } => {
+            let reference = &deployment.deployment;
+            let applied = ygg_runtime::apply_managed_target_deployment(
+                &ygg_runtime::ManagedTargetDeploymentApply {
+                    target_id: operation.target_id.clone(),
+                    project_id: operation.project_id.to_string(),
+                    deployment_id: reference.deployment_id.clone(),
+                    route_id: reference.route_id.clone(),
+                    port_lease_id: reference.port_lease_id.clone(),
+                    port_name: deployment.port_name.clone(),
+                    image: deployment.image.clone(),
+                    container_port: deployment.container_port,
+                    requested_host_port: deployment.requested_host_port,
+                    pull_if_missing: deployment.pull_if_missing,
+                    operation_id: operation.operation_id.clone(),
+                },
+            )
+            .await?;
+            Ok(serde_json::to_value(applied)?)
+        }
+        TargetOperationSpec::DeploymentObserve { deployment } => {
+            let observed = ygg_runtime::observe_managed_target_deployment(&managed_deployment_ref(
+                operation, deployment,
+            ))
+            .await?;
+            Ok(json!({ "deployment": observed }))
+        }
+        TargetOperationSpec::DeploymentDrain {
+            deployment,
+            grace_seconds,
+        } => Ok(serde_json::to_value(
+            ygg_runtime::drain_managed_target_deployment(
+                &managed_deployment_ref(operation, deployment),
+                *grace_seconds,
+            )
+            .await?,
+        )?),
+        TargetOperationSpec::DeploymentStop {
+            deployment,
+            grace_seconds,
+            force_remove,
+        } => Ok(serde_json::to_value(
+            ygg_runtime::stop_managed_target_deployment(
+                &managed_deployment_ref(operation, deployment),
+                *grace_seconds,
+                *force_remove,
+            )
+            .await?,
+        )?),
         TargetOperationSpec::HealthProbe => Ok(json!({
-            "target_id": operation.target_id,
             "healthy": true,
             "checked_at_ms": Utc::now().timestamp_millis()
         })),
         _ => anyhow::bail!("operation is not implemented by the local target driver"),
+    }
+}
+
+fn managed_deployment_ref(
+    operation: &TargetOperationRecord,
+    deployment: &TargetDeploymentRef,
+) -> ygg_runtime::ManagedTargetDeploymentRef {
+    ygg_runtime::ManagedTargetDeploymentRef {
+        target_id: operation.target_id.clone(),
+        project_id: operation.project_id.to_string(),
+        deployment_id: deployment.deployment_id.clone(),
+        route_id: deployment.route_id.clone(),
+        port_lease_id: deployment.port_lease_id.clone(),
     }
 }
 
@@ -1632,6 +1895,90 @@ where
     Ok(loaded)
 }
 
+pub(super) async fn recover_local_operations_after_restart<S>(
+    store: &S,
+    registry: &TargetAgentRegistry,
+) -> anyhow::Result<usize>
+where
+    S: EventStore,
+{
+    let candidates = registry
+        .operations_for_target("local")
+        .into_iter()
+        .filter(|operation| {
+            matches!(
+                operation.status,
+                TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
+            )
+        })
+        .map(|operation| operation.operation_id)
+        .collect::<Vec<_>>();
+    let mut recovered = 0usize;
+    for operation_id in candidates {
+        let mut completed = false;
+        for _ in 0..8 {
+            sync_target_operation_journal(store, registry).await?;
+            let current = registry
+                .operation(&operation_id)
+                .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
+            if current.status.is_terminal()
+                || !matches!(
+                    current.status,
+                    TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
+                )
+            {
+                completed = true;
+                break;
+            }
+            let execution_id = current
+                .execution_id
+                .clone()
+                .context("recovered local operation has no execution owner")?;
+            let completed_at_ms = Utc::now()
+                .timestamp_millis()
+                .max(current.updated_at_ms)
+                .max(current.authority.issued_at_ms);
+            let receipt = TargetOperationReceipt {
+                operation_id: current.operation_id.clone(),
+                target_id: current.target_id.clone(),
+                execution_id,
+                step_id: OPERATION_STEP_ID.to_string(),
+                request_digest: current.authority.request_digest.clone(),
+                authority_digest: current.authority.authority_digest.clone(),
+                status: TargetOperationReceiptStatus::OutcomeUnknown,
+                completed_at_ms,
+                output: Value::Null,
+                diagnostics: vec![
+                    "Host restarted while the local effect outcome was unresolved".to_string(),
+                ],
+            };
+            let mut next = current;
+            next.revision = next.revision.saturating_add(1);
+            next.status = TargetOperationStatusKind::OutcomeUnknown;
+            next.updated_at_ms = completed_at_ms;
+            next.receipt = Some(receipt);
+            if append_target_operation_snapshot(
+                store,
+                registry,
+                registry.operation_next_sequence(),
+                &next,
+            )
+            .await?
+            .is_some()
+            {
+                recovered = recovered.saturating_add(1);
+                completed = true;
+                break;
+            }
+        }
+        anyhow::ensure!(
+            completed,
+            "local target recovery journal changed too frequently"
+        );
+    }
+    Ok(recovered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1785,6 +2132,10 @@ mod tests {
             diagnostics: Vec::new(),
         });
         assert!(validate_record_integrity(&completed, &authority_key).is_err());
+        let receipt = completed.receipt.as_mut().expect("receipt exists");
+        receipt.output = Value::Null;
+        receipt.diagnostics = vec!["sk-Abcdefghijklmnopqrstuvwxyz123456".to_string()];
+        assert!(validate_record_integrity(&completed, &authority_key).is_err());
         Ok(())
     }
 
@@ -1851,6 +2202,149 @@ mod tests {
             4
         );
         assert_eq!(restored.operation(&requested.operation_id), Some(completed));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn hydration_marks_interrupted_local_effect_outcome_unknown() -> anyhow::Result<()> {
+        let store = InMemoryEventStore::default();
+        let registry = TargetAgentRegistry::default();
+        let target = ExecutionTargetRegistry::default()
+            .status("local")
+            .await
+            .expect("local target exists");
+        let authority_key = registry
+            .operation_authority_key("local", target.lease_epoch)
+            .expect("local target authority key exists");
+        let requested = create_operation_record(
+            &store,
+            &registry,
+            &authority_key,
+            target,
+            CreateTargetOperationRequest {
+                project_id: ProjectId::new("project-1")?,
+                spec: TargetOperationSpec::HealthProbe,
+                idempotency_key: Some("interrupted-local-health".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let execution_id = local_execution_id(&requested.operation_id);
+        let mut accepted = requested.clone();
+        accepted.revision = 2;
+        accepted.status = TargetOperationStatusKind::Accepted;
+        accepted.execution_id = Some(execution_id.clone());
+        accepted.updated_at_ms = accepted.updated_at_ms.saturating_add(1);
+        append_target_operation_snapshot(
+            &store,
+            &registry,
+            registry.operation_next_sequence(),
+            &accepted,
+        )
+        .await?
+        .context("accepted snapshot was not appended")?;
+        let mut running = accepted;
+        running.revision = 3;
+        running.status = TargetOperationStatusKind::Running;
+        running.updated_at_ms = running.updated_at_ms.saturating_add(1);
+        append_target_operation_snapshot(
+            &store,
+            &registry,
+            registry.operation_next_sequence(),
+            &running,
+        )
+        .await?
+        .context("running snapshot was not appended")?;
+
+        let restored = TargetAgentRegistry::default();
+        assert_eq!(sync_target_operation_journal(&store, &restored).await?, 3);
+        assert_eq!(
+            recover_local_operations_after_restart(&store, &restored).await?,
+            1
+        );
+        let recovered = restored
+            .operation(&requested.operation_id)
+            .expect("recovered operation exists");
+        assert_eq!(recovered.status, TargetOperationStatusKind::OutcomeUnknown);
+        assert_eq!(
+            recovered.receipt.as_ref().map(|receipt| receipt.status),
+            Some(TargetOperationReceiptStatus::OutcomeUnknown)
+        );
+
+        let replayed = TargetAgentRegistry::default();
+        assert_eq!(sync_target_operation_journal(&store, &replayed).await?, 4);
+        assert_eq!(replayed.operation(&requested.operation_id), Some(recovered));
+        Ok(())
+    }
+
+    #[test]
+    fn deployment_operation_binds_ownership_and_rejects_unknown_fields() -> anyhow::Result<()> {
+        let project_id = ProjectId::new("project-1")?;
+        let spec = TargetOperationSpec::DeploymentApply {
+            deployment: TargetDeploymentDescriptor {
+                deployment: TargetDeploymentRef {
+                    deployment_id: "deployment-1".to_string(),
+                    route_id: "route-1".to_string(),
+                    port_lease_id: "lease-1".to_string(),
+                },
+                port_name: "http".to_string(),
+                image: format!("registry.example/app@sha256:{}", "a".repeat(64)),
+                container_port: 8080,
+                requested_host_port: None,
+                pull_if_missing: false,
+            },
+        };
+        assert!(spec.validate().is_ok());
+        assert_eq!(spec.effect(), TargetOperationEffect::DeploymentApply);
+        assert!(spec.artifact_digests().is_empty());
+
+        let mut changed = spec.clone();
+        let TargetOperationSpec::DeploymentApply { deployment } = &mut changed else {
+            unreachable!()
+        };
+        deployment.deployment.route_id = "route-2".to_string();
+        assert_ne!(
+            operation_request_digest("remote-1", &project_id, &spec)?,
+            operation_request_digest("remote-1", &project_id, &changed)?
+        );
+
+        assert!(serde_json::from_value::<TargetOperationSpec>(json!({
+            "kind": "deployment_stop",
+            "deployment": {
+                "deployment_id": "deployment-1",
+                "route_id": "route-1",
+                "port_lease_id": "lease-1"
+            },
+            "grace_seconds": 10,
+            "force_remove": false,
+            "command": "whoami"
+        }))
+        .is_err());
+        let mut raw_secret_spec = spec.clone();
+        let TargetOperationSpec::DeploymentApply { deployment } = &mut raw_secret_spec else {
+            unreachable!()
+        };
+        deployment.image = "sk-Abcdefghijklmnopqrstuvwxyz123456".to_string();
+        assert!(validate_create_request(
+            "remote-1",
+            &CreateTargetOperationRequest {
+                project_id,
+                spec: raw_secret_spec,
+                idempotency_key: None,
+                expires_in_seconds: Some(120),
+            }
+        )
+        .is_err());
+        assert!(
+            serde_json::from_value::<TargetOperationProgressRequest>(json!({
+                "request_digest": format!("sha256:{}", "a".repeat(64)),
+                "authority_digest": format!("sha256:{}", "b".repeat(64)),
+                "execution_id": "c".repeat(32),
+                "status": "running",
+                "unexpected": true
+            }))
+            .is_err()
+        );
         Ok(())
     }
 }

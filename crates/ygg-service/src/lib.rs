@@ -69,9 +69,10 @@ pub use target_agent::{
     ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse, CreateTargetOperationRequest,
     CreateTargetOperationResponse, DeclarativeVerifierDescriptor, NextTargetOperationResponse,
     TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse, TargetAgentRegistry,
-    TargetOperationAuthority, TargetOperationEffect, TargetOperationProgressRequest,
-    TargetOperationReceipt, TargetOperationReceiptStatus, TargetOperationRecord,
-    TargetOperationSpec, TargetOperationStatusKind,
+    TargetDeploymentDescriptor, TargetDeploymentRef, TargetOperationAuthority,
+    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
+    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
+    TargetOperationStatusKind,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;

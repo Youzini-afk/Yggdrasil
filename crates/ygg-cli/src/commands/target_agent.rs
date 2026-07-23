@@ -22,9 +22,9 @@ use ygg_runtime::{
 use ygg_service::{
     verify_target_operation_authority, ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse,
     DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetAgentHeartbeatRequest,
-    TargetAgentHeartbeatResponse, TargetOperationProgressRequest, TargetOperationReceipt,
-    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
-    TargetOperationStatusKind,
+    TargetAgentHeartbeatResponse, TargetDeploymentRef, TargetOperationProgressRequest,
+    TargetOperationReceipt, TargetOperationReceiptStatus, TargetOperationRecord,
+    TargetOperationSpec, TargetOperationStatusKind,
 };
 
 use super::host_access::host_url;
@@ -118,8 +118,9 @@ fn parse_capabilities(values: Vec<String>) -> anyhow::Result<Vec<ExecutionTarget
             "artifact_transfer" => Ok(ExecutionTargetCapability::ArtifactTransfer),
             "declarative_verifier" => Ok(ExecutionTargetCapability::DeclarativeVerifier),
             "health_probe" => Ok(ExecutionTargetCapability::HealthProbe),
+            "deployment" => Ok(ExecutionTargetCapability::Deployment),
             _ => anyhow::bail!(
-                "native agent capability '{value}' is unsupported; use artifact_transfer, declarative_verifier, or health_probe"
+                "native agent capability '{value}' is unsupported; use artifact_transfer, declarative_verifier, health_probe, or deployment"
             ),
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
@@ -581,6 +582,14 @@ pub async fn run(data_dir: PathBuf, credential: String) -> anyhow::Result<()> {
     let client = hardened_client()?;
     let ledger = LocalOperationLedger::open(&data_dir)?;
     prepare_artifact_store(&data_dir).await?;
+    if config
+        .capabilities
+        .contains(&ExecutionTargetCapability::Deployment)
+    {
+        ygg_runtime::validate_managed_target_deployment_runtime()
+            .await
+            .context("deployment capability requires an available Docker runtime")?;
+    }
 
     let mut next_heartbeat = Instant::now();
     let mut retry_backoff = Duration::from_secs(1);
@@ -657,7 +666,7 @@ async fn agent_cycle(
     next_heartbeat: &mut Instant,
 ) -> anyhow::Result<()> {
     if Instant::now() >= *next_heartbeat {
-        heartbeat(client, config, credential, data_dir).await?;
+        heartbeat(client, config, credential, data_dir, ledger).await?;
         *next_heartbeat =
             Instant::now() + Duration::from_secs(config.heartbeat_interval_seconds.max(1));
     }
@@ -681,7 +690,23 @@ async fn heartbeat(
     config: &AgentConfig,
     credential: &str,
     data_dir: &Path,
+    ledger: &LocalOperationLedger,
 ) -> anyhow::Result<()> {
+    let running_operation_count = ledger
+        .load()
+        .await?
+        .operations
+        .values()
+        .filter(|operation| !operation.status.is_terminal())
+        .count() as u64;
+    let workload_count = if config
+        .capabilities
+        .contains(&ExecutionTargetCapability::Deployment)
+    {
+        ygg_runtime::count_managed_target_deployments(&config.target_id).await?
+    } else {
+        0
+    };
     let response: TargetAgentHeartbeatResponse = request_json(
         client,
         &config.endpoint,
@@ -693,8 +718,8 @@ async fn heartbeat(
             lease_epoch: config.lease_epoch,
             declared_capabilities: config.capabilities.clone(),
             observed: ExecutionTargetObservedSummary {
-                running_operation_count: 0,
-                workload_count: 0,
+                running_operation_count,
+                workload_count,
                 artifact_count: artifact_count(data_dir).await?,
             },
         }),
@@ -796,18 +821,25 @@ async fn handle_operation(
     // Re-check the live target identity immediately before any local effect.
     // A revoke, stale epoch, or network partition therefore fails closed even
     // when this operation was restored from a durable Running ledger entry.
-    heartbeat(client, config, credential, data_dir).await?;
+    heartbeat(client, config, credential, data_dir, ledger).await?;
 
-    let completed_at_ms = Utc::now().timestamp_millis();
     let (status, output, diagnostics) =
         match execute_operation(client, config, credential, data_dir, &operation).await {
             Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
-            Err(error) => (
-                TargetOperationReceiptStatus::Failed,
-                Value::Null,
-                vec![safe_diagnostic(&format!("{error:#}"), credential)],
-            ),
+            Err(error) => {
+                let status = if ygg_runtime::is_managed_target_deployment_outcome_unknown(&error) {
+                    TargetOperationReceiptStatus::OutcomeUnknown
+                } else {
+                    TargetOperationReceiptStatus::Failed
+                };
+                (
+                    status,
+                    Value::Null,
+                    vec![safe_diagnostic(&format!("{error:#}"), credential)],
+                )
+            }
         };
+    let completed_at_ms = Utc::now().timestamp_millis();
     let receipt = TargetOperationReceipt {
         operation_id: operation.operation_id.clone(),
         target_id: operation.target_id.clone(),
@@ -886,7 +918,7 @@ fn safe_diagnostic(message: &str, credential: &str) -> String {
         }
     }
     if ygg_runtime::scan_effect_value_for_raw_secrets(
-        &Value::String(output.clone()),
+        &json!({ "diagnostic": output.clone() }),
         "receipt.diagnostics",
     )
     .has_findings()
@@ -929,8 +961,56 @@ async fn execute_operation(
             let released = release_artifact(data_dir, digest).await?;
             Ok(json!({ "digest": digest, "released": released }))
         }
+        TargetOperationSpec::DeploymentApply { deployment } => {
+            let reference = &deployment.deployment;
+            let applied = ygg_runtime::apply_managed_target_deployment(
+                &ygg_runtime::ManagedTargetDeploymentApply {
+                    target_id: operation.target_id.clone(),
+                    project_id: operation.project_id.to_string(),
+                    deployment_id: reference.deployment_id.clone(),
+                    route_id: reference.route_id.clone(),
+                    port_lease_id: reference.port_lease_id.clone(),
+                    port_name: deployment.port_name.clone(),
+                    image: deployment.image.clone(),
+                    container_port: deployment.container_port,
+                    requested_host_port: deployment.requested_host_port,
+                    pull_if_missing: deployment.pull_if_missing,
+                    operation_id: operation.operation_id.clone(),
+                },
+            )
+            .await?;
+            Ok(serde_json::to_value(applied)?)
+        }
+        TargetOperationSpec::DeploymentObserve { deployment } => {
+            let observed = ygg_runtime::observe_managed_target_deployment(&managed_deployment_ref(
+                operation, deployment,
+            ))
+            .await?;
+            Ok(json!({ "deployment": observed }))
+        }
+        TargetOperationSpec::DeploymentDrain {
+            deployment,
+            grace_seconds,
+        } => Ok(serde_json::to_value(
+            ygg_runtime::drain_managed_target_deployment(
+                &managed_deployment_ref(operation, deployment),
+                *grace_seconds,
+            )
+            .await?,
+        )?),
+        TargetOperationSpec::DeploymentStop {
+            deployment,
+            grace_seconds,
+            force_remove,
+        } => Ok(serde_json::to_value(
+            ygg_runtime::stop_managed_target_deployment(
+                &managed_deployment_ref(operation, deployment),
+                *grace_seconds,
+                *force_remove,
+            )
+            .await?,
+        )?),
         TargetOperationSpec::HealthProbe => Ok(json!({
-            "target_id": config.target_id,
             "healthy": true,
             "checked_at_ms": Utc::now().timestamp_millis()
         })),
@@ -956,6 +1036,19 @@ async fn execute_operation(
                 "verified": true
             }))
         }
+    }
+}
+
+fn managed_deployment_ref(
+    operation: &TargetOperationRecord,
+    deployment: &TargetDeploymentRef,
+) -> ygg_runtime::ManagedTargetDeploymentRef {
+    ygg_runtime::ManagedTargetDeploymentRef {
+        target_id: operation.target_id.clone(),
+        project_id: operation.project_id.to_string(),
+        deployment_id: deployment.deployment_id.clone(),
+        route_id: deployment.route_id.clone(),
+        port_lease_id: deployment.port_lease_id.clone(),
     }
 }
 
@@ -1246,6 +1339,17 @@ mod tests {
         let _first = acquire_run_lock(directory.path())?;
         assert!(acquire_run_lock(directory.path()).is_err());
         Ok(())
+    }
+
+    #[test]
+    fn diagnostics_redact_raw_secrets_beyond_the_agent_credential() {
+        assert_eq!(
+            safe_diagnostic(
+                "deployment failed with sk-Abcdefghijklmnopqrstuvwxyz123456",
+                "unrelated-credential"
+            ),
+            "operation failed; diagnostic redacted"
+        );
     }
 
     #[tokio::test]

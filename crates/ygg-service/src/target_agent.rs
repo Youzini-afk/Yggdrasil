@@ -25,10 +25,10 @@ mod operation;
 
 pub use operation::{
     verify_target_operation_authority, CreateTargetOperationRequest, CreateTargetOperationResponse,
-    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetOperationAuthority,
-    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
-    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
-    TargetOperationStatusKind,
+    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetDeploymentDescriptor,
+    TargetDeploymentRef, TargetOperationAuthority, TargetOperationEffect,
+    TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
+    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
 };
 
 const JOURNAL_SESSION: &str = "host_control_target_agents";
@@ -579,6 +579,7 @@ fn validate_capabilities(capabilities: &[ExecutionTargetCapability]) -> Result<(
         ExecutionTargetCapability::ArtifactTransfer,
         ExecutionTargetCapability::DeclarativeVerifier,
         ExecutionTargetCapability::HealthProbe,
+        ExecutionTargetCapability::Deployment,
     ];
     if unique.is_empty()
         || unique.len() != capabilities.len()
@@ -955,6 +956,10 @@ where
         sync_target_agent_journal(store.as_ref(), registry.as_ref(), targets.as_ref()).await?;
     loaded = loaded.saturating_add(
         operation::sync_target_operation_journal(store.as_ref(), registry.as_ref()).await?,
+    );
+    loaded = loaded.saturating_add(
+        operation::recover_local_operations_after_restart(store.as_ref(), registry.as_ref())
+            .await?,
     );
     registry.mark_offline_after_hydration();
     mirror_targets(registry.as_ref(), targets.as_ref()).await;

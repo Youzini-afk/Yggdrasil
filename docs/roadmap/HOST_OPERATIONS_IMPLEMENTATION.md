@@ -40,7 +40,7 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 | Phase 1 | Candidate 实现完成 | project/target authority、delegation、server-side filtering、Web/CLI 与脱敏判定日志已闭环；完整矩阵由 GitHub CI 验收 |
 | Phase 2 | Candidate 实现完成 | durable deployment intent/operation/lease/receipt、candidate-first activation、reconcile/recover/rollback 与受限 restart policy 已闭环并通过 GitHub CI |
 | Phase 3 | Candidate 实现完成 | 非破坏性数据迁移、backup/verify/restore、live/ready、release integrity、SBOM 与 provenance 已闭环并通过 GitHub CI |
-| Phase 4 | 进行中 | identity/observation、typed-worker 与 driver 首切片已实现：durable enrollment/heartbeat/revoke、MAC-bound authority、双 ledger、artifact/verifier、原生 Agent、reachability router 与 local durable health conformance；deployment/actual-port/tunnel 待后续切片 |
+| Phase 4 | 进行中 | identity/observation、typed-worker、reachability driver 与 typed deployment worker 已实现：durable enrollment/heartbeat/revoke、MAC-bound authority、双 ledger、artifact/verifier、local/Agent 等价部署语义、loopback actual-port receipt 与 outcome-unknown 恢复；Host actual-port lease、authenticated tunnel/private preview 待后续切片 |
 | Phase 5 | 未开始 | 等待 Remote Target Agent gate，不建立客户端专属旁路 |
 
 ## Phase 0：设计合同

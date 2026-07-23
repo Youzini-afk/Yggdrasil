@@ -80,13 +80,13 @@ Phase 4B 增加以下 typed-worker 路由；它们不提供通用命令：
 | Agent | `POST /target-agent/v1/operations/{operation_id}/receipt` | 只接受与 authority、execution owner 和 request digest 一致的终态回执 |
 | Agent | `GET /target-agent/v1/operations/{operation_id}/artifacts/{digest}` | 只流式读取该 accepted/running operation 明确授权的 digest |
 
-Host 的 `host_control_target_operations` journal 与 Agent 的 SQLite ledger 都使用 expected-sequence CAS。Agent 在回复 accepted 前持久化 request/authority digest，在提交回执前持久化 terminal receipt；同一 data directory 有进程锁，复制 credential 到另一 ledger 也不能夺取已经绑定的 `execution_id`。`artifact.materialize/release`、`health.probe` 和声明式 `verifier.run(artifact_integrity)` 是当前唯一可执行类型；未知类型没有 shell fallback。下载先进入 digest 派生的 partial 文件，完整 SHA-256/size 校验后才原子落入本地 CAS，失败 partial 会删除。
+Host 的 `host_control_target_operations` journal 与 Agent 的 SQLite ledger 都使用 expected-sequence CAS。Agent 在回复 accepted 前持久化 request/authority digest，在提交回执前持久化 terminal receipt；同一 data directory 有进程锁，复制 credential 到另一 ledger 也不能夺取已经绑定的 `execution_id`。当前可执行类型是 `artifact.materialize/release`、`health.probe`、声明式 `verifier.run(artifact_integrity)` 与 `deployment.apply/observe/drain/stop`；未知类型没有 shell fallback。下载先进入 digest 派生的 partial 文件，完整 SHA-256/size 校验后才原子落入本地 CAS，失败 partial 会删除。
 
-Revoke 对新工作和新的 accepted/running 转换 fail closed。线性化边界是 Host 已持久确认 `Running`：该边界前观察到 revoke/offline/stale epoch 就不执行；边界后的当前幂等 step 可完成或重放 receipt，但不能取得新 operation。Deployment 的 drain/强制停止策略仍由 Phase 4C 明确定义，不能把并发 revoke 伪装成对远端本地 effect 的原子回滚。
+Revoke 对新工作和新的 accepted/running 转换 fail closed。线性化边界是 Host 已持久确认 `Running`：该边界前观察到 revoke/offline/stale epoch 就不执行；边界后的当前幂等 step 可完成或重放 receipt，但不能取得新 operation。Revoke 不伪装成对 target-local effect 的原子回滚；`deployment.drain` 执行有界优雅停止并保留容器，`deployment.stop` 删除容器，只有显式 `force_remove` 才允许强制删除。
 
 Operation authority 绑定 target/operation/step/project/effect/artifact/lease epoch/policy epoch/expiry/nonce/request digest。远程 Agent authority 用 enrollment credential 的 domain-separated digest 作为 epoch-scoped HMAC key，并由 Agent 以一次性获得的 credential 独立复算；local driver 的 journal record 使用仅限 Host 内部、稳定且 domain-separated 的 local key，不把它当作跨网络身份。原生客户端禁用 redirect，远程 Host 强制 HTTPS，credential 不写入配置或 ledger，只从 `YGG_TARGET_AGENT_CREDENTIAL` 注入；loopback HTTP 仅用于同机边界。
 
-Phase 4C 的第一切片已经按 `ExecutionTargetReachability` 路由 local/agent driver，不接受调用方提供的任意网络地址作为 driver fallback。`local` 的 `health.probe` 走与远程 operation 相同的 durable `Requested → Accepted → Running → terminal receipt` 状态和幂等重放；其他未声明 capability 继续 fail closed。部署、实际 port lease、authenticated tunnel/private preview 仍属于后续 Phase 4C 切片，当前实现没有放宽 Host loopback upstream。
+Phase 4C 已按 `ExecutionTargetReachability` 路由 local/agent driver，不接受调用方提供的任意网络地址作为 driver fallback。local 与 Agent 的部署 operation 共用一个类型化 Docker driver：固定非特权 bridge、只绑定 `127.0.0.1`、不接受 command/env/mount，并以 target/project/deployment/route/lease/operation ownership labels 幂等查找；`apply` 回执返回 Docker 实际分配的 loopback port。Docker effect 发出后无法确认结果时回执为 `outcome_unknown`，不会误报失败；Host 重启时遗留的 local Accepted/Running 也持久收敛到该状态。Host actual-port lease 注册、authenticated tunnel/private preview 仍属于后续切片，当前实现没有放宽 Host loopback upstream。
 
 ## Transport session
 

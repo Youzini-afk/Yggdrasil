@@ -116,37 +116,6 @@ fn scan_recursive(
                 } else {
                     format!("{}.{}", path, key)
                 };
-                let is_excluded = honor_value_exclusions
-                    && EXCLUDED_VALUE_SCAN_FIELDS.iter().any(|field| field == key);
-
-                // Check field name
-                if is_secret_field_name(key) {
-                    // Only flag if the value is a string (not a SecretRef)
-                    if let Value::String(s) = child {
-                        if !ygg_core::SecretRef::is_valid_ref(s) {
-                            result.findings.push(SecretFinding {
-                                path: child_path.clone(),
-                                field_name: key.clone(),
-                                detection: SecretDetection::FieldName,
-                            });
-                        }
-                    }
-                }
-
-                // Check value pattern for non-excluded string fields
-                if !is_excluded {
-                    if let Value::String(s) = child {
-                        if looks_like_raw_secret(s) && !ygg_core::SecretRef::is_valid_ref(s) {
-                            result.findings.push(SecretFinding {
-                                path: child_path.clone(),
-                                field_name: key.clone(),
-                                detection: SecretDetection::ValuePattern,
-                            });
-                        }
-                    }
-                }
-
-                // Recurse into child
                 scan_recursive(child, &child_path, result, honor_value_exclusions);
             }
         }
@@ -154,6 +123,36 @@ fn scan_recursive(
             for (i, child) in arr.iter().enumerate() {
                 let child_path = format!("{}[{}]", path, i);
                 scan_recursive(child, &child_path, result, honor_value_exclusions);
+            }
+        }
+        Value::String(string) => {
+            let field_name = path
+                .rsplit('.')
+                .next()
+                .unwrap_or(path)
+                .split('[')
+                .next()
+                .unwrap_or_default();
+            if is_secret_field_name(field_name) && !ygg_core::SecretRef::is_valid_ref(string) {
+                result.findings.push(SecretFinding {
+                    path: path.to_string(),
+                    field_name: field_name.to_string(),
+                    detection: SecretDetection::FieldName,
+                });
+            }
+            let is_excluded = honor_value_exclusions
+                && EXCLUDED_VALUE_SCAN_FIELDS
+                    .iter()
+                    .any(|excluded| *excluded == field_name);
+            if !is_excluded
+                && contains_raw_secret_pattern(string)
+                && !ygg_core::SecretRef::is_valid_ref(string)
+            {
+                result.findings.push(SecretFinding {
+                    path: path.to_string(),
+                    field_name: field_name.to_string(),
+                    detection: SecretDetection::ValuePattern,
+                });
             }
         }
         _ => {}
@@ -174,6 +173,22 @@ pub fn redact_secrets_in_value(value: &Value) -> (Value, SecretScanResult) {
         apply_redaction(&mut redacted, &finding.path);
     }
     (redacted, scan)
+}
+
+fn contains_raw_secret_pattern(value: &str) -> bool {
+    looks_like_raw_secret(value)
+        || value.contains("Bearer ")
+        || value.contains("bearer ")
+        || value
+            .split(|character: char| {
+                !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.'))
+            })
+            .any(|candidate| {
+                !candidate
+                    .chars()
+                    .all(|character| character.is_ascii_hexdigit())
+                    && looks_like_raw_secret(candidate)
+            })
 }
 
 pub fn redact_effect_value(value: &Value) -> (Value, SecretScanResult) {
@@ -250,6 +265,35 @@ mod tests {
         let value = json!({"config": {"bearer": "Bearer sk-abc123def456ghi789jkl012mno345pqr"}});
         let result = scan_value_for_raw_secrets(&value, "");
         assert!(result.has_findings());
+    }
+
+    #[test]
+    fn detects_raw_secret_embedded_in_diagnostic_text() {
+        let value = json!({
+            "diagnostic": "deployment failed with sk-Abcdefghijklmnopqrstuvwxyz123456"
+        });
+        assert!(scan_effect_value_for_raw_secrets(&value, "receipt").has_findings());
+    }
+
+    #[test]
+    fn scans_root_and_array_strings() {
+        let secret = "sk-Abcdefghijklmnopqrstuvwxyz123456";
+        assert!(scan_effect_value_for_raw_secrets(
+            &Value::String(secret.to_string()),
+            "diagnostic"
+        )
+        .has_findings());
+        assert!(scan_effect_value_for_raw_secrets(&json!([secret]), "diagnostics").has_findings());
+    }
+
+    #[test]
+    fn content_digests_and_typed_container_refs_are_not_secrets() {
+        let value = json!({
+            "digest": format!("sha256:{}", "a".repeat(64)),
+            "image": format!("registry.example/app@sha256:{}", "b".repeat(64)),
+            "container_id": format!("docker:{}", "c".repeat(64))
+        });
+        assert!(!scan_effect_value_for_raw_secrets(&value, "receipt").has_findings());
     }
 
     #[test]
