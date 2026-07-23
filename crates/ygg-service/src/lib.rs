@@ -6946,11 +6946,6 @@ where
             Err(response) => return response,
         };
         let origin = request_headers.get(header::ORIGIN).cloned();
-        let (mut parts, _) = request.into_parts();
-        let upgrade = match WebSocketUpgrade::from_request_parts(&mut parts, &state).await {
-            Ok(upgrade) => upgrade,
-            Err(rejection) => return rejection.into_response(),
-        };
         let resolved = match resolve_proxy_upstream(&state, &route_id).await {
             Ok(resolved) => resolved,
             Err(response) => return response,
@@ -6962,6 +6957,11 @@ where
             )
                 .into_response();
         }
+        let (mut parts, _) = request.into_parts();
+        let upgrade = match WebSocketUpgrade::from_request_parts(&mut parts, &state).await {
+            Ok(upgrade) => upgrade,
+            Err(rejection) => return rejection.into_response(),
+        };
 
         let connection = match proxy_connect_port(&state, &resolved).await {
             Ok(connection) => connection,
@@ -7286,7 +7286,7 @@ async fn authenticate_tunnel_bridge_request(
     let mut authenticated = false;
     let mut credential_seen = false;
     let mut forwarded = Vec::with_capacity(request.len());
-    for line in headers[..headers.len() - 2].split("\r\n") {
+    for line in headers[..headers.len() - 4].split("\r\n") {
         if let Some((name, value)) = line.split_once(':') {
             if name.eq_ignore_ascii_case(TARGET_TUNNEL_BRIDGE_HEADER) {
                 anyhow::ensure!(
@@ -10291,9 +10291,10 @@ mod tests {
             .await?;
         let forwarded = accepted.await??;
         let forwarded = String::from_utf8(forwarded)?;
-        assert!(forwarded.starts_with("POST /preview HTTP/1.1\r\n"));
-        assert!(!forwarded.contains(TARGET_TUNNEL_BRIDGE_HEADER));
-        assert!(forwarded.ends_with("\r\n\r\nbody"));
+        assert_eq!(
+            forwarded,
+            "POST /preview HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-length: 4\r\n\r\nbody"
+        );
         Ok(())
     }
 
