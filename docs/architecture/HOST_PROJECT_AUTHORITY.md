@@ -6,7 +6,7 @@
 
 当前实现快照（2026-07-23）：
 
-- HTTP、Cookie、Bearer 与 RPC 统一保留 `host_device` principal、grant、delegation chain、action 和结构化资源 selector；
+- HTTP、Cookie、Bearer 与 RPC 在 Host Access 层统一保留逻辑 `host_device` 身份、grant、delegation chain、action 和结构化资源 selector；为保持冻结的 Contract V1 principal union，RPC context 使用 fail-closed 的 `anonymous` sentinel 加 Host 建立的 authority envelope，旧 runtime 忽略 envelope 时只会拒绝；
 - project/session/event/proposal/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，legacy adapter 复用 canonical policy；
 - pairing journal 支持衰减委托、期限、祖先撤销级联和旧全局 grant 的显式 wildcard 水化；Web/PWA 与 `yg host access` CLI 使用同一 API；
 - 设备调用写入不含凭据与请求 payload 的 `host/control/v1/authority.decision` allow/deny journal；

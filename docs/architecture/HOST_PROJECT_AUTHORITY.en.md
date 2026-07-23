@@ -6,7 +6,7 @@ Status: **Candidate implementation**. Phase 1 implements the project/target auth
 
 Implementation snapshot (2026-07-23):
 
-- HTTP, Cookie, Bearer, and RPC retain the same `host_device` principal, grant, delegation chain, actions, and structured resource selectors;
+- HTTP, Cookie, Bearer, and RPC retain the same logical `host_device` identity, grant, delegation chain, actions, and structured resource selectors at the Host Access layer. To preserve the frozen Contract V1 principal union, RPC contexts use a fail-closed `anonymous` sentinel plus a Host-established authority envelope, so an older runtime that ignores the envelope can only deny;
 - project/session/event/proposal/surface/target/exec/port/proxy paths enforce exact resources or server-side filtering, and legacy adapters reuse canonical policy;
 - the pairing journal supports attenuated delegation, expiry, ancestor-revocation cascade, and explicit wildcard hydration for legacy global grants; Web/PWA and the `yg host access` CLI use the same API;
 - device calls append redacted `host/control/v1/authority.decision` allow/deny records without credentials or request payloads;

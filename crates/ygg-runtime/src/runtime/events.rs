@@ -99,12 +99,12 @@ where
         mut request: AppendEventRequest,
     ) -> anyhow::Result<EventEnvelope> {
         match &context.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
-                self.append_event(request).await
-            }
-            ProtocolPrincipal::HostDevice { .. } => {
+            ProtocolPrincipal::Anonymous if context.is_host_device() => {
                 self.ensure_host_session_access(context, "access_manage", &request.session_id)
                     .await?;
+                self.append_event(request).await
+            }
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 self.append_event(request).await
             }
             ProtocolPrincipal::Package { package_id } => {
@@ -245,12 +245,12 @@ where
         session_id: &SessionId,
     ) -> anyhow::Result<Vec<EventEnvelope>> {
         match &context.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
-                self.list_events(session_id).await
-            }
-            ProtocolPrincipal::HostDevice { .. } => {
+            ProtocolPrincipal::Anonymous if context.is_host_device() => {
                 self.ensure_host_session_access(context, "observe", session_id)
                     .await?;
+                self.list_events(session_id).await
+            }
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 self.list_events(session_id).await
             }
             ProtocolPrincipal::Package { package_id } => {
@@ -277,12 +277,12 @@ where
         request: &EventListRequest,
     ) -> anyhow::Result<Vec<EventEnvelope>> {
         match &context.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
-                self.list_events_range(request).await
-            }
-            ProtocolPrincipal::HostDevice { .. } => {
+            ProtocolPrincipal::Anonymous if context.is_host_device() => {
                 self.ensure_host_session_access(context, "observe", &request.session_id)
                     .await?;
+                self.list_events_range(request).await
+            }
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 self.list_events_range(request).await
             }
             ProtocolPrincipal::Package { package_id } => {

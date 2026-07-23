@@ -233,7 +233,7 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 ## 协议
 
-宿主管理项目的协议（HostAdmin/HostDev，或同时拥有对应 action 与精确 project selector 的 HostDevice；普通包不能调）：
+宿主管理项目的协议（HostAdmin/HostDev，或同时拥有对应 action 与精确 project selector 的逻辑 HostDevice；其 Contract V1 context 使用 `anonymous` sentinel + authority envelope；普通包不能调）：
 
 ```text
 kernel.v1.project.list      列出已安装项目
@@ -243,7 +243,7 @@ kernel.v1.project.stop      停止项目
 kernel.v1.project.status    项目状态
 ```
 
-部署运行时协议（HostAdmin/HostDev，或拥有 `deploy` / `observe` 与匹配 target selector 的 HostDevice；普通包不能调）：
+部署运行时协议（HostAdmin/HostDev，或拥有 `deploy` / `observe` 与匹配 target selector 的逻辑 HostDevice；普通包不能调）：
 
 ```text
 kernel.v1.target.*   运行目标

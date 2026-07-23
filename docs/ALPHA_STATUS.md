@@ -25,7 +25,7 @@
 - Package envelope 与 component identity 已分离：显式 component/behavior digest 在重新打包后保持稳定；runtime 与 effect evidence 携带 component trust/边界数据；composition lock 分离 component/profile/content pin；`contract:none` 明确报告为不可移植 Foreign Capsule。
 - Experimental World Bundle 已落地并由 `official/playable-creation-board` 证明：canonical archive descriptor 覆盖原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web-shell 状态即可读取同一 archive。
 - 用 JSON Schema 子集校验能力 I/O 与能力包声明的事件 payload。
-- 身份模型：`host_admin`、`host_dev`、`host_device`、`package`、`human`、`assistant`、`anonymous`。设备 principal 在远程 RPC 边界保留 grant、delegation 与资源 authority，不再退化为 `host_dev`；human 与 assistant 身份支持作用域授权。
+- Contract V1 身份 union 继续保持 `host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。配对设备在远程 RPC 边界使用 fail-closed 的 `anonymous` V1 sentinel，并通过 Host 建立的 authority envelope 保留 grant、delegation 与资源约束；旧 runtime 忽略新 envelope 时只会拒绝而不会扩大权限。脱敏 Host 控制面审计仍以逻辑 `host_device` 记录设备；human 与 assistant 身份支持作用域授权。
 - 审计事件：`kernel/v1/permission.granted|revoked|denied`、`kernel/v1/package.*` 生命周期、`kernel/v1/proposal.*` 生命周期；Contract V1 之外另有脱敏的 `host/control/v1/authority.decision` Host 控制面授权判定日志。
 - 持久授权：grant / revoke 事件可在 SQLite-backed 运行时中重新水化。
 - Contract V1 是公开平台规范：80 个协议方法、59 个事件类型、161 个 JSON Schema。`kernel.v1.cap.*`、`kernel.v1.audit.package`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。

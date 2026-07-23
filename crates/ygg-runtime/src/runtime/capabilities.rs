@@ -629,19 +629,7 @@ where
             branch_id: branch_id.clone(),
         };
         match &context.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
-                if context.session_id.is_some() {
-                    request.session_id = context.session_id.clone();
-                }
-                request.caller_package_id = None;
-                self.invoke_capability_authorized(
-                    request,
-                    context.effective_correlation_id(),
-                    effect_context(),
-                )
-                .await
-            }
-            ProtocolPrincipal::HostDevice { .. } => {
+            ProtocolPrincipal::Anonymous if context.is_host_device() => {
                 if context.host_operation.is_some() {
                     anyhow::ensure!(
                         context.host_operation_is_authorized(),
@@ -667,6 +655,18 @@ where
                     })?;
                 self.ensure_host_session_access(context, "access_manage", session_id)
                     .await?;
+                if context.session_id.is_some() {
+                    request.session_id = context.session_id.clone();
+                }
+                request.caller_package_id = None;
+                self.invoke_capability_authorized(
+                    request,
+                    context.effective_correlation_id(),
+                    effect_context(),
+                )
+                .await
+            }
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => {
                 if context.session_id.is_some() {
                     request.session_id = context.session_id.clone();
                 }

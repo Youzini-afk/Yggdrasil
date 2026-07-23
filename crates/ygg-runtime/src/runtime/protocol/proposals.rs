@@ -10,7 +10,7 @@ where
         action: &str,
         proposal: &crate::runtime::ProposalRecord,
     ) -> anyhow::Result<()> {
-        if !matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+        if !context.is_host_device() {
             return Ok(());
         }
         if !context.allows_host_action(action) {

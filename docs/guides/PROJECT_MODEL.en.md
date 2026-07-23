@@ -230,7 +230,7 @@ This path is explicit. It never runs automatically when opening a project. See [
 
 ## Protocol
 
-Host project-management methods allow HostAdmin/HostDev, or a HostDevice with the corresponding action and exact project selector; ordinary packages cannot call them:
+Host project-management methods allow HostAdmin/HostDev, or a logical HostDevice with the corresponding action and exact project selector. Its Contract V1 context uses the `anonymous` sentinel plus an authority envelope; ordinary packages cannot call these methods:
 
 ```text
 kernel.v1.project.list      list installed projects
@@ -240,7 +240,7 @@ kernel.v1.project.stop      stop a project
 kernel.v1.project.status    get project status
 ```
 
-Deployment runtime protocols allow HostAdmin/HostDev, or a HostDevice with `deploy` / `observe` and a matching target selector; ordinary packages cannot call them:
+Deployment runtime protocols allow HostAdmin/HostDev, or a logical HostDevice with `deploy` / `observe` and a matching target selector; ordinary packages cannot call them:
 
 ```text
 kernel.v1.target.*   execution targets

@@ -520,9 +520,6 @@ pub enum MethodStatus {
 pub enum ProtocolPrincipal {
     HostAdmin,
     HostDev,
-    HostDevice {
-        grant_id: String,
-    },
     Package {
         package_id: String,
     },
@@ -557,6 +554,7 @@ impl ProtocolResourceSelector {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProtocolAuthorityContext {
+    pub grant_id: String,
     #[serde(default)]
     pub actions: Vec<String>,
     #[serde(default)]
@@ -580,8 +578,10 @@ pub struct ProtocolContext {
     pub principal: ProtocolPrincipal,
     pub transport: String,
     /// Authenticated Host authority carried by transport adapters. This is
-    /// additive so older callers remain source- and wire-compatible. A
-    /// HostDevice principal without authority is deliberately powerless.
+    /// additive so older callers remain source- and wire-compatible. Device
+    /// calls use the existing anonymous V1 principal as a fail-closed sentinel:
+    /// old runtimes ignore this field and deny the call, while new runtimes
+    /// require the scoped authority below.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authority: Option<ProtocolAuthorityContext>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -632,11 +632,10 @@ impl ProtocolContext {
         transport: impl Into<String>,
     ) -> Self {
         Self {
-            principal: ProtocolPrincipal::HostDevice {
-                grant_id: grant_id.into(),
-            },
+            principal: ProtocolPrincipal::Anonymous,
             transport: transport.into(),
             authority: Some(ProtocolAuthorityContext {
+                grant_id: grant_id.into(),
                 actions,
                 resources,
                 delegation_chain,
@@ -683,39 +682,55 @@ impl ProtocolContext {
         self.correlation_id.unwrap_or_else(Uuid::new_v4)
     }
 
-    pub fn allows_host_action(&self, action: &str) -> bool {
+    fn host_device_authority(&self) -> Option<&ProtocolAuthorityContext> {
         match self.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => true,
-            ProtocolPrincipal::HostDevice { .. } => self
-                .authority
-                .as_ref()
-                .is_some_and(|authority| authority.actions.iter().any(|item| item == action)),
-            _ => false,
+            ProtocolPrincipal::Anonymous => self.authority.as_ref(),
+            _ => None,
         }
+    }
+
+    pub fn is_host_device(&self) -> bool {
+        self.host_device_authority().is_some()
+    }
+
+    pub fn host_device_grant_id(&self) -> Option<&str> {
+        self.host_device_authority()
+            .map(|authority| authority.grant_id.as_str())
+    }
+
+    pub fn allows_host_action(&self, action: &str) -> bool {
+        if let Some(authority) = self.host_device_authority() {
+            return authority.actions.iter().any(|item| item == action);
+        }
+        matches!(
+            self.principal,
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
+        )
     }
 
     pub fn allows_host_resource(&self, owner: &str, kind: &str, id: &str) -> bool {
-        match self.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => true,
-            ProtocolPrincipal::HostDevice { .. } => self.authority.as_ref().is_some_and(|auth| {
-                auth.resources
-                    .iter()
-                    .any(|selector| selector.matches(owner, kind, id))
-            }),
-            _ => false,
+        if let Some(authority) = self.host_device_authority() {
+            return authority
+                .resources
+                .iter()
+                .any(|selector| selector.matches(owner, kind, id));
         }
+        matches!(
+            self.principal,
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
+        )
     }
 
     pub fn allows_all_host_resources(&self, owner: &str, kind: &str) -> bool {
-        match self.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => true,
-            ProtocolPrincipal::HostDevice { .. } => self.authority.as_ref().is_some_and(|auth| {
-                auth.resources.iter().any(|selector| {
-                    selector.owner == owner && selector.kind == kind && selector.id.is_none()
-                })
-            }),
-            _ => false,
+        if let Some(authority) = self.host_device_authority() {
+            return authority.resources.iter().any(|selector| {
+                selector.owner == owner && selector.kind == kind && selector.id.is_none()
+            });
         }
+        matches!(
+            self.principal,
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
+        )
     }
 
     pub fn host_operation_is_authorized(&self) -> bool {
@@ -1353,6 +1368,9 @@ mod tests {
             Vec::new(),
             "http",
         );
+        assert_eq!(context.principal, ProtocolPrincipal::Anonymous);
+        assert!(context.is_host_device());
+        assert_eq!(context.host_device_grant_id(), Some("grant-1"));
         assert!(context.allows_host_action("observe"));
         assert!(!context.allows_host_action("deploy"));
         assert!(context.allows_host_resource("host", "project", "project-a"));

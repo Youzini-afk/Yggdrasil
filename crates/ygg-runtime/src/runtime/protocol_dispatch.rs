@@ -179,7 +179,7 @@ where
         requested_method: &str,
         result: &Result<Value, crate::ProtocolError>,
     ) {
-        let ProtocolPrincipal::HostDevice { grant_id } = &context.principal else {
+        let Some(grant_id) = context.host_device_grant_id() else {
             return;
         };
         let authority = context.authority.as_ref();
@@ -189,7 +189,7 @@ where
             .map(|operation| operation.resources.clone())
             .unwrap_or_default();
         let payload = json!({
-            "principal": &context.principal,
+            "principal": {"kind": "host_device", "grant_id": grant_id},
             "grant_id": grant_id,
             "delegation_chain": authority
                 .map(|value| value.delegation_chain.clone())
@@ -544,11 +544,19 @@ fn ensure_deployment_hub_control_allowed(
     } else {
         "deploy"
     };
-    match &context.principal {
-        ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => Ok(()),
-        ProtocolPrincipal::HostDevice { .. } if context.allows_host_action(action) => Ok(()),
-        _ => anyhow::bail!(
+    if context.is_host_device() {
+        anyhow::ensure!(
+            context.allows_host_action(action),
             "permission denied: deployment hub method requires authenticated Host action '{action}'"
-        ),
+        );
+        return Ok(());
     }
+    anyhow::ensure!(
+        matches!(
+            context.principal,
+            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
+        ),
+        "permission denied: deployment hub method requires authenticated Host action '{action}'"
+    );
+    Ok(())
 }

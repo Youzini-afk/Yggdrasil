@@ -12,7 +12,7 @@ where
         params: Value,
     ) -> anyhow::Result<Value> {
         let request: OpenSessionRequest = serde_json::from_value(params)?;
-        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+        if context.is_host_device() {
             if !context.allows_host_action("project_operate") {
                 anyhow::bail!(
                     "kernel.v1.session.open permission denied: Host device lacks project_operate"
@@ -44,7 +44,7 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.close requires session_id"))?
             .to_string();
-        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+        if context.is_host_device() {
             self.ensure_host_session_access(context, "project_operate", &session_id)
                 .await?;
         }
@@ -60,7 +60,7 @@ where
             .get("session_id")
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.get requires session_id"))?;
-        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+        if context.is_host_device() {
             self.ensure_host_session_access(context, "observe", session_id)
                 .await?;
         }
@@ -81,7 +81,7 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.fork requires parent_session_id"))?
             .to_string();
-        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+        if context.is_host_device() {
             self.ensure_host_session_access(context, "project_operate", &parent_session_id)
                 .await?;
         }
@@ -108,7 +108,7 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.branch.list requires session_id"))?
             .to_string();
-        if matches!(context.principal, ProtocolPrincipal::HostDevice { .. }) {
+        if context.is_host_device() {
             self.ensure_host_session_access(context, "observe", &session_id)
                 .await?;
         }

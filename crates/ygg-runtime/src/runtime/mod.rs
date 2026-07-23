@@ -409,10 +409,11 @@ where
         action: &str,
         session_id: &str,
     ) -> anyhow::Result<()> {
-        match context.principal {
-            ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => return Ok(()),
-            ProtocolPrincipal::HostDevice { .. } => {}
-            _ => anyhow::bail!("principal is not authenticated as a Host controller"),
+        if !context.is_host_device() {
+            return match context.principal {
+                ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev => Ok(()),
+                _ => anyhow::bail!("principal is not authenticated as a Host controller"),
+            };
         }
         if !context.allows_host_action(action) {
             anyhow::bail!("Host device authority does not include action '{action}'");
