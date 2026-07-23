@@ -1436,7 +1436,7 @@ pub enum ExecutionTargetStatusKind {
     Draining,
     Incompatible,
     Revoked,
-    /// Compatibility state used by older local target adapters.
+    // Kept for wire compatibility with older local target adapters.
     Unavailable,
 }
 

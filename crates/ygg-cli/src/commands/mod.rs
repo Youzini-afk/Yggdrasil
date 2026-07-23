@@ -14,6 +14,7 @@ pub(crate) mod manifest;
 pub(crate) mod package;
 pub(crate) mod perf;
 pub mod project;
+pub mod target_agent;
 pub mod uninstall;
 pub mod update;
 pub(crate) mod world_bundle;

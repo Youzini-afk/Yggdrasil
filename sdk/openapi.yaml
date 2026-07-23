@@ -1892,20 +1892,16 @@ components:
       - reverse_tunnel
       type: string
     ExecutionTargetStatusKind:
-      oneOf:
-      - enum:
-        - enrolling
-        - available
-        - degraded
-        - offline
-        - draining
-        - incompatible
-        - revoked
-        type: string
-      - description: Compatibility state used by older local target adapters.
-        enum:
-        - unavailable
-        type: string
+      enum:
+      - enrolling
+      - available
+      - degraded
+      - offline
+      - draining
+      - incompatible
+      - revoked
+      - unavailable
+      type: string
     ExecutorKind:
       description: The kind of outbound executor that produced a response.
       oneOf:

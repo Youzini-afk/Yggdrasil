@@ -184,6 +184,11 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: HostCommand,
     },
+    /// Enroll or run a native typed-operation target agent.
+    TargetAgent {
+        #[command(subcommand)]
+        command: TargetAgentCommand,
+    },
     /// Run a JSON-RPC-like kernel protocol loop over stdio.
     HostStdio,
     /// Validate a package manifest file.
@@ -370,6 +375,32 @@ pub enum HostAccessCommand {
     },
     /// Revoke a device grant.
     Revoke { grant_id: String },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TargetAgentCommand {
+    /// Claim a one-time Host enrollment and write non-secret agent configuration.
+    Enroll {
+        #[arg(long, default_value = "http://127.0.0.1:8787", env = "YGG_HOST_URL")]
+        endpoint: String,
+        #[arg(long, env = "YGG_TARGET_ENROLLMENT_TOKEN", hide_env_values = true)]
+        enrollment_token: String,
+        #[arg(long, env = "YGG_TARGET_AGENT_DATA_DIR")]
+        data_dir: PathBuf,
+        #[arg(
+            long,
+            value_delimiter = ',',
+            default_value = "artifact_transfer,declarative_verifier,health_probe"
+        )]
+        capabilities: Vec<String>,
+    },
+    /// Heartbeat, poll typed work, and execute it against a durable local ledger.
+    Run {
+        #[arg(long, env = "YGG_TARGET_AGENT_DATA_DIR")]
+        data_dir: PathBuf,
+        #[arg(long, env = "YGG_TARGET_AGENT_CREDENTIAL", hide_env_values = true)]
+        credential: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]

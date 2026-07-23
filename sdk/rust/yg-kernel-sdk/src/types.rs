@@ -6383,26 +6383,16 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutionTargetReachabil
 /// ```json
 ///{
 ///  "title": "ExecutionTargetStatusKind",
-///  "oneOf": [
-///    {
-///      "type": "string",
-///      "enum": [
-///        "enrolling",
-///        "available",
-///        "degraded",
-///        "offline",
-///        "draining",
-///        "incompatible",
-///        "revoked"
-///      ]
-///    },
-///    {
-///      "description": "Compatibility state used by older local target adapters.",
-///      "type": "string",
-///      "enum": [
-///        "unavailable"
-///      ]
-///    }
+///  "type": "string",
+///  "enum": [
+///    "enrolling",
+///    "available",
+///    "degraded",
+///    "offline",
+///    "draining",
+///    "incompatible",
+///    "revoked",
+///    "unavailable"
 ///  ]
 ///}
 /// ```
@@ -6435,7 +6425,6 @@ pub enum ExecutionTargetStatusKind {
     Incompatible,
     #[serde(rename = "revoked")]
     Revoked,
-    ///Compatibility state used by older local target adapters.
     #[serde(rename = "unavailable")]
     Unavailable,
 }

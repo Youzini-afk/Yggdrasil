@@ -55,9 +55,9 @@ ExecutionTarget
 
 Host journal 只保存 public identity、credential digest/serial、状态和审计引用，不保存 agent private key。第一版可以使用 Host 管理的 CA；协议语义应允许后续接入 SPIFFE，而不把 SPIFFE 部署要求写入核心模型。
 
-### 已实现的 identity/observation 切片
+### 已实现的 identity/observation 与 typed-worker 切片
 
-当前 `target-agent.v1` 只开放不产生目标端 effect 的身份与观测控制面：
+`target-agent.v1` 的身份与观测控制面：
 
 | 调用方 | 路由 | 权威与作用 |
 |---|---|---|
@@ -69,7 +69,22 @@ Host journal 只保存 public identity、credential digest/serial、状态和审
 
 Enrollment token 和 agent credential 只以带 domain separation 的 SHA-256 digest 进入 `host_control_target_agents` journal；challenge 单次消费，重启后非 revoked target 先回到 `Offline`，旧凭据与旧 epoch 不能恢复为可用状态。`kernel.v1.target.register/unregister` 保留兼容方法名但 fail closed，调用方 JSON 不能绕过该流程制造 `Available` target。
 
-该 HTTP API 是 Phase 4A 的 bootstrap/liveness 控制通道，不接收 operation、artifact、tunnel 或通用命令。`YggTarget` credential 只能经 loopback 或已认证 TLS 传输；在任何 effect endpoint 启用前，后续切片仍必须实现本合同要求的 operation authority、持久 ledger、fencing，以及 mTLS 或等价双向认证 session。
+Phase 4B 增加以下 typed-worker 路由；它们不提供通用命令：
+
+| 调用方 | 路由 | 权威与作用 |
+|---|---|---|
+| Host 客户端 | `POST/GET /host/v1/targets/{target_id}/operations` | `deploy`/`observe` scope，同时约束 target 与 project selector；创建或列出类型化 operation |
+| Host 客户端 | `GET /host/v1/targets/{target_id}/operations/{operation_id}` | 读取 project-scoped durable operation/receipt |
+| Agent | `GET /target-agent/v1/operations/next` | 仅向 live、epoch 匹配的 target 返回其未终结 operation |
+| Agent | `POST /target-agent/v1/operations/{operation_id}/progress` | 持久记录 accepted/running；首个随机 `execution_id` 获得唯一执行权 |
+| Agent | `POST /target-agent/v1/operations/{operation_id}/receipt` | 只接受与 authority、execution owner 和 request digest 一致的终态回执 |
+| Agent | `GET /target-agent/v1/operations/{operation_id}/artifacts/{digest}` | 只流式读取该 accepted/running operation 明确授权的 digest |
+
+Host 的 `host_control_target_operations` journal 与 Agent 的 SQLite ledger 都使用 expected-sequence CAS。Agent 在回复 accepted 前持久化 request/authority digest，在提交回执前持久化 terminal receipt；同一 data directory 有进程锁，复制 credential 到另一 ledger 也不能夺取已经绑定的 `execution_id`。`artifact.materialize/release`、`health.probe` 和声明式 `verifier.run(artifact_integrity)` 是当前唯一可执行类型；未知类型没有 shell fallback。下载先进入 digest 派生的 partial 文件，完整 SHA-256/size 校验后才原子落入本地 CAS，失败 partial 会删除。
+
+Revoke 对新工作和新的 accepted/running 转换 fail closed。线性化边界是 Host 已持久确认 `Running`：该边界前观察到 revoke/offline/stale epoch 就不执行；边界后的当前幂等 step 可完成或重放 receipt，但不能取得新 operation。Deployment 的 drain/强制停止策略仍由 Phase 4C 明确定义，不能把并发 revoke 伪装成对远端本地 effect 的原子回滚。
+
+Operation authority 绑定 target/operation/step/project/effect/artifact/lease epoch/policy epoch/expiry/nonce/request digest，并用 enrollment credential 的 domain-separated digest 作为 epoch-scoped HMAC key；Agent 以一次性获得的 credential 独立复算 MAC。原生客户端禁用 redirect，远程 Host 强制 HTTPS，credential 不写入配置或 ledger，只从 `YGG_TARGET_AGENT_CREDENTIAL` 注入；loopback HTTP 仅用于同机边界。部署、实际 port lease、authenticated tunnel/private preview 仍属于 Phase 4C，当前实现没有放宽 Host loopback upstream。
 
 ## Transport session
 

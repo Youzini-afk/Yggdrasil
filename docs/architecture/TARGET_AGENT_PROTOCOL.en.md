@@ -50,9 +50,9 @@ States include Enrolling, Available, Degraded, Offline, Draining, Incompatible, 
 
 The journal stores public identity, credential digest/serial, state, and audit references, never the agent private key. A Host-managed CA can implement v1 while preserving future SPIFFE integration.
 
-### Implemented identity/observation slice
+### Implemented identity/observation and typed-worker slices
 
-The current `target-agent.v1` surface exposes only identity and observation control-plane calls that cannot cause target-side effects:
+The `target-agent.v1` identity and observation control plane exposes:
 
 | Caller | Route | Authority and purpose |
 |---|---|---|
@@ -64,7 +64,22 @@ The current `target-agent.v1` surface exposes only identity and observation cont
 
 Enrollment tokens and agent credentials enter the `host_control_target_agents` journal only as domain-separated SHA-256 digests. Challenges are single-use; after restart every non-revoked remote target first returns to `Offline`; an old credential or epoch cannot restore availability. The compatibility names `kernel.v1.target.register/unregister` now fail closed, so caller JSON cannot bypass enrollment and create an `Available` target.
 
-This HTTP API is the Phase 4A bootstrap/liveness control channel; it accepts no operation, artifact, tunnel, or general command. A `YggTarget` credential may travel only over loopback or authenticated TLS. Before any effect endpoint is enabled, later slices must still deliver this contract's operation authority, durable ledger, fencing, and mTLS or equivalent mutually authenticated session.
+Phase 4B adds these typed-worker routes without adding a general command surface:
+
+| Caller | Route | Authority and purpose |
+|---|---|---|
+| Host client | `POST/GET /host/v1/targets/{target_id}/operations` | `deploy`/`observe` plus target and project selectors; create or list typed operations |
+| Host client | `GET /host/v1/targets/{target_id}/operations/{operation_id}` | Read a project-scoped durable operation and receipt |
+| Agent | `GET /target-agent/v1/operations/next` | Return pending work only to the live target with matching epochs |
+| Agent | `POST /target-agent/v1/operations/{operation_id}/progress` | Persist accepted/running; the first random `execution_id` owns execution |
+| Agent | `POST /target-agent/v1/operations/{operation_id}/receipt` | Accept a terminal receipt only when authority, execution owner, and request digest match |
+| Agent | `GET /target-agent/v1/operations/{operation_id}/artifacts/{digest}` | Stream only a digest explicitly authorized by that accepted/running operation |
+
+The Host `host_control_target_operations` journal and Agent SQLite ledger both use expected-sequence CAS. The Agent persists request/authority digests before acknowledging acceptance and persists the terminal receipt before posting it. A process lock protects one data directory, while a copied credential with another ledger cannot take over an already-bound `execution_id`. The only executable types are `artifact.materialize/release`, `health.probe`, and declarative `verifier.run(artifact_integrity)`; unknown types have no shell fallback. Downloads use a digest-derived partial path and enter the local CAS only after full SHA-256 and size verification.
+
+Revoke fails closed for new work and new accepted/running transitions. The linearization boundary is the Host's durable acknowledgement of `Running`: a revoke/offline/stale epoch observed before it prevents execution; after it, the current idempotent step may finish or replay its receipt but cannot acquire new work. Phase 4C must define deployment drain/forced-stop policy explicitly rather than pretending a concurrent revoke can atomically roll back a target-local effect.
+
+Operation authority binds target, operation, step, project, effect, artifacts, lease/policy epochs, expiry, nonce, and request digest. It is MACed with the epoch-scoped, domain-separated enrollment credential digest, and the Agent independently recomputes that MAC from the credential it received once. The native client disables redirects, requires HTTPS for a remote Host, never persists the credential in config or ledger, and reads it only from `YGG_TARGET_AGENT_CREDENTIAL`; loopback HTTP is confined to the same machine. Deployment, actual port leases, authenticated tunnel/private preview remain Phase 4C work, and the Host loopback upstream boundary is unchanged.
 
 ## Transport session
 

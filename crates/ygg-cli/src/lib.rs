@@ -8,7 +8,7 @@ pub mod templates;
 use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, ContractCommand,
     HostAccessCommand, HostCommand, ManifestCommand, PackageCommand, PerfCommand,
-    WorldBundleCommand,
+    TargetAgentCommand, WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
@@ -79,6 +79,21 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
             HostCommand::Restore { backup, data_dir } => {
                 commands::host_data::restore(backup, data_dir).await
             }
+        },
+        Command::TargetAgent { command } => match command {
+            TargetAgentCommand::Enroll {
+                endpoint,
+                enrollment_token,
+                data_dir,
+                capabilities,
+            } => {
+                commands::target_agent::enroll(&endpoint, &enrollment_token, data_dir, capabilities)
+                    .await
+            }
+            TargetAgentCommand::Run {
+                data_dir,
+                credential,
+            } => commands::target_agent::run(data_dir, credential).await,
         },
         Command::HostStdio => host::host_stdio().await,
         Command::Manifest { command } => match command {

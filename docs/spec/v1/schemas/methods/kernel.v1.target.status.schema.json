@@ -68,27 +68,17 @@
       "type": "string"
     },
     "ExecutionTargetStatusKind": {
-      "oneOf": [
-        {
-          "enum": [
-            "enrolling",
-            "available",
-            "degraded",
-            "offline",
-            "draining",
-            "incompatible",
-            "revoked"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "Compatibility state used by older local target adapters.",
-          "enum": [
-            "unavailable"
-          ],
-          "type": "string"
-        }
-      ]
+      "enum": [
+        "enrolling",
+        "available",
+        "degraded",
+        "offline",
+        "draining",
+        "incompatible",
+        "revoked",
+        "unavailable"
+      ],
+      "type": "string"
     },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

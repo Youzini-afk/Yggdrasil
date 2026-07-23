@@ -20,6 +20,16 @@ use ygg_runtime::{
 use crate::host_access::{constant_time_eq, HostAccessIdentity};
 use crate::{require_identity_target, AppState, ServiceError};
 
+mod operation;
+
+pub use operation::{
+    verify_target_operation_authority, CreateTargetOperationRequest, CreateTargetOperationResponse,
+    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetOperationAuthority,
+    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
+    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
+    TargetOperationStatusKind,
+};
+
 const JOURNAL_SESSION: &str = "host_control_target_agents";
 const JOURNAL_EVENT: &str = "host/control/v1/target_agent.transition";
 const JOURNAL_WRITER: &str = "host/control-plane";
@@ -81,11 +91,13 @@ struct TargetAgentState {
     next_sequence: EventSequence,
     enrollments: HashMap<String, StoredEnrollment>,
     agents: HashMap<String, StoredAgent>,
+    credential_digests: HashMap<(String, u64), String>,
 }
 
 #[derive(Debug, Default)]
 pub struct TargetAgentRegistry {
     state: Mutex<TargetAgentState>,
+    operations: Mutex<operation::TargetOperationState>,
 }
 
 pub fn target_agent_registry() -> Arc<TargetAgentRegistry> {
@@ -115,6 +127,27 @@ impl TargetAgentRegistry {
             .expect("target agent state lock poisoned")
             .agents
             .get(target_id)
+            .cloned()
+    }
+
+    fn authenticate_agent(&self, credential: &str) -> Option<StoredAgent> {
+        let target_id = credential_target_id(credential)?;
+        let agent = self.agent(target_id)?;
+        let candidate_digest = credential_digest("agent", credential);
+        (agent.target.status != ExecutionTargetStatusKind::Revoked
+            && constant_time_eq(
+                candidate_digest.as_bytes(),
+                agent.credential_digest.as_bytes(),
+            ))
+        .then_some(agent)
+    }
+
+    fn operation_authority_key(&self, target_id: &str, lease_epoch: u64) -> Option<String> {
+        self.state
+            .lock()
+            .expect("target agent state lock poisoned")
+            .credential_digests
+            .get(&(target_id.to_string(), lease_epoch))
             .cloned()
     }
 
@@ -216,6 +249,10 @@ impl TargetAgentRegistry {
                     .get_mut(&enrollment_id)
                     .expect("claimed enrollment disappeared while journal lock was held")
                     .status = EnrollmentStatus::Claimed;
+                state.credential_digests.insert(
+                    (agent.target.id.clone(), agent.target.lease_epoch),
+                    agent.credential_digest.clone(),
+                );
                 state.agents.insert(agent.target.id.clone(), agent);
             }
             TargetAgentJournalEvent::Heartbeat { target } => {
@@ -270,7 +307,7 @@ pub struct CreateTargetEnrollmentResponse {
     pub expires_at_ms: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ClaimTargetEnrollmentRequest {
     pub enrollment_token: String,
     pub protocol_versions: Vec<String>,
@@ -278,7 +315,7 @@ pub struct ClaimTargetEnrollmentRequest {
     pub declared_capabilities: Vec<ExecutionTargetCapability>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ClaimTargetEnrollmentResponse {
     pub target: ExecutionTarget,
     pub agent_credential: String,
@@ -287,7 +324,7 @@ pub struct ClaimTargetEnrollmentResponse {
     pub heartbeat_timeout_seconds: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TargetAgentHeartbeatRequest {
     pub protocol_version: String,
     pub lease_epoch: u64,
@@ -297,7 +334,7 @@ pub struct TargetAgentHeartbeatRequest {
     pub observed: ExecutionTargetObservedSummary,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TargetAgentHeartbeatResponse {
     pub target: ExecutionTarget,
     pub heartbeat_interval_seconds: u64,
@@ -320,6 +357,7 @@ where
             "/host/v1/targets/:target_id/revoke",
             post(revoke_target::<S>),
         )
+        .merge(operation::protected_routes::<S>())
         .layer(middleware::from_fn(target_agent_response_headers))
 }
 
@@ -330,6 +368,7 @@ where
     Router::new()
         .route("/target-agent/v1/enroll", post(claim_enrollment::<S>))
         .route("/target-agent/v1/heartbeat", post(heartbeat::<S>))
+        .merge(operation::agent_routes::<S>())
         .layer(middleware::from_fn(target_agent_response_headers))
 }
 
@@ -727,7 +766,7 @@ async fn heartbeat_record<S>(
 where
     S: EventStore,
 {
-    let target_id = credential_target_id(credential).ok_or(TargetHeartbeatError::Unauthorized)?;
+    credential_target_id(credential).ok_or(TargetHeartbeatError::Unauthorized)?;
     if request.protocol_version != PROTOCOL_VERSION {
         return Err(TargetHeartbeatError::Unauthorized);
     }
@@ -744,15 +783,9 @@ where
             .await
             .map_err(TargetHeartbeatError::Internal)?;
         let agent = registry
-            .agent(target_id)
+            .authenticate_agent(credential)
             .ok_or(TargetHeartbeatError::Unauthorized)?;
-        let candidate_digest = credential_digest("agent", credential);
-        if !constant_time_eq(
-            candidate_digest.as_bytes(),
-            agent.credential_digest.as_bytes(),
-        ) || agent.target.status == ExecutionTargetStatusKind::Revoked
-            || request.lease_epoch != agent.target.lease_epoch
-        {
+        if request.lease_epoch != agent.target.lease_epoch {
             return Err(TargetHeartbeatError::Unauthorized);
         }
         let allowed = agent
@@ -914,8 +947,11 @@ pub async fn hydrate_target_agent_control_plane<S>(
 where
     S: EventStore,
 {
-    let loaded =
+    let mut loaded =
         sync_target_agent_journal(store.as_ref(), registry.as_ref(), targets.as_ref()).await?;
+    loaded = loaded.saturating_add(
+        operation::sync_target_operation_journal(store.as_ref(), registry.as_ref()).await?,
+    );
     registry.mark_offline_after_hydration();
     mirror_targets(registry.as_ref(), targets.as_ref()).await;
     Ok(loaded)

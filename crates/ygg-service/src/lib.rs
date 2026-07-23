@@ -65,7 +65,13 @@ pub use host_access::{
     HostAccessResourceSelector, HostAccessScope,
 };
 pub use target_agent::{
-    hydrate_target_agent_control_plane, target_agent_registry, TargetAgentRegistry,
+    hydrate_target_agent_control_plane, target_agent_registry, verify_target_operation_authority,
+    ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse, CreateTargetOperationRequest,
+    CreateTargetOperationResponse, DeclarativeVerifierDescriptor, NextTargetOperationResponse,
+    TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse, TargetAgentRegistry,
+    TargetOperationAuthority, TargetOperationEffect, TargetOperationProgressRequest,
+    TargetOperationReceipt, TargetOperationReceiptStatus, TargetOperationRecord,
+    TargetOperationSpec, TargetOperationStatusKind,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;

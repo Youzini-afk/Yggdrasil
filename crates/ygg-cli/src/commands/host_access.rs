@@ -151,13 +151,20 @@ async fn request(
     serde_json::from_slice(&bytes).context("Host returned invalid JSON")
 }
 
-fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
+pub(crate) fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
     let endpoint = endpoint.trim_end_matches('/');
     let url = url::Url::parse(&format!("{endpoint}{path}"))
         .with_context(|| format!("invalid Host endpoint '{endpoint}'"))?;
     anyhow::ensure!(
         matches!(url.scheme(), "http" | "https"),
         "Host endpoint must use http or https"
+    );
+    anyhow::ensure!(
+        url.username().is_empty()
+            && url.password().is_none()
+            && url.query().is_none()
+            && url.fragment().is_none(),
+        "Host endpoint must not contain userinfo, query, or fragment components"
     );
     if url.scheme() == "http" {
         let loopback = match url.host() {
@@ -190,5 +197,7 @@ mod tests {
         assert!(host_url("http://localhost:8787", "/host/v1/access/me").is_ok());
         assert!(host_url("http://example.test:8787", "/host/v1/access/me").is_err());
         assert!(host_url("https://example.test", "/host/v1/access/me").is_ok());
+        assert!(host_url("https://user:secret@example.test", "/host/v1/access/me").is_err());
+        assert!(host_url("https://example.test?token=secret", "/host/v1/access/me").is_err());
     }
 }
