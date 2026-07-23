@@ -130,7 +130,7 @@ A public route's application owns internet-input validation, application identit
 
 ## Deliberately absent
 
-- Remote execution targets or remote package transport; deployed upstreams remain local loopback services.
+- Target-edge ingress, application identity, arbitrary network transport, or remote package transport. Remote deployment ports remain loopback-only and are reached only through the authenticated Target Agent tunnel.
 - Multi-user project membership, workload-grade hard sandboxing, and cross-Host delegation chains. Current project selectors are a single-Host control-plane boundary.
 - Automatic root-token synchronization to phones, or a local CLI mutation path that bypasses the Host API.
 - Deployment, public routes, or side-effect replay without explicit user confirmation.

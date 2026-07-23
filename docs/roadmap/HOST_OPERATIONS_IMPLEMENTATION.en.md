@@ -29,8 +29,8 @@ Some release/health work may develop alongside Phase 2, but remote targets do no
 | Phase 1 | Candidate implementation complete | Project/target authority, delegation, server-side filtering, Web/CLI, and redacted decision journals are closed; GitHub CI validates the full matrix |
 | Phase 2 | Candidate implementation complete | Durable deployment intent/operation/lease/receipt, candidate-first activation, reconcile/recover/rollback, and bounded restart policy are closed and validated by GitHub CI |
 | Phase 3 | Candidate implementation complete | Non-destructive data migration, backup/verify/restore, live/ready, release integrity, SBOM, and provenance are closed and validated by GitHub CI |
-| Phase 4 | In progress | Identity/observation, typed-worker, reachability driver, equivalent Docker deployment, actual-port lease projection, and the authenticated reverse-tunnel/private-preview Candidate baseline are implemented; the remaining gate is GitHub CI closure for remote HTTP/WebSocket, reconnect/revoke/backpressure/stale-epoch faults, and explicit public-route acceptance |
-| Phase 5 | Not started | It remains gated on the Remote Target Agent and will not add client-only bypasses |
+| Phase 4 | Candidate implementation complete | Durable identity/operations/artifacts, equivalent local/Agent Docker deployment, actual-port projection, and authenticated reverse-tunnel HTTP/WebSocket/private/public routing are closed; reconnect, duplicate ownership, revoke, backpressure, stale-epoch, framing, and vhost authority acceptance pass GitHub CI |
+| Phase 5 | In progress | Shared Host connections and project/target context are the next slice; clients continue to use the same Host API and grants without a bypass |
 
 ## Phase 0: design contracts
 
@@ -58,7 +58,7 @@ Gate: old-data upgrade→backup→restore, store/object/secret faults, installer
 
 Slices: durable target registry/enrollment/heartbeat/observe; target driver router and local conformance; agent ledger/authority/idempotency/fencing; artifact and verifier transport; deployment/actual ports/authenticated tunnel/private preview; explicit public route, with target-edge work deferred.
 
-The code now covers slices 1–5 and can reuse the Host's existing explicit `public` route mode for remote workloads. Phase 4 remains In progress until the complete remote-tunnel/failure/public-route acceptance matrix passes; an exposed endpoint alone is not the gate.
+Implementation result (2026-07-24): all slices are closed. Target ports remain loopback-only; authenticated reverse tunnels carry HTTP and WebSocket traffic, private routes remain Host-authenticated, and public vhosts require an explicit `public` route. GitHub CI exercises duplicate connection ownership, HTTP framing, vhost authority, reconnect, revoke, backpressure, stale epochs, and durable readiness reprojection.
 
 Gate: crashes, duplicates, reordering, reconnect, revoke, corruption, and stale epochs never produce duplicate or unauthorized effects.
 

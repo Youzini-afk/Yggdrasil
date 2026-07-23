@@ -130,7 +130,7 @@ route_access: host_authenticated # 默认；旧描述符也按此解释
 
 ## 刻意未提供
 
-- 远程执行 target 或远端 package transport；当前部署 upstream 仍在本机 loopback。
+- target-edge ingress、应用身份、任意网络 transport 或远端 package transport。远程 deployment 端口仍只绑定 loopback，并且只能通过认证 Target Agent tunnel 到达。
 - 多用户项目成员模型、workload 级强沙箱和跨 Host delegation chain；当前 project selector 是单 Host 控制面边界。
 - 把 root token 自动同步到手机，或用本地 CLI 绕开 Host API 写入。
 - 未经用户确认的部署、公开 route 或自动重放副作用。
