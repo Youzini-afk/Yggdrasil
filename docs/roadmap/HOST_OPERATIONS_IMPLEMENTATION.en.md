@@ -29,7 +29,7 @@ Some release/health work may develop alongside Phase 2, but remote targets do no
 | Phase 1 | Candidate implementation complete | Project/target authority, delegation, server-side filtering, Web/CLI, and redacted decision journals are closed; GitHub CI validates the full matrix |
 | Phase 2 | Candidate implementation complete | Durable deployment intent/operation/lease/receipt, candidate-first activation, reconcile/recover/rollback, and bounded restart policy are closed and validated by GitHub CI |
 | Phase 3 | Candidate implementation complete | Non-destructive data migration, backup/verify/restore, live/ready, release integrity, SBOM, and provenance are closed and validated by GitHub CI |
-| Phase 4 | In progress | Identity/observation and typed-worker slices are implemented: durable enrollment/heartbeat/revoke, MAC-bound operation authority, Host/Agent ledgers, authorized artifact streaming, a declarative verifier, and native `ygg target-agent`; driver/deployment/tunnel slices remain |
+| Phase 4 | In progress | Identity/observation, typed-worker, and the first driver slice are implemented: durable enrollment/heartbeat/revoke, MAC-bound authority, dual ledgers, artifact/verifier transport, native Agent, a reachability router, and local durable health conformance; deployment/actual-port/tunnel slices remain |
 | Phase 5 | Not started | It remains gated on the Remote Target Agent and will not add client-only bypasses |
 
 ## Phase 0: design contracts

@@ -1497,6 +1497,7 @@ impl ExecutionTargetRegistry {
             ExecutionTargetCapability::PortLease,
             ExecutionTargetCapability::HttpProxyUpstream,
             ExecutionTargetCapability::WebsocketProxyUpstream,
+            ExecutionTargetCapability::HealthProbe,
         ];
         let target = ExecutionTarget {
             id: "local".to_string(),

@@ -20,6 +20,7 @@ use ygg_runtime::{
 use crate::host_access::{constant_time_eq, HostAccessIdentity};
 use crate::{require_identity_target, AppState, ServiceError};
 
+mod driver;
 mod operation;
 
 pub use operation::{
@@ -143,6 +144,9 @@ impl TargetAgentRegistry {
     }
 
     fn operation_authority_key(&self, target_id: &str, lease_epoch: u64) -> Option<String> {
+        if target_id == "local" && lease_epoch == 1 {
+            return Some(credential_digest("local-target-operation", "host:local:v1"));
+        }
         self.state
             .lock()
             .expect("target agent state lock poisoned")

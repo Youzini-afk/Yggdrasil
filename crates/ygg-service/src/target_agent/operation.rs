@@ -6,6 +6,7 @@ use tokio::io::AsyncReadExt;
 use ygg_core::ProjectId;
 use ygg_runtime::scan_effect_value_for_raw_secrets;
 
+use super::driver::{resolve_target_driver, TargetDriverKind};
 use crate::require_identity_project;
 
 const OPERATION_JOURNAL_SESSION: &str = "host_control_target_operations";
@@ -671,10 +672,10 @@ fn validate_create_request(
     target_id: &str,
     request: &CreateTargetOperationRequest,
 ) -> Result<(), ServiceError> {
-    if !valid_target_id(target_id) || target_id == "local" {
+    if !valid_target_id(target_id) {
         return Err(ServiceError::with_status(
             StatusCode::BAD_REQUEST,
-            "target operation requires a valid enrolled remote target_id",
+            "target operation requires a valid target_id",
         ));
     }
     request.spec.validate()?;
@@ -790,6 +791,7 @@ where
         .status(&target_id)
         .await
         .ok_or_else(|| ServiceError::with_status(StatusCode::NOT_FOUND, "target not found"))?;
+    let driver = resolve_target_driver(&target);
     let authority_key = state
         .target_agents
         .operation_authority_key(&target.id, target.lease_epoch)
@@ -819,6 +821,12 @@ where
     )
     .await
     .map_err(target_conflict_error)?;
+    let operation = match driver {
+        TargetDriverKind::Local => drive_local_operation(&state, &operation.operation_id)
+            .await
+            .map_err(target_internal_error)?,
+        TargetDriverKind::Agent => operation,
+    };
     Ok((
         StatusCode::CREATED,
         Json(CreateTargetOperationResponse { operation }),
@@ -1263,6 +1271,218 @@ where
         .map_err(|error| target_internal_error(error.into()))
 }
 
+async fn drive_local_operation<S>(
+    state: &AppState<S>,
+    operation_id: &str,
+) -> anyhow::Result<TargetOperationRecord>
+where
+    S: EventStore,
+{
+    let execution_id = local_execution_id(operation_id);
+    let accepted = advance_local_operation(
+        state,
+        operation_id,
+        TargetOperationStatusKind::Accepted,
+        &execution_id,
+    )
+    .await?;
+    if accepted.status.is_terminal() {
+        return Ok(accepted);
+    }
+    let running = advance_local_operation(
+        state,
+        operation_id,
+        TargetOperationStatusKind::Running,
+        &execution_id,
+    )
+    .await?;
+    if running.status.is_terminal() {
+        return Ok(running);
+    }
+
+    let completed_at_ms = Utc::now().timestamp_millis();
+    let (status, output, diagnostics) = match execute_local_operation(&running).await {
+        Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
+        Err(_) => (
+            TargetOperationReceiptStatus::Failed,
+            Value::Null,
+            vec!["local target operation failed".to_string()],
+        ),
+    };
+    complete_local_operation(
+        state,
+        operation_id,
+        TargetOperationReceipt {
+            operation_id: operation_id.to_string(),
+            target_id: running.target_id.clone(),
+            execution_id,
+            step_id: OPERATION_STEP_ID.to_string(),
+            request_digest: running.authority.request_digest.clone(),
+            authority_digest: running.authority.authority_digest.clone(),
+            status,
+            completed_at_ms,
+            output,
+            diagnostics,
+        },
+    )
+    .await
+}
+
+fn local_execution_id(operation_id: &str) -> String {
+    format!("{:x}", Sha256::digest(operation_id.as_bytes()))[..32].to_string()
+}
+
+async fn advance_local_operation<S>(
+    state: &AppState<S>,
+    operation_id: &str,
+    requested_status: TargetOperationStatusKind,
+    execution_id: &str,
+) -> anyhow::Result<TargetOperationRecord>
+where
+    S: EventStore,
+{
+    anyhow::ensure!(
+        matches!(
+            requested_status,
+            TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
+        ),
+        "local target progress status is invalid"
+    );
+    for _ in 0..8 {
+        sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+            .await?;
+        let current = state
+            .target_agents
+            .operation(operation_id)
+            .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
+        if current.status.is_terminal()
+            || current.status == requested_status
+            || (requested_status == TargetOperationStatusKind::Accepted
+                && current.status == TargetOperationStatusKind::Running)
+        {
+            return Ok(current);
+        }
+        let now_ms = Utc::now().timestamp_millis();
+        if current.status == TargetOperationStatusKind::Requested
+            && now_ms >= current.authority.expires_at_ms
+        {
+            let mut expired = current;
+            expired.revision = expired.revision.saturating_add(1);
+            expired.status = TargetOperationStatusKind::Expired;
+            expired.updated_at_ms = now_ms;
+            if append_target_operation_snapshot(
+                state.runtime.store().as_ref(),
+                state.target_agents.as_ref(),
+                state.target_agents.operation_next_sequence(),
+                &expired,
+            )
+            .await?
+            .is_some()
+            {
+                return Ok(expired);
+            }
+            continue;
+        }
+        anyhow::ensure!(
+            matches!(
+                (current.status, requested_status),
+                (
+                    TargetOperationStatusKind::Requested,
+                    TargetOperationStatusKind::Accepted
+                ) | (
+                    TargetOperationStatusKind::Accepted,
+                    TargetOperationStatusKind::Running
+                )
+            ),
+            "local target operation progress transition is invalid"
+        );
+        let mut next = current;
+        next.revision = next.revision.saturating_add(1);
+        next.status = requested_status;
+        if next.execution_id.is_none() {
+            next.execution_id = Some(execution_id.to_string());
+        }
+        anyhow::ensure!(
+            next.execution_id.as_deref() == Some(execution_id),
+            "local target operation execution owner changed"
+        );
+        next.updated_at_ms = now_ms;
+        if append_target_operation_snapshot(
+            state.runtime.store().as_ref(),
+            state.target_agents.as_ref(),
+            state.target_agents.operation_next_sequence(),
+            &next,
+        )
+        .await?
+        .is_some()
+        {
+            return Ok(next);
+        }
+    }
+    anyhow::bail!("local target operation journal changed too frequently")
+}
+
+async fn execute_local_operation(operation: &TargetOperationRecord) -> anyhow::Result<Value> {
+    match &operation.spec {
+        TargetOperationSpec::HealthProbe => Ok(json!({
+            "target_id": operation.target_id,
+            "healthy": true,
+            "checked_at_ms": Utc::now().timestamp_millis()
+        })),
+        _ => anyhow::bail!("operation is not implemented by the local target driver"),
+    }
+}
+
+async fn complete_local_operation<S>(
+    state: &AppState<S>,
+    operation_id: &str,
+    receipt: TargetOperationReceipt,
+) -> anyhow::Result<TargetOperationRecord>
+where
+    S: EventStore,
+{
+    for _ in 0..8 {
+        sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+            .await?;
+        let current = state
+            .target_agents
+            .operation(operation_id)
+            .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
+        if current.status.is_terminal() {
+            return Ok(current);
+        }
+        anyhow::ensure!(
+            matches!(
+                current.status,
+                TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
+            ),
+            "local target operation was not durably accepted"
+        );
+        let mut next = current;
+        next.revision = next.revision.saturating_add(1);
+        next.status = receipt.status.into();
+        next.updated_at_ms = receipt.completed_at_ms.max(Utc::now().timestamp_millis());
+        next.receipt = Some(receipt.clone());
+        let authority_key = state
+            .target_agents
+            .operation_authority_key(&next.target_id, next.authority.lease_epoch)
+            .ok_or_else(|| anyhow::anyhow!("local target authority key disappeared"))?;
+        validate_record_integrity(&next, &authority_key)?;
+        if append_target_operation_snapshot(
+            state.runtime.store().as_ref(),
+            state.target_agents.as_ref(),
+            state.target_agents.operation_next_sequence(),
+            &next,
+        )
+        .await?
+        .is_some()
+        {
+            return Ok(next);
+        }
+    }
+    anyhow::bail!("local target operation journal changed too frequently")
+}
+
 async fn create_operation_record<S>(
     store: &S,
     registry: &TargetAgentRegistry,
@@ -1565,6 +1785,72 @@ mod tests {
             diagnostics: Vec::new(),
         });
         assert!(validate_record_integrity(&completed, &authority_key).is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn local_driver_uses_the_durable_operation_state_and_receipt() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(ygg_runtime::Runtime::new(
+            store.clone(),
+            ygg_runtime::RuntimeConfig::default(),
+        ));
+        let registry = Arc::new(TargetAgentRegistry::default());
+        let state = AppState {
+            runtime: runtime.clone(),
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
+            development: crate::development_registry(),
+            host_access: crate::host_access_registry(),
+            target_agents: registry.clone(),
+        };
+        let target = runtime
+            .config()
+            .target_registry
+            .status("local")
+            .await
+            .expect("local target exists");
+        let authority_key = registry
+            .operation_authority_key("local", target.lease_epoch)
+            .expect("local target authority key exists");
+        let requested = create_operation_record(
+            store.as_ref(),
+            registry.as_ref(),
+            &authority_key,
+            target,
+            CreateTargetOperationRequest {
+                project_id: ProjectId::new("project-1")?,
+                spec: TargetOperationSpec::HealthProbe,
+                idempotency_key: Some("local-health-1".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+
+        let completed = drive_local_operation(&state, &requested.operation_id).await?;
+        assert_eq!(completed.status, TargetOperationStatusKind::Succeeded);
+        assert_eq!(completed.revision, 4);
+        assert_eq!(
+            completed
+                .receipt
+                .as_ref()
+                .and_then(|receipt| receipt.output.get("healthy"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            drive_local_operation(&state, &requested.operation_id).await?,
+            completed
+        );
+
+        let restored = TargetAgentRegistry::default();
+        assert_eq!(
+            sync_target_operation_journal(store.as_ref(), &restored).await?,
+            4
+        );
+        assert_eq!(restored.operation(&requested.operation_id), Some(completed));
         Ok(())
     }
 }
