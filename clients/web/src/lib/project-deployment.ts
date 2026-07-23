@@ -1,8 +1,11 @@
+export type RouteAccess = "host_authenticated" | "public";
+
 export interface DockerDeploymentDescriptor {
   image: string;
   container_port: number;
   port_name: string;
   route_id: string;
+  route_access: RouteAccess;
   health_path?: string;
   pull_if_missing: boolean;
 }
@@ -37,6 +40,7 @@ export interface BuildDeployDescriptor {
   container_port: number;
   port_name: string;
   route_id: string;
+  route_access: RouteAccess;
   health_path?: string;
   runtime_env: BuildDeployEnvDescriptor[];
   runtime_mounts: BuildDeployMountDescriptor[];
@@ -83,6 +87,11 @@ export function parseDockerDeploymentDescriptor(
     return { descriptor: null, error: "deployment.docker.route_id must be label-safe" };
   }
 
+  const routeAccess = docker.route_access ?? "host_authenticated";
+  if (routeAccess !== "host_authenticated" && routeAccess !== "public") {
+    return { descriptor: null, error: "deployment.docker.route_access must be host_authenticated or public" };
+  }
+
   const healthPath = docker.health_path;
   if (healthPath !== undefined && (typeof healthPath !== "string" || !healthPath.startsWith("/") || healthPath.length > 256)) {
     return { descriptor: null, error: "deployment.docker.health_path must start with /" };
@@ -99,6 +108,7 @@ export function parseDockerDeploymentDescriptor(
       container_port: containerPort,
       port_name: portName,
       route_id: routeId,
+      route_access: routeAccess,
       ...(healthPath ? { health_path: healthPath } : {}),
       pull_if_missing: pullIfMissing,
     },
@@ -140,6 +150,10 @@ export function parseBuildDeployDescriptor(projectId: string, metadata: unknown)
   if (typeof portName !== "string" || !isSafeRouteToken(portName)) return { descriptor: null, error: "deployment.build_deploy.port_name must be label-safe" };
   const routeId = raw.route_id === undefined ? `${projectId}-web` : raw.route_id;
   if (typeof routeId !== "string" || !isSafeRouteToken(routeId)) return { descriptor: null, error: "deployment.build_deploy.route_id must be label-safe" };
+  const routeAccess = raw.route_access ?? "host_authenticated";
+  if (routeAccess !== "host_authenticated" && routeAccess !== "public") {
+    return { descriptor: null, error: "deployment.build_deploy.route_access must be host_authenticated or public" };
+  }
   const healthPath = raw.health_path;
   if (healthPath !== undefined && (typeof healthPath !== "string" || !healthPath.startsWith("/") || healthPath.length > 256)) {
     return { descriptor: null, error: "deployment.build_deploy.health_path must start with /" };
@@ -158,6 +172,7 @@ export function parseBuildDeployDescriptor(projectId: string, metadata: unknown)
     container_port: rawContainerPort,
     port_name: portName,
     route_id: routeId,
+    route_access: routeAccess,
     ...(healthPath ? { health_path: healthPath } : {}),
     runtime_env: env.value,
     runtime_mounts: mounts.value,

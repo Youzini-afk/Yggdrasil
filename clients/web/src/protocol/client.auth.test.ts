@@ -427,11 +427,12 @@ await protocolClient.deployProject({
   container_port: 8080,
   port_name: "web",
   route_id: "route-1",
+  route_access: "host_authenticated",
   health_path: "/healthz",
   pull_if_missing: false,
 });
 await protocolClient.stopProjectDeployment({ route_id: "route-1" });
-await protocolClient.buildDeployProject({ project_id: "project-1", source_url: "https://example.com/repo.git", ref_name: "main", strategy: "dockerfile", container_port: 3000, port_name: "web", route_id: "route-1", approved: true });
+await protocolClient.buildDeployProject({ project_id: "project-1", source_url: "https://example.com/repo.git", ref_name: "main", strategy: "dockerfile", container_port: 3000, port_name: "web", route_id: "route-1", route_access: "public", approved: true });
 await protocolClient.getBuildDeployJob("job-1");
 await protocolClient.cancelBuildDeployJob("job-1");
 assertEqual(capturedFetches[0].input, "http://host.test/host/v1/deploy");
@@ -440,9 +441,9 @@ assertEqual(capturedFetches[2].input, "http://host.test/host/v1/build-deploy");
 assertEqual(capturedFetches[3].input, "http://host.test/host/v1/build-deploy/job-1");
 assertEqual(capturedFetches[4].input, "http://host.test/host/v1/build-deploy/job-1/cancel");
 assertDeepEqual(capturedFetches.map((request) => request.body), [
-  { image: "example/app:latest", container_port: 8080, port_name: "web", route_id: "route-1", health_path: "/healthz", pull_if_missing: false },
+  { image: "example/app:latest", container_port: 8080, port_name: "web", route_id: "route-1", route_access: "host_authenticated", health_path: "/healthz", pull_if_missing: false },
   { route_id: "route-1" },
-  { project_id: "project-1", source_url: "https://example.com/repo.git", ref_name: "main", strategy: "dockerfile", container_port: 3000, port_name: "web", route_id: "route-1", approved: true },
+  { project_id: "project-1", source_url: "https://example.com/repo.git", ref_name: "main", strategy: "dockerfile", container_port: 3000, port_name: "web", route_id: "route-1", route_access: "public", approved: true },
   undefined,
   {},
 ]);

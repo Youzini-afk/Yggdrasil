@@ -11,7 +11,7 @@
 - **Conformance：** 474 个具名 CLI 用例通过，外加 crate / service 单元测试；161 个 v1 schema（80 methods + 59 events + 22 top-level）通过校验。
 - **章程纪律：** 内核对内容无意见；官方包没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `yg update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；自托管部署底座已落地：target / exec / port / proxy 原语、ygg-service HTTP/WebSocket 反代、LiveLocalExecExecutor、`official/docker-runtime-lab` 与显式 Web Deploy broker。
+- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → `/surface-bundles/projects/<project_id>/...`；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `yg update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含 target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route，以及可撤销的 scoped device pairing，手机通过同一 Host API 控制项目、部署与 ChangeSet。
 
 平台底座已就位。下一阶段由真实项目部署、人测和 AI 原生体验共同牵引剩下的工作。
 
@@ -50,6 +50,7 @@
 - Contract Registry `0.5.0` 已完成第一次真实 Deprecated → Legacy Adapter 转换：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 是 Candidate，其 `kernel.v1.*` alias 保留 `0.4.0` 弃用历史并从 `0.5.0` 起冻结为 identity Legacy Adapter。它们只接受安全修复和数据读取兼容，不增加新字段语义；HTTP、host stdio 与 subprocess reverse stdio 返回 additive lifecycle diagnostics，生成 SDK 以队列保留警告；`ygg contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
 - 基于 profile 的 `ygg host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
+- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 按 `observe` / `project_operate` / `deploy` / development / `access_manage` scope 衰减，可过期和撤销。移动 PWA 通过 HTTPS 一次性 pairing 换取 Secure/HttpOnly Cookie；所有写入仍走同一 Host API / RPC。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
 - TCP 传输留作后续工作；WASM 与远程入口在清单中已是一等形式，执行延后。
 
 ## 包执行
@@ -67,7 +68,7 @@
 - 会话 fork / 分支沿革，可从事件日志重新水化。
 - 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `kernel/v1/projection.updated`。包持有的 projection 执行留待后续。
 - 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.yggdrasil/projects/<id>/` 布局、项目级 secret policy、Home 项目卡、项目级 storage summary、redacted package failure summary，以及 `yg project list/info/status/start/stop` 已落地。
-- 部署运行时：`kernel.v1.target.*`、`kernel.v1.exec.*`、`kernel.v1.port.*`、`kernel.v1.proxy.*` 已落地；默认 deny-all，profile 可显式启用 `LiveLocalExecExecutor`；端口只租 loopback；proxy upstream 必须引用 active port lease；ygg-service 提供 HTTP/WebSocket 反代，支持 `/p/<route_id>/...` 和可选 `<slug>.apps.<host>/` 虚拟主机入口。Web 项目控制台可按 `project.metadata.deployment.docker` 显式执行 Docker Deploy / Stop，也可按 `project.metadata.deployment.build_deploy` 走 Dockerfile / nixpacks 源码构建、runtime env、受控 volume、job SSE 与取消。
+- 部署运行时：`kernel.v1.target.*`、`kernel.v1.exec.*`、`kernel.v1.port.*`、`kernel.v1.proxy.*` 已落地；默认 deny-all，profile 可显式启用 `LiveLocalExecExecutor`；端口只租 loopback；proxy upstream 必须引用 active port lease；`ProxyRouteAccess` 默认 `host_authenticated`，只有显式 `public` route 才启用可选 `<slug>.apps.<host>/` 免 Host 认证 vhost，`/p/<route_id>/...` 始终保留在 Host auth 内。Web 项目控制台可按 `project.metadata.deployment.docker` 显式执行 Docker Deploy / Stop，也可按 `project.metadata.deployment.build_deploy` 走 Dockerfile / nixpacks 源码构建、runtime env、受控 volume、job SSE 与取消；两条路径都显式选择 route 暴露范围并写入 durable revision。
 - Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。`quick_action`、`workshop_card` 与带 `metadata.shell_schema_version: 1` 的 `home_card` 是结构化 shell descriptor：Web shell 只读取受限文本、icon hint、排序和同包 target，由平台渲染；不加载包 JS、不解析 HTML、不 mount iframe。复杂项目 surface 继续走 `surface_bundle` + sandbox iframe。通过 `kernel.v1.surface.contribution.list` 与 `.describe` 发现。
 - Surface bundle：`surface_bundle` 是清单里的静态浏览器 bundle 入口，不是可执行 package entry；安装后的项目 bundle 由 host 以 same-origin 静态文件服务暴露到 `/surface-bundles/projects/<project_id>/...`。`dist/` 参与 `tree_hash`，因此只改浏览器 bundle 也会触发更新；project dist 通过临时目录 + 原子替换刷新。
 - 提案生命周期：`kernel.v1.proposal.create|get|list|approve|reject|apply`。当前 `apply` 只跑通用操作 `asset.put` 与 `projection.rebuild`。更广泛的事务和回滚留待后续。
@@ -233,23 +234,25 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 平台用户面 chrome —— Home、Settings、Install 流程、Project frame、Toast 系统。基于 React 19 + Tailwind v4 + Motion + Radix + Phosphor 的 SPA，由 Vite 构建，路由 / modal 已 lazy-split。视觉规则与设计系统见 [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md)；shell 详细文档见 [`../clients/web/README.md`](../clients/web/README.md)。
 
 - **Home：** 项目货架（卡片网格 + 状态 pill + Hero + utility strip + 活动 timeline + 工坊工具 bento），数据来自 `kernel.v1.project.list`，磁盘用量来自项目 `storage_summary`。Home 也消费结构化 shell descriptor：平台内置 quick actions 保留，包贡献的 `quick_action` / `workshop_card` / schema-versioned `home_card` 作为发现入口进入平台渲染器；包 action 首批只提示发现，不绕过 proposal / permission / audit。`⌘N` 打开 Install 模态。
-- **Settings：** 五个面板都接真实数据。
+- **Settings：** 六个面板都接真实数据。
   - API Connections —— `official/secret-store-lab/{list,put,delete}_secret` + health。UI 永远不读 raw secret 值，secret-edit modal 关闭时清掉输入态。
   - Installed Packages —— `kernel.v1.package.list` + 项目标记 + Cmd/Ctrl+F focus。
   - Profiles —— `kernel.v1.host.diagnostics`（active profile、packages_loaded、network allowlist）。
   - Storage —— storage area summary + 真实 event store kind（sqlite/postgres/memory），不在 Web UI 暴露 host 绝对路径。
+  - Host Access —— 当前 root / device 身份、scope、HTTPS pairing link、pending 邀请、设备期限与 grant 撤销；默认邀请只选择 `observe`。
   - About —— 平台身份、license、links、致谢。
 - **Install / Update 流程：** Install modal 通过 `kernel.v1.capability.invoke` 调用 `official/install-lab` 的 `resolve_plan` / `detect_kind` / `execute_plan`；原生项目走快速通道，外部项目进入 wrap-vs-workspace wizard。项目控制台展示 bundle / package / event 诊断，并通过 `check_for_updates` / `update_project` 提供更新入口。没有 `kernel.v1.install.*`。
 - **Project Frame：** Home 以独立 `/project/<id>` 标签页打开项目；项目页没有平台顶栏或返回按钮，只用全屏 sandbox iframe 挂载项目自有前端。关闭标签页不停止项目；项目页用 `⌘ .` / `Ctrl .` 停止当前项目。
 - **Failure Modal：** Deep Rust accent stripe、诊断 / 影响双列、redacted stderr 日志面板（含 Copy log）、Restart / Stop-and-uninstall / Close 三选项；数据来自 `kernel.v1.package.list/status/logs`，不复制 raw log。
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，`prefers-reduced-motion` 自动收敛。
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
+- **PWA 与移动控制：** manifest、service worker 和离线 app-shell 缓存已接入；`/pair` 在认证 gate 前展示邀请内容，领取后使用同源 device Cookie。移动 topbar 保留 Settings、语言与退出入口，不把 root token 写入设备存储。
 - **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有 kernel access，只有宿主显式配置的 bridge 能调用公开协议。Bridge 以 typed `allowed_capability_ids` 和方法 allowlist 限定可调用能力，stream 订阅归属绑定到发起 surface，诊断与日志脱敏，secret 输入态在关闭时清理，并通过 CSP/CORS 保持 same-origin 静态 bundle 边界。流式订阅通过 postMessage 桥接 `kernel/v1/stream.*`。
 - **没有官方包特权通道——shell 和别的客户端一样是公开协议的客户端；调用平台工具包时也走普通 `kernel.v1.capability.invoke`。**
 
 ## 桌面与发布
 
-- `clients/desktop` 提供 Tauri 2.x wrapper，生产模式嵌入 `clients/web/dist`，开发模式指向 Vite dev server。v0 不自动启动 `ygg-cli host serve`；用户仍需单独运行 host。
+- `clients/desktop` 提供 Tauri 2.x wrapper，并拥有 loopback-only managed Host sidecar。启动时生成 root token 与一次性 bootstrap nonce，以随机端口启动 `host serve`，等待健康后导航隐藏窗口；使用持久 SQLite desktop profile、打包的 Web dist 与依赖顺序明确的官方包 autoload，退出时停止子进程。Web/PWA 与 Desktop 复用同一客户端核心和公开 Host 边界。
 - GitHub Actions CI 与 `v*` tag release workflow 已落地，构建跨平台 Tauri 安装包并创建 draft release。`scripts/release-version.sh` 同步 Cargo、Web package、desktop package 与 Tauri 配置。
 - 构建说明见 [`../BUILDING.md`](../BUILDING.md)；变更记录见 [`../CHANGELOG.md`](../CHANGELOG.md)。签名、公证、自动更新未启用。
 
@@ -299,7 +302,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - 包持有的 projection 执行。
 - 更丰富的失败监控与健康检查。
 - 更广的传输一致性覆盖。
-- Desktop release code signing / notarization、auto-updater、真实应用图标、桌面 wrapper 管理 host 子进程。
+- Desktop release code signing / notarization、auto-updater、真实应用图标，以及 managed Host 的更丰富崩溃恢复与 sidecar 更新协调。
 - Surface lifecycle callback（如 `onClose`、`onProposalDraft`）与跨源 surface bundle allowlist。
 - `kernel.v1.session.get|list`、`kernel.v1.package.describe`、`kernel.v1.capability.describe`、`kernel.v1.extension_point.describe`、`kernel.v1.host.principal`、`kernel.v1.host.ping` 完整暴露。
 

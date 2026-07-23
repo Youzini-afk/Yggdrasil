@@ -1194,6 +1194,7 @@ mod tests {
                     port_name: "web".to_string(),
                 },
                 protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
         assert!(!response.route.ready);
@@ -1613,6 +1614,14 @@ pub enum ProxyRouteStatusKind {
     Removed,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyRouteAccess {
+    #[default]
+    HostAuthenticated,
+    Public,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct ProxyRouteUpstream {
     pub port_lease_id: PortLeaseId,
@@ -1625,6 +1634,8 @@ pub struct ProxyRouteRegisterRequest {
     pub upstream: ProxyRouteUpstream,
     #[serde(default = "default_proxy_protocol")]
     pub protocol: ProxyProtocol,
+    #[serde(default)]
+    pub access: ProxyRouteAccess,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -1632,6 +1643,8 @@ pub struct ProxyRouteRecord {
     pub id: ProxyRouteId,
     pub upstream: ProxyRouteUpstream,
     pub protocol: ProxyProtocol,
+    #[serde(default)]
+    pub access: ProxyRouteAccess,
     pub public_url: String,
     pub iframe_url: String,
     pub status: ProxyRouteStatusKind,
@@ -1667,6 +1680,7 @@ impl ProxyRouteRegistry {
             id: id.clone(),
             upstream: request.upstream,
             protocol: request.protocol,
+            access: request.access,
             status: ProxyRouteStatusKind::Active,
             ready: false,
         };

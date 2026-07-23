@@ -403,6 +403,7 @@ export interface PortLeaseRequest {
 export interface ProxyRegisterRequest {
   route_id?: string | null;
   protocol?: "http" | "websocket" | string;
+  access?: "host_authenticated" | "public";
   upstream: {
     port_lease_id: string;
     port_name: string;
@@ -463,12 +464,14 @@ export interface HostDeployProjectInput {
   container_port: number;
   port_name: string;
   route_id: string;
+  route_access: "host_authenticated" | "public";
   health_path?: string;
   pull_if_missing: boolean;
 }
 
 export interface HostDeployProjectOutput {
   route_id: string;
+  route_access: "host_authenticated" | "public";
   public_url: string;
   port_lease_id: string;
   container_id: string;
@@ -508,6 +511,7 @@ export interface HostBuildDeployRequest {
   container_port: number;
   port_name: string;
   route_id: string;
+  route_access: "host_authenticated" | "public";
   health_path?: string;
   approved: true;
   source_commit?: string;
@@ -533,6 +537,7 @@ export interface RuntimeMountSummary {
 
 export interface HostBuildDeployResult {
   route_id: string;
+  route_access: "host_authenticated" | "public";
   public_url: string;
   port_lease_id: string;
   container_id: string;
@@ -603,6 +608,7 @@ export interface DeploymentRevision {
   container_port: number;
   port_name: string;
   route_id: string;
+  route_access: "host_authenticated" | "public";
   health_path?: string | null;
   image: string;
   build_id: string;
@@ -783,6 +789,7 @@ export interface PortLeaseRecord {
 export interface ProxyRouteRecord {
   id: string;
   protocol: "http" | "websocket" | string;
+  access: "host_authenticated" | "public";
   public_url: string;
   iframe_url: string;
   status: "active" | "removed" | string;

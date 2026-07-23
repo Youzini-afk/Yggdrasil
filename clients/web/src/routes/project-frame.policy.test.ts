@@ -107,7 +107,7 @@ assertDeepEqual(summarizeConsoleDiagnostics({
     { id: "lease-2", target_id: "local", port_name: "old", host: "127.0.0.1", port: 3001, protocol: "tcp", status: "released" },
   ],
   proxyRoutes: [
-    { id: "route-1", protocol: "http", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", ready: true, upstream: { port_lease_id: "lease-1", port_name: "web" } },
+    { id: "route-1", protocol: "http", access: "host_authenticated", public_url: "http://127.0.0.1/p/r", iframe_url: "http://127.0.0.1/p/r", status: "active", ready: true, upstream: { port_lease_id: "lease-1", port_name: "web" } },
   ],
   refreshedAt: "now",
 }), {

@@ -1,8 +1,8 @@
 # Yggdrasil platform shell (`clients/web`)
 
-The Yggdrasil platform's user-facing chrome — Home, Settings, Install flow,
-project frame, and toast/notification system. Built as a React 19 single-page
-app with Tailwind v4. Styles, layout, and behavior follow the Editorial
+The Yggdrasil platform's shared Web/PWA chrome — Home, Settings, Install flow,
+project frame, scoped Host pairing, and toast/notification system. Built as a React 19 single-page
+app with Tailwind v4 and an installable service-worker shell. Styles, layout, and behavior follow the Editorial
 Workshop design system in [`../../docs/design/PLATFORM_UI_DESIGN.md`](../../docs/design/PLATFORM_UI_DESIGN.md).
 
 This client is the platform shell only. Project surfaces (YdlTavern, custom
@@ -35,6 +35,7 @@ For desktop builds wrap `dist/` with [`../desktop`](../desktop) (Tauri 2.x).
   `src/styles/app.css` via the `@theme` directive — there is no `tailwind.config.js`.
   Custom `dark:` variant binds to `data-theme="dark"` on `<html>`.
 - **Vite 6** for bundling, dev server, and the Surface bundle dev middleware.
+- **vite-plugin-pwa** for manifest generation, service-worker updates, and bounded offline app-shell caching.
 - **Motion (formerly Framer Motion) v12** for entrance/exit transitions on
   modals, toasts, and timeline rows. Honors `prefers-reduced-motion`.
 - **Radix UI** for `Dialog`, `DropdownMenu`, and `Tooltip` primitives — keeps
@@ -47,10 +48,11 @@ For desktop builds wrap `dist/` with [`../desktop`](../desktop) (Tauri 2.x).
 - **Variable fonts**: `@fontsource-variable/{bricolage-grotesque,geist,jetbrains-mono}`.
   Bundled with the SPA — no CDN at runtime.
 
-The shell talks to the host exclusively through public protocol:
+The shell talks to the Host exclusively through published boundaries:
 
 - `POST /rpc` for all `kernel.v1.*` methods.
 - `GET /kernel/v1/event.subscribe/:session_id` (SSE) for event tails.
+- `/host/v1/*` for Host-owned deployment, controlled development, and scoped device-access workflows that deliberately remain outside Contract V1.
 - `postMessage` bridge for surfaces mounted in sandboxed iframes.
 
 There is no SQLite access and no private runtime call. Shell-owned features that
@@ -69,6 +71,7 @@ src/
 ├── lib/
 │   ├── theme.tsx               # Theme provider (system/light/dark, data-theme attr)
 │   ├── router.ts               # Hash router — home / settings / project
+│   ├── auth-gate.tsx           # root-token and same-origin device-cookie startup probe
 │   ├── kernel-client.tsx       # KernelProvider, useKernel, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
 │   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
@@ -111,14 +114,19 @@ src/
 ├── routes/
 │   ├── home.tsx
 │   ├── home/                   # Home hooks/helpers (projects, disk, timeline, failure diagnostics)
-│   ├── project-frame.tsx       # iframe wrapper around mounted surface
+│   ├── pairing.tsx             # one-time HTTPS device pairing screen
+│   ├── project-frame.tsx       # iframe wrapper + project/deploy/development console
 │   └── settings/
 │       ├── index.tsx           # Tab dispatcher
 │       ├── api-connections.tsx # secret-store-lab wired
 │       ├── installed-packages.tsx # kernel.v1.package.list wired
 │       ├── profiles.tsx        # kernel.v1.host.diagnostics wired
 │       ├── storage.tsx         # storage areas + event store kind wired
+│       ├── host-access.tsx     # scoped pairing, grant expiry, and revoke
 │       └── about.tsx
+├── client-core/
+│   ├── host-access.ts          # typed Host access REST boundary
+│   └── pairing-credential.ts   # immediate URL scrubbing + memory-only one-time token
 ├── protocol/
 │   └── client.ts               # YggProtocolClient — typed RPC + SSE wrappers
 └── surfaces/
@@ -137,12 +145,14 @@ src/
 | `#/settings/installed-packages` | Settings — package inventory |
 | `#/settings/profiles` | Settings — workshop profiles |
 | `#/settings/storage` | Settings — data paths and backend |
+| `#/settings/host-access` | Settings — Host identities, pairing, scopes, revoke |
 | `#/settings/about` | Settings — version, license, links |
+| `/pair?pairing_token=...` | HTTPS one-time device pairing; token is scrubbed immediately |
 | `/project/<id>` | Standalone project tab with a full-viewport mounted surface |
 
 Home and Settings keep hash routing because:
 
-- The shell has five static routes; nothing dynamic enough to warrant the
+- The shell has a small fixed route set; nothing dynamic enough to warrant the
   framework.
 - It survives reloads inside Tauri WebView with no server config.
 - It composes naturally with the surface iframe (the surface owns its own
@@ -182,6 +192,7 @@ mode for legibility on bark backgrounds.
 | Settings — Installed Packages | `kernel.v1.package.list` + `host.project.list` (project flag) |
 | Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
+| Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
 | Project tab | `host.project.get/start/stop` + `host.surface.bundle.resolve` |
 | Project deployment | `kernel.v1.port.*` + `kernel.v1.proxy.*` + `official/docker-runtime-lab/{start_container,stop_container}` |
 | Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `kernel.v1.capability.invoke` |
@@ -206,19 +217,35 @@ must still cross proposal, permission, and audit boundaries.
 Project deployment is also explicit. If a project exposes
 `project.metadata.deployment.docker`, the project console shows Deploy / Stop
 controls. Deploy leases a loopback port, invokes `official/docker-runtime-lab`,
-then registers a reverse-proxy route. `host.project.start` does not deploy
+then registers a reverse-proxy route. Route exposure defaults to
+`host_authenticated`; the user must explicitly select `public` before a vhost
+can bypass Host identity. `host.project.start` does not deploy
 anything automatically.
 
-The host may expose deployed apps through `/p/<route_id>/...` or, when
-`YGG_APP_BASE_DOMAIN` / `--app-base-domain` is configured, through a virtual
-host such as `https://<slug>.apps.example.com/`. The Web shell displays and
-opens the URL returned by the host broker; the vhost decision stays service-side.
+The Host exposes authenticated routes through `/p/<route_id>/...`. When a route
+is explicitly public and `YGG_APP_BASE_DOMAIN` / `--app-base-domain` is
+configured, it also exposes a virtual host such as
+`https://<slug>.apps.example.com/`. Merely configuring the wildcard domain does
+not publish private routes. The Web shell displays and opens the URL returned by
+the Host broker; enforcement stays service-side.
 
 If a project exposes `project.metadata.deployment.build_deploy`, the console can
 start a Build & Deploy job instead: clone source, build with Dockerfile or
 nixpacks, inject approved runtime env / volumes, deploy the built image, and
 stream job progress through the host broker. This still requires an explicit
 user action; project start remains a state/session transition only.
+
+### Remote PWA control
+
+The PWA is a same-Host remote client, not a detached demo. An administrator
+creates an HTTPS pairing link in Settings → Host Access and selects action
+scopes. The `/pair` route scrubs the one-time credential from browser history,
+shows the exact grant before claim, and receives a Secure/HttpOnly/SameSite
+device cookie. The root token is never copied into mobile storage. Mutations
+continue through the same Host API/RPC and cookie requests are origin-checked.
+
+See [`../../docs/architecture/HOST_REMOTE_ACCESS.md`](../../docs/architecture/HOST_REMOTE_ACCESS.md)
+for TLS topology, scope mapping, revocation, and application-route exposure.
 
 ---
 
@@ -299,5 +326,7 @@ Production hosting still needs a static fileserver route (deferred).
   — Project lifecycle and Home card semantics.
 - [`../../docs/guides/SECRET_MANAGEMENT.md`](../../docs/guides/SECRET_MANAGEMENT.md)
   — `secret_ref` contract and platform/project scoping.
+- [`../../docs/architecture/HOST_REMOTE_ACCESS.md`](../../docs/architecture/HOST_REMOTE_ACCESS.md)
+  — Host root/device identity, HTTPS pairing, and explicit public routes.
 - [`../../docs/spec/KERNEL_V1_CONTRACT.md`](../../docs/spec/KERNEL_V1_CONTRACT.md)
   — Public protocol that the shell consumes.

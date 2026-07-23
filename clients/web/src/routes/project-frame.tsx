@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowsClockwise, BookOpenText, Copy, LinkSimple, StopCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalFooter, ModalHeader } from "@/components/ui/modal";
@@ -368,6 +368,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         container_port: descriptor.container_port,
         port_name: descriptor.port_name,
         route_id: descriptor.route_id,
+        route_access: descriptor.route_access,
         ...(descriptor.health_path ? { health_path: descriptor.health_path } : {}),
         pull_if_missing: descriptor.pull_if_missing,
       });
@@ -462,6 +463,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
         container_port: descriptor.container_port,
         port_name: descriptor.port_name,
         route_id: descriptor.route_id,
+        route_access: descriptor.route_access,
         ...(descriptor.health_path ? { health_path: descriptor.health_path } : {}),
         approved: true,
         runtime_env: descriptor.runtime_env,
@@ -923,6 +925,12 @@ function DeploymentActionCard({
   onStop: (descriptor: DockerDeploymentDescriptor) => void;
 }) {
   const t = useT();
+  const [routeAccess, setRouteAccess] = useState<DockerDeploymentDescriptor["route_access"]>(descriptor?.route_access ?? "host_authenticated");
+
+  useEffect(() => {
+    setRouteAccess(descriptor?.route_access ?? "host_authenticated");
+  }, [descriptor?.route_access, descriptor?.route_id]);
+
   if (!descriptor) {
     return (
       <div className="mb-4 rounded-[14px] border border-deep-rust bg-deep-rust-surface p-4 text-[12px] text-deep-rust">
@@ -948,7 +956,7 @@ function DeploymentActionCard({
           <p className="mt-1 text-[12px] text-steel-secondary">{t("projectFrameDeployActionDescription")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button tone="primary" size="sm" onClick={() => onDeploy(descriptor)} disabled={deployDisabled}>
+          <Button tone="primary" size="sm" onClick={() => onDeploy({ ...descriptor, route_access: routeAccess })} disabled={deployDisabled}>
             {operation === "deploying" ? t("projectFrameDeploying") : t("projectFrameDeploy")}
           </Button>
           {hasActiveDeployment ? (
@@ -958,6 +966,7 @@ function DeploymentActionCard({
           ) : null}
         </div>
       </div>
+      <RouteAccessControl value={routeAccess} onChange={setRouteAccess} disabled={operation !== "idle" || hasActiveDeployment} />
       <dl className="mt-4 grid gap-2 text-[12px] sm:grid-cols-2 xl:grid-cols-4">
         <TinyValue label={t("projectFrameDeployImage")} value={descriptor.image} />
         <TinyValue label={t("projectFrameDeployContainerPort")} value={String(descriptor.container_port)} />
@@ -988,6 +997,7 @@ function BuildDeployActionCard({
 }) {
   const t = useT();
   const [strategy, setStrategy] = useState<"dockerfile" | "nixpacks">(descriptor?.strategy ?? "dockerfile");
+  const [routeAccess, setRouteAccess] = useState<BuildDeployDescriptor["route_access"]>(descriptor?.route_access ?? "host_authenticated");
   const [mountApprovals, setMountApprovals] = useState<Record<number, boolean>>({});
   const [riskApprovals, setRiskApprovals] = useState<Record<number, boolean>>({});
   const [showConfig, setShowConfig] = useState(false);
@@ -995,9 +1005,10 @@ function BuildDeployActionCard({
 
   useEffect(() => {
     setStrategy(descriptor?.strategy ?? "dockerfile");
+    setRouteAccess(descriptor?.route_access ?? "host_authenticated");
     setMountApprovals({});
     setRiskApprovals({});
-  }, [descriptor?.route_id, descriptor?.strategy]);
+  }, [descriptor?.route_access, descriptor?.route_id, descriptor?.strategy]);
 
   if (!descriptor) {
     return <div className="mb-4 rounded-[14px] border border-deep-rust bg-deep-rust-surface p-4 text-[12px] text-deep-rust"><p className="font-semibold">{t("projectFrameBuildDeployInvalidTitle")}</p><p className="mt-1">{error}</p></div>;
@@ -1013,7 +1024,7 @@ function BuildDeployActionCard({
   const isResolved = job ? ["ready", "failed", "cancelled"].includes(job.state) : false;
   const activeJobId = job?.job_id;
   const status = job && "result" in job ? job : null;
-  const submitDescriptor = { ...descriptor, strategy, runtime_mounts: mounts };
+  const submitDescriptor = { ...descriptor, strategy, route_access: routeAccess, runtime_mounts: mounts };
   const mode = isRunning ? "running" : isResolved ? "resolved" : "idle";
   const showIdleConfig = mode === "idle" || (mode === "resolved" && showConfig);
 
@@ -1030,7 +1041,12 @@ function BuildDeployActionCard({
         </div>
       </div>
 
-      {showIdleConfig ? <BuildDeployConfigPanel descriptor={descriptor} strategy={strategy} setStrategy={setStrategy} mountApprovals={mountApprovals} riskApprovals={riskApprovals} setMountApprovals={setMountApprovals} setRiskApprovals={setRiskApprovals} /> : null}
+      {showIdleConfig ? (
+        <>
+          <RouteAccessControl value={routeAccess} onChange={setRouteAccess} />
+          <BuildDeployConfigPanel descriptor={descriptor} strategy={strategy} setStrategy={setStrategy} mountApprovals={mountApprovals} riskApprovals={riskApprovals} setMountApprovals={setMountApprovals} setRiskApprovals={setRiskApprovals} />
+        </>
+      ) : null}
 
       {mode === "running" && activeJobId ? <div className="mt-4 space-y-4"><JobStatusTracker state={job.state} /><TerminalLogPanel events={events} live onCopy={() => void navigator.clipboard?.writeText(events.map((event) => `#${event.sequence} [${event.state}] ${event.message}`).join("\n"))} /><div className="flex justify-end"><Button tone="destructive" size="sm" onClick={() => setConfirmCancel(true)}>{t("projectFrameBuildDeployCancel")}</Button></div></div> : null}
 
@@ -1103,6 +1119,7 @@ function DeploymentRevisionHistory({
             <TinyValue label={t("projectFrameDeployRouteId")} value={active.route_id} />
             <TinyValue label={t("projectFrameDeployImage")} value={active.image} />
             <TinyValue label={t("projectFrameBuildDeployStrategy")} value={active.strategy} />
+            <TinyValue label={t("projectFrameRouteExposure")} value={active.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate")} />
             <TinyValue label={t("projectFrameDeploymentCreatedAt")} value={new Date(active.created_at_ms).toLocaleString()} />
           </dl>
           {!active.recoverable ? <p className="mt-3 rounded-[10px] bg-deep-rust-surface p-2 text-[12px] text-deep-rust">{t("projectFrameDeploymentNotRecoverable")}: {active.recovery_blockers.join("; ")}</p> : null}
@@ -1123,7 +1140,7 @@ function DeploymentRevisionHistory({
                       <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] uppercase text-steel-secondary">{revision.operation.replace("_", " ")}</span>
                       {isActive ? <StatusPill tone="accent" label={t("projectFrameDeploymentActiveRevision")} showDot={false} /> : null}
                     </div>
-                    <p className="mt-1 truncate text-[11px] text-steel-secondary" title={revision.image}>{revision.image} · {new Date(revision.created_at_ms).toLocaleString()}</p>
+                    <p className="mt-1 truncate text-[11px] text-steel-secondary" title={revision.image}>{revision.image} · {revision.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate")} · {new Date(revision.created_at_ms).toLocaleString()}</p>
                   </div>
                   {!isActive ? (
                     <Button tone="secondary" size="sm" disabled={busy || !revision.recoverable} onClick={() => onRollback(revision)}>
@@ -1151,6 +1168,60 @@ function DeploymentRevisionHistory({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function RouteAccessControl({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: DockerDeploymentDescriptor["route_access"];
+  onChange: (value: DockerDeploymentDescriptor["route_access"]) => void;
+  disabled?: boolean;
+}) {
+  const t = useT();
+  const controlId = useId();
+  const options = [
+    {
+      value: "host_authenticated" as const,
+      title: t("projectFrameRoutePrivate"),
+      body: t("projectFrameRoutePrivateBody"),
+    },
+    {
+      value: "public" as const,
+      title: t("projectFrameRoutePublic"),
+      body: t("projectFrameRoutePublicBody"),
+    },
+  ];
+
+  return (
+    <fieldset className="mt-4 rounded-[14px] border border-whisper-border bg-pure-surface p-3" disabled={disabled}>
+      <legend className="px-1 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{t("projectFrameRouteExposure")}</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className={option.value === value
+              ? "flex cursor-pointer gap-3 rounded-[12px] border border-aged-brass bg-aged-brass/10 p-3"
+              : "flex cursor-pointer gap-3 rounded-[12px] border border-whisper-border bg-warm-bone p-3"}
+          >
+            <input
+              type="radio"
+              name={`${controlId}-route-access`}
+              checked={option.value === value}
+              onChange={() => onChange(option.value)}
+              disabled={disabled}
+            />
+            <span>
+              <span className="block text-[12px] font-semibold text-charcoal-ink">{option.title}</span>
+              <span className="mt-1 block text-[11px] leading-relaxed text-steel-secondary">{option.body}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {value === "public" ? <p className="mt-2 rounded-[10px] bg-deep-rust-surface p-2 text-[11px] text-deep-rust">{t("projectFrameRoutePublicWarning")}</p> : null}
+    </fieldset>
   );
 }
 

@@ -71,9 +71,10 @@ pub use self::local_exec::{
     LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
     LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
     PortBindScope, PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest,
-    PortLeaseResponse, PortLeaseStatusKind, PortProtocol, ProxyProtocol, ProxyRouteId,
-    ProxyRouteRecord, ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteRegistry,
-    ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe, ReadinessProbeKind,
+    PortLeaseResponse, PortLeaseStatusKind, PortProtocol, ProxyProtocol, ProxyRouteAccess,
+    ProxyRouteId, ProxyRouteRecord, ProxyRouteRegisterRequest, ProxyRouteRegisterResponse,
+    ProxyRouteRegistry, ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe,
+    ReadinessProbeKind,
 };
 pub use self::network::{
     check_network_policy, NetworkPolicyDecision, OutboundExecuteCompletion, OutboundRequest,
@@ -837,6 +838,7 @@ fn proxy_route_record_from_payload(payload: &Value) -> Option<ProxyRouteRecord> 
             port_name: payload_str(payload, "port_name")?,
         },
         protocol: enum_from_payload(payload, "protocol").unwrap_or(ProxyProtocol::Http),
+        access: enum_from_payload(payload, "access").unwrap_or_default(),
         public_url: payload_str(payload, "public_url")?,
         iframe_url: payload_str(payload, "iframe_url")?,
         status: enum_from_payload(payload, "status").unwrap_or(ProxyRouteStatusKind::Active),

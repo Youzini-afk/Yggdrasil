@@ -21,7 +21,7 @@ const breadcrumbForRoute = (route: Route, t: ReturnType<typeof useT>): string =>
 
 export function PlatformTopbar({ route }: { route: Route }) {
   const { theme, preference, setPreference } = useTheme();
-  const { token, logout } = useAuth();
+  const { token, identity, logout } = useAuth();
   const [, navigate] = useRoute();
   const t = useT();
 
@@ -56,11 +56,13 @@ export function PlatformTopbar({ route }: { route: Route }) {
       </nav>
 
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-        <Tooltip label={t("topbarNotifications")}>
-          <Button tone="icon" size="icon" aria-label={t("topbarNotifications")} className="relative">
-            <Bell size={18} />
-          </Button>
-        </Tooltip>
+        <span className="hidden sm:inline-flex">
+          <Tooltip label={t("topbarNotifications")}>
+            <Button tone="icon" size="icon" aria-label={t("topbarNotifications")} className="relative">
+              <Bell size={18} />
+            </Button>
+          </Tooltip>
+        </span>
         <Tooltip
           label={
             preference === "system"
@@ -87,28 +89,26 @@ export function PlatformTopbar({ route }: { route: Route }) {
             )}
           </Button>
         </Tooltip>
-        <div className="hidden sm:inline">
-          <Tooltip label={t("topbarSettings")}>
-            <Button
-              tone="icon"
-              size="icon"
-              aria-label={t("topbarSettings")}
-              onClick={() => navigate({ kind: "settings", tab: "api-connections" })}
-            >
-              <GearSix size={18} />
-            </Button>
-          </Tooltip>
-        </div>
-        <div className="hidden sm:inline">
+        <Tooltip label={t("topbarSettings")}>
+          <Button
+            tone="icon"
+            size="icon"
+            aria-label={t("topbarSettings")}
+            onClick={() => navigate({ kind: "settings", tab: "host-access" })}
+          >
+            <GearSix size={18} />
+          </Button>
+        </Tooltip>
+        <div className="inline-flex">
           <LocaleSwitcher />
         </div>
-        {token ? (
+        {token || identity?.kind === "device" ? (
           <Tooltip label={t("topbarLogout")}>
             <Button
               tone="icon"
               size="icon"
               aria-label={t("topbarLogout")}
-              onClick={logout}
+              onClick={() => void logout()}
               className="text-deep-rust hover:bg-deep-rust-surface"
             >
               <SignOut size={18} />

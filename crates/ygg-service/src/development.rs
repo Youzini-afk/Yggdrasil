@@ -3922,6 +3922,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: crate::build_deploy_job_registry(),
             development: development_registry(),
+            host_access: crate::host_access_registry(),
         });
         let response = app
             .oneshot(

@@ -15,6 +15,9 @@ import { usePathProjectRoute } from "@/lib/router";
 const ProjectFrame = lazy(() =>
   import("@/routes/project-frame").then((module) => ({ default: module.ProjectFrame })),
 );
+const PairingPage = lazy(() =>
+  import("@/routes/pairing").then((module) => ({ default: module.PairingPage })),
+);
 
 const iconDefaults = {
   color: "currentColor",
@@ -40,6 +43,15 @@ export function App({ children }: { children?: ReactNode }) {
 function AppInner({ children }: { children?: ReactNode }) {
   const { status, token } = useAuth();
   const pathProjectRoute = usePathProjectRoute();
+  const isPairingPath = typeof window !== "undefined" && window.location.pathname === "/pair";
+
+  if (isPairingPath) {
+    return (
+      <Suspense fallback={<AuthChecking />}>
+        <PairingPage />
+      </Suspense>
+    );
+  }
 
   if (status === "checking") {
     return <AuthChecking />;

@@ -10,7 +10,7 @@ use std::time::Duration;
 use anyhow::Context;
 use axum::body::to_bytes;
 use axum::extract::ws::{Message as AxumWsMessage, WebSocket, WebSocketUpgrade};
-use axum::extract::{FromRequestParts, OriginalUri, Path, Query, Request, State};
+use axum::extract::{Extension, FromRequestParts, OriginalUri, Path, Query, Request, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
@@ -39,9 +39,12 @@ use ygg_runtime::{
 use ygg_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
 };
-use ygg_runtime::{PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteStatusKind};
+use ygg_runtime::{
+    PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteAccess, ProxyRouteStatusKind,
+};
 
 mod development;
+mod host_access;
 
 pub use development::{
     acquire_development_host_lease, development_registry, hydrate_development_control_plane,
@@ -50,6 +53,10 @@ pub use development::{
     DevelopmentFileOperationRequest, DevelopmentHostLease, DevelopmentManagedPromotion,
     DevelopmentNetworkMode, DevelopmentRecoveryKind, DevelopmentRegistry,
     DevelopmentVerificationPlan, DevelopmentVerificationResult, DevelopmentWorkspaceOwnership,
+};
+pub use host_access::{
+    host_access_registry, hydrate_host_access_control_plane, HostAccessGrantView,
+    HostAccessIdentity, HostAccessIdentityKind, HostAccessRegistry, HostAccessScope,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -94,19 +101,64 @@ enum ProxyAccessMode {
 
 pub type AppRuntime = Runtime<InMemoryEventStore>;
 
-#[derive(Clone)]
-struct AccessControl {
+struct AccessControl<S>
+where
+    S: EventStore,
+{
     access_token: Option<String>,
     bootstrap_token: Arc<Mutex<Option<String>>>,
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
 }
 
-impl AccessControl {
-    fn new(access_token: Option<String>, bootstrap_token: Option<String>) -> Self {
+impl<S> Clone for AccessControl<S>
+where
+    S: EventStore,
+{
+    fn clone(&self) -> Self {
+        Self {
+            access_token: self.access_token.clone(),
+            bootstrap_token: self.bootstrap_token.clone(),
+            store: self.store.clone(),
+            host_access: self.host_access.clone(),
+        }
+    }
+}
+
+impl<S> AccessControl<S>
+where
+    S: EventStore,
+{
+    fn new(
+        access_token: Option<String>,
+        bootstrap_token: Option<String>,
+        store: Arc<S>,
+        host_access: Arc<HostAccessRegistry>,
+    ) -> Self {
         Self {
             access_token,
             bootstrap_token: Arc::new(Mutex::new(bootstrap_token)),
+            store,
+            host_access,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HostCredentialSource {
+    OptionalLoopback,
+    Authorization,
+    RootCookie,
+    DeviceCookie,
+    EventQuery,
+}
+
+#[derive(Debug, Default)]
+struct PresentedHostCredentials {
+    authorization: Option<String>,
+    root_cookie: Option<String>,
+    device_cookie: Option<String>,
+    event_query: Option<String>,
 }
 
 pub struct AppState<S = InMemoryEventStore>
@@ -119,6 +171,7 @@ where
     pub app_base_domain: Option<String>,
     pub build_jobs: Arc<BuildDeployJobRegistry>,
     pub development: Arc<DevelopmentRegistry>,
+    pub host_access: Arc<HostAccessRegistry>,
 }
 
 impl<S> Clone for AppState<S>
@@ -133,6 +186,7 @@ where
             app_base_domain: self.app_base_domain.clone(),
             build_jobs: self.build_jobs.clone(),
             development: self.development.clone(),
+            host_access: self.host_access.clone(),
         }
     }
 }
@@ -179,6 +233,7 @@ pub fn app() -> Router {
         app_base_domain: None,
         build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         development: development_registry(),
+        host_access: host_access_registry(),
     })
 }
 
@@ -196,7 +251,12 @@ pub fn app_with_state_and_bootstrap_token<S>(
 where
     S: EventStore,
 {
-    let access_control = AccessControl::new(state.access_token.clone(), bootstrap_token);
+    let access_control = AccessControl::new(
+        state.access_token.clone(),
+        bootstrap_token,
+        state.runtime.store(),
+        state.host_access.clone(),
+    );
     let protected = Router::new()
         .route("/kernel/v1/session.open", post(open_session::<S>))
         .route(
@@ -252,12 +312,13 @@ where
             post(rollback_project_deployment::<S>),
         )
         .merge(development::routes::<S>())
+        .merge(host_access::protected_routes::<S>())
         .route("/rpc", post(rpc::<S>))
         .route("/p/:route_id", any(proxy_root::<S>))
         .route("/p/:route_id/*path", any(proxy_path::<S>))
         .route_layer(middleware::from_fn_with_state(
             access_control.clone(),
-            require_access_token,
+            require_access_token::<S>,
         ));
 
     Router::new()
@@ -267,6 +328,7 @@ where
             "/surface-bundles/:prefix/*file",
             get(surface_bundle_file::<S>),
         )
+        .merge(host_access::public_routes::<S>())
         .merge(protected)
         .fallback(static_fallback::<S>)
         .with_state(state.clone())
@@ -276,7 +338,7 @@ where
         ))
         .layer(middleware::from_fn_with_state(
             access_control,
-            desktop_bootstrap_middleware,
+            desktop_bootstrap_middleware::<S>,
         ))
 }
 
@@ -291,32 +353,62 @@ async fn health() -> &'static str {
     "ok"
 }
 
-async fn require_access_token(
-    State(access_control): State<AccessControl>,
+async fn require_access_token<S>(
+    State(access_control): State<AccessControl<S>>,
     mut request: Request,
     next: Next,
-) -> Response {
-    let Some(expected) = access_control
-        .access_token
-        .as_deref()
-        .filter(|token| !token.is_empty())
-    else {
-        return next.run(request).await;
+) -> Response
+where
+    S: EventStore,
+{
+    let credentials = presented_host_credentials(&request);
+    let (identity, source) = match authenticate_host_request(&access_control, credentials).await {
+        Ok(Some(authenticated)) => authenticated,
+        Ok(None) => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "missing or invalid Host credential",
+            )
+                .into_response()
+        }
+        Err(error) => {
+            tracing::warn!(error = %error, "Host access journal could not be refreshed");
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Host access control plane is unavailable",
+            )
+                .into_response();
+        }
     };
-
-    if request_access_token_matches(&request, expected) {
-        strip_host_session_cookie(request.headers_mut());
-        return next.run(request).await;
+    if unsafe_cookie_origin_mismatch(&request, source) {
+        return (
+            StatusCode::FORBIDDEN,
+            "cookie-authenticated Host mutation requires a same-origin request",
+        )
+            .into_response();
     }
-
-    (StatusCode::UNAUTHORIZED, "missing or invalid access token").into_response()
+    if let Some(scope) = required_host_scope_for_http(request.method(), request.uri().path()) {
+        if !identity.allows(scope) {
+            return (
+                StatusCode::FORBIDDEN,
+                "the Host access grant does not include the required scope",
+            )
+                .into_response();
+        }
+    }
+    request.extensions_mut().insert(identity);
+    strip_host_session_cookie(request.headers_mut());
+    next.run(request).await
 }
 
-async fn desktop_bootstrap_middleware(
-    State(access_control): State<AccessControl>,
+async fn desktop_bootstrap_middleware<S>(
+    State(access_control): State<AccessControl<S>>,
     request: Request,
     next: Next,
-) -> Response {
+) -> Response
+where
+    S: EventStore,
+{
     if request.uri().path() != DESKTOP_BOOTSTRAP_PATH {
         return next.run(request).await;
     }
@@ -434,7 +526,11 @@ where
     }
     for route in state.runtime.config().proxy_route_registry.list().await {
         if route_slug(&route.id) == slug {
-            return Some(Ok(route.id));
+            return Some(if route.access == ProxyRouteAccess::Public {
+                Ok(route.id)
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            });
         }
     }
     Some(Err(StatusCode::NOT_FOUND))
@@ -520,10 +616,14 @@ fn service_public_url_for_route<S>(
     state: &AppState<S>,
     route_id: &str,
     fallback_public_url: &str,
+    route_access: ProxyRouteAccess,
 ) -> String
 where
     S: EventStore,
 {
+    if route_access != ProxyRouteAccess::Public {
+        return fallback_public_url.to_string();
+    }
     let Some(base) = state
         .app_base_domain
         .as_deref()
@@ -575,37 +675,222 @@ fn is_reserved_vhost_slug(slug: &str) -> bool {
     )
 }
 
-fn request_access_token_matches(request: &Request, expected: &str) -> bool {
-    if request
-        .headers()
-        .get(header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.strip_prefix("Bearer "))
-        .is_some_and(|token| token == expected)
-    {
-        return true;
+async fn authenticate_host_request<S>(
+    access_control: &AccessControl<S>,
+    credentials: PresentedHostCredentials,
+) -> anyhow::Result<Option<(HostAccessIdentity, HostCredentialSource)>>
+where
+    S: EventStore,
+{
+    let Some(root_token) = access_control
+        .access_token
+        .as_deref()
+        .filter(|token| !token.is_empty())
+    else {
+        return Ok(Some((
+            HostAccessIdentity::root(),
+            HostCredentialSource::OptionalLoopback,
+        )));
+    };
+
+    if let Some(token) = credentials.authorization.as_deref() {
+        if root_token_matches(token, root_token) {
+            return Ok(Some((
+                HostAccessIdentity::root(),
+                HostCredentialSource::Authorization,
+            )));
+        }
+        return Ok(host_access::authenticate_host_access_token(
+            access_control.store.as_ref(),
+            access_control.host_access.as_ref(),
+            token,
+        )
+        .await?
+        .map(|identity| (identity, HostCredentialSource::Authorization)));
     }
 
-    let expected_cookie = host_session_cookie_value(expected);
-    if request
+    let expected_root_cookie = host_session_cookie_value(root_token);
+    if credentials.root_cookie.as_deref().is_some_and(|candidate| {
+        host_access::constant_time_eq(candidate.as_bytes(), expected_root_cookie.as_bytes())
+    }) {
+        return Ok(Some((
+            HostAccessIdentity::root(),
+            HostCredentialSource::RootCookie,
+        )));
+    }
+
+    if let Some(token) = credentials.device_cookie.as_deref() {
+        return Ok(host_access::authenticate_host_access_token(
+            access_control.store.as_ref(),
+            access_control.host_access.as_ref(),
+            token,
+        )
+        .await?
+        .map(|identity| (identity, HostCredentialSource::DeviceCookie)));
+    }
+
+    if let Some(token) = credentials.event_query {
+        if root_token_matches(&token, root_token) {
+            return Ok(Some((
+                HostAccessIdentity::root(),
+                HostCredentialSource::EventQuery,
+            )));
+        }
+        return Ok(host_access::authenticate_host_access_token(
+            access_control.store.as_ref(),
+            access_control.host_access.as_ref(),
+            &token,
+        )
+        .await?
+        .map(|identity| (identity, HostCredentialSource::EventQuery)));
+    }
+
+    Ok(None)
+}
+
+fn presented_host_credentials(request: &Request) -> PresentedHostCredentials {
+    let cookies = request
         .headers()
         .get(header::COOKIE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|cookies| cookie_value(cookies, HOST_SESSION_COOKIE))
-        .is_some_and(|value| value == expected_cookie)
-    {
-        return true;
+        .and_then(|value| value.to_str().ok());
+    PresentedHostCredentials {
+        authorization: bearer_token(request.headers()).map(str::to_owned),
+        root_cookie: cookies
+            .and_then(|cookies| cookie_value(cookies, HOST_SESSION_COOKIE))
+            .map(str::to_owned),
+        device_cookie: cookies
+            .and_then(|cookies| cookie_value(cookies, host_access::REMOTE_HOST_SESSION_COOKIE))
+            .map(str::to_owned),
+        event_query: event_stream_query_credentials_allowed(request)
+            .then(|| query_access_token(request.uri()))
+            .flatten(),
     }
+}
 
-    request
-        .uri()
-        .query()
-        .and_then(|query| {
-            url::form_urlencoded::parse(query.as_bytes())
-                .find(|(key, _)| key == "access_token")
-                .map(|(_, value)| value.into_owned())
-        })
-        .is_some_and(|token| token == expected)
+fn bearer_token(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(header::AUTHORIZATION)?
+        .to_str()
+        .ok()?
+        .strip_prefix("Bearer ")
+        .filter(|token| !token.is_empty())
+}
+
+fn query_access_token(uri: &Uri) -> Option<String> {
+    uri.query().and_then(|query| {
+        url::form_urlencoded::parse(query.as_bytes())
+            .find(|(key, _)| key == "access_token")
+            .map(|(_, value)| value.into_owned())
+            .filter(|token| !token.is_empty())
+    })
+}
+
+fn event_stream_query_credentials_allowed(request: &Request) -> bool {
+    let path = request.uri().path();
+    request.method() == Method::GET
+        && (path.starts_with("/kernel/v1/event.subscribe/")
+            || (path.starts_with("/host/v1/build-deploy/") && path.ends_with("/events")))
+}
+
+fn unsafe_cookie_origin_mismatch(request: &Request, source: HostCredentialSource) -> bool {
+    if !matches!(
+        source,
+        HostCredentialSource::RootCookie | HostCredentialSource::DeviceCookie
+    ) || ![Method::POST, Method::PUT, Method::PATCH, Method::DELETE].contains(request.method())
+    {
+        return false;
+    }
+    let Some(origin) = request
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|value| value.to_str().ok())
+    else {
+        // Native/Desktop clients do not necessarily send Origin. Browser requests do,
+        // and SameSite=Strict remains an additional boundary for cookie credentials.
+        return false;
+    };
+    let Some(host) = request
+        .headers()
+        .get(header::HOST)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return true;
+    };
+    !origin_authority_matches_host(origin, host)
+}
+
+fn origin_authority_matches_host(origin: &str, host: &str) -> bool {
+    let Ok(origin) = url::Url::parse(origin) else {
+        return false;
+    };
+    if !matches!(origin.scheme(), "http" | "https")
+        || !origin.username().is_empty()
+        || origin.password().is_some()
+        || origin.path() != "/"
+        || origin.query().is_some()
+        || origin.fragment().is_some()
+    {
+        return false;
+    }
+    let Ok(host) = host.parse::<axum::http::uri::Authority>() else {
+        return false;
+    };
+    if !origin
+        .host_str()
+        .is_some_and(|origin_host| origin_host.eq_ignore_ascii_case(host.host()))
+    {
+        return false;
+    }
+    match host.port_u16() {
+        Some(port) => origin.port_or_known_default() == Some(port),
+        None => origin.port().is_none(),
+    }
+}
+
+fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAccessScope> {
+    if path == "/rpc" || path == "/host/v1/access/me" || path == "/host/v1/access/logout" {
+        return None;
+    }
+    if path == "/host/v1/access"
+        || path == "/host/v1/access/pairings"
+        || path.starts_with("/host/v1/access/pairings/")
+        || path.starts_with("/host/v1/access/grants/")
+    {
+        return Some(HostAccessScope::AccessManage);
+    }
+    if path.starts_with("/host/v1/projects/") && path.contains("/changes") {
+        if method == Method::GET || path.ends_with("/changes") {
+            return Some(HostAccessScope::DevelopPropose);
+        }
+        if path.ends_with("/approve") {
+            return Some(HostAccessScope::DevelopApprove);
+        }
+        if path.ends_with("/execute") || path.ends_with("/recover") {
+            return Some(HostAccessScope::DevelopExecute);
+        }
+        return Some(HostAccessScope::AccessManage);
+    }
+    if path.starts_with("/host/v1/") {
+        return Some(if method == Method::GET {
+            HostAccessScope::Observe
+        } else {
+            HostAccessScope::Deploy
+        });
+    }
+    if path == "/kernel/v1/session.open" {
+        return Some(HostAccessScope::ProjectOperate);
+    }
+    if path.starts_with("/kernel/v1/") {
+        return Some(if method == Method::GET {
+            HostAccessScope::Observe
+        } else {
+            HostAccessScope::AccessManage
+        });
+    }
+    if path == "/p" || path.starts_with("/p/") {
+        return Some(HostAccessScope::Observe);
+    }
+    Some(HostAccessScope::AccessManage)
 }
 
 fn host_session_cookie_value(access_token: &str) -> String {
@@ -614,6 +899,12 @@ fn host_session_cookie_value(access_token: &str) -> String {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>()
+}
+
+fn root_token_matches(candidate: &str, expected: &str) -> bool {
+    let candidate = host_session_cookie_value(candidate);
+    let expected = host_session_cookie_value(expected);
+    host_access::constant_time_eq(candidate.as_bytes(), expected.as_bytes())
 }
 
 fn cookie_value<'a>(cookies: &'a str, name: &str) -> Option<&'a str> {
@@ -635,8 +926,9 @@ fn strip_host_session_cookie(headers: &mut HeaderMap) {
         .split(';')
         .map(str::trim)
         .filter(|part| {
-            part.split_once('=')
-                .is_none_or(|(key, _)| key != HOST_SESSION_COOKIE)
+            part.split_once('=').is_none_or(|(key, _)| {
+                key != HOST_SESSION_COOKIE && key != host_access::REMOTE_HOST_SESSION_COOKIE
+            })
         })
         .collect::<Vec<_>>()
         .join("; ");
@@ -896,6 +1188,8 @@ pub struct HostDeployRequest {
     pub port_name: String,
     pub route_id: String,
     #[serde(default)]
+    pub route_access: ProxyRouteAccess,
+    #[serde(default)]
     pub health_path: Option<String>,
     #[serde(default)]
     pub pull_if_missing: bool,
@@ -911,6 +1205,7 @@ pub struct HostDeployStopRequest {
 pub struct HostDeployResponse {
     pub route_id: String,
     pub public_url: String,
+    pub route_access: ProxyRouteAccess,
     pub port_lease_id: String,
     pub container_id: String,
     pub container_name: Option<String>,
@@ -920,6 +1215,7 @@ pub struct HostDeployResponse {
 struct DeployBuiltImageResponse {
     route_id: String,
     public_url: String,
+    route_access: ProxyRouteAccess,
     port_lease_id: String,
     container_id: String,
     container_name: Option<String>,
@@ -945,6 +1241,8 @@ pub struct HostBuildDeployRequest {
     pub container_port: u16,
     pub port_name: String,
     pub route_id: String,
+    #[serde(default)]
+    pub route_access: ProxyRouteAccess,
     #[serde(default)]
     pub health_path: Option<String>,
     pub approved: bool,
@@ -1125,6 +1423,8 @@ pub enum RuntimeEnvSourceKind {
 pub struct HostBuildDeployResponse {
     pub route_id: String,
     pub public_url: String,
+    #[serde(default)]
+    pub route_access: ProxyRouteAccess,
     pub port_lease_id: String,
     pub container_id: String,
     pub container_name: Option<String>,
@@ -1166,6 +1466,8 @@ pub struct DeploymentRevision {
     pub container_port: u16,
     pub port_name: String,
     pub route_id: String,
+    #[serde(default)]
+    pub route_access: ProxyRouteAccess,
     pub health_path: Option<String>,
     pub image: String,
     pub build_id: String,
@@ -2030,6 +2332,7 @@ where
         serde_json::json!({
             "route_id": &request.route_id,
             "protocol": "http",
+            "access": request.route_access,
             "upstream": {
                 "port_lease_id": &port_lease_id,
                 "port_name": &request.port_name,
@@ -2055,7 +2358,12 @@ where
     };
     let route_id = required_string(&route, "id", "proxy route")?;
     let fallback_public_url = required_string(&route, "public_url", "proxy route")?;
-    let public_url = service_public_url_for_route(&state, &request.route_id, &fallback_public_url);
+    let public_url = service_public_url_for_route(
+        &state,
+        &request.route_id,
+        &fallback_public_url,
+        request.route_access,
+    );
 
     if let Err(error) =
         wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
@@ -2095,6 +2403,7 @@ where
     Ok(Json(HostDeployResponse {
         route_id,
         public_url,
+        route_access: request.route_access,
         port_lease_id,
         container_id: parsed_container_id,
         container_name,
@@ -2387,6 +2696,7 @@ fn deployment_revision_from_build(
         container_port: request.container_port,
         port_name: request.port_name.clone(),
         route_id: request.route_id.clone(),
+        route_access: request.route_access,
         health_path: request.health_path.clone(),
         image: result.image.clone(),
         build_id: result.build_id.clone(),
@@ -2555,6 +2865,7 @@ where
     Ok(HostBuildDeployResponse {
         route_id: deploy.route_id,
         public_url: deploy.public_url,
+        route_access: deploy.route_access,
         port_lease_id: deploy.port_lease_id,
         container_id: deploy.container_id,
         container_name: deploy.container_name,
@@ -2779,6 +3090,7 @@ where
     let receipt = HostBuildDeployResponse {
         route_id: deploy.route_id,
         public_url: deploy.public_url,
+        route_access: deploy.route_access,
         port_lease_id: deploy.port_lease_id,
         container_id: deploy.container_id,
         container_name: deploy.container_name,
@@ -2836,6 +3148,7 @@ fn build_replay_request(revision: &DeploymentRevision) -> HostBuildDeployRequest
         container_port: revision.container_port,
         port_name: revision.port_name.clone(),
         route_id: revision.route_id.clone(),
+        route_access: revision.route_access,
         health_path: revision.health_path.clone(),
         approved: true,
         source_commit: Some(revision.source_commit.clone()),
@@ -2877,6 +3190,7 @@ fn deployment_revision_from_replay(
         container_port: target.container_port,
         port_name: target.port_name.clone(),
         route_id: target.route_id.clone(),
+        route_access: target.route_access,
         health_path: target.health_path.clone(),
         image: target.image.clone(),
         build_id: target.build_id.clone(),
@@ -3274,6 +3588,7 @@ where
         serde_json::json!({
             "route_id": &request.route_id,
             "protocol": "http",
+            "access": request.route_access,
             "upstream": {
                 "port_lease_id": &lease_id,
                 "port_name": &request.port_name,
@@ -3299,7 +3614,12 @@ where
     };
     let route_id = required_string(&route, "id", "proxy route")?;
     let fallback_public_url = required_string(&route, "public_url", "proxy route")?;
-    let public_url = service_public_url_for_route(state, &request.route_id, &fallback_public_url);
+    let public_url = service_public_url_for_route(
+        state,
+        &request.route_id,
+        &fallback_public_url,
+        request.route_access,
+    );
     if let Err(error) = check_job_cancel(state, job_id) {
         rollback_deploy(
             state,
@@ -3374,6 +3694,7 @@ where
     Ok(DeployBuiltImageResponse {
         route_id,
         public_url,
+        route_access: request.route_access,
         port_lease_id: lease_id,
         container_id: parsed_container_id,
         container_name,
@@ -4102,6 +4423,7 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
         container_port: request.container_port,
         port_name: request.port_name.clone(),
         route_id: request.route_id.clone(),
+        route_access: request.route_access,
         health_path: request.health_path.clone(),
         pull_if_missing: false,
     })?;
@@ -5310,6 +5632,7 @@ fn is_reserved_service_path(path: &str) -> bool {
 
 fn is_spa_fallback_path(path: &str) -> bool {
     path == "/"
+        || path == "/pair"
         || path
             .strip_prefix("/project/")
             .is_some_and(is_valid_project_path_segment)
@@ -5503,7 +5826,11 @@ fn content_type_for(path: &std::path::Path) -> &'static str {
     }
 }
 
-async fn rpc<S>(State(state): State<AppState<S>>, Json(raw): Json<Value>) -> Json<ProtocolResponse>
+async fn rpc<S>(
+    State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
+    Json(raw): Json<Value>,
+) -> Json<ProtocolResponse>
 where
     S: EventStore,
 {
@@ -5535,6 +5862,19 @@ where
         contract,
         params,
     } = request;
+    let required_scope = required_host_scope_for_protocol_method(&method);
+    if !identity.allows(required_scope) {
+        return Json(ProtocolResponse {
+            id,
+            result: None,
+            error: Some(ProtocolError::new(
+                "kernel/v1/error/permission_denied",
+                "Host access grant does not include the required scope",
+                serde_json::json!({ "required_scope": required_scope }),
+            )),
+            diagnostics,
+        });
+    }
     let mut context = ProtocolContext::host_dev("http_rpc");
     context.session_id = session_id;
     match state
@@ -5557,6 +5897,104 @@ where
     }
 }
 
+fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
+    match method {
+        "host.info"
+        | "host.project.list"
+        | "host.project.get"
+        | "host.project.status"
+        | "host.target.list"
+        | "host.target.status"
+        | "host.exec.list"
+        | "host.exec.status"
+        | "host.exec.logs"
+        | "host.port.list"
+        | "host.port.status"
+        | "host.proxy.list"
+        | "host.proxy.status"
+        | "host.surface.bundle.resolve"
+        | "shell.contribution.list"
+        | "shell.contribution.describe"
+        | "change.proposal.get"
+        | "change.proposal.list"
+        | "projection.get"
+        | "projection.list"
+        | "kernel.v1.session.branch.list"
+        | "kernel.v1.session.get"
+        | "kernel.v1.session.list"
+        | "kernel.v1.event.list"
+        | "kernel.v1.event.subscribe"
+        | "kernel.v1.package.logs"
+        | "kernel.v1.package.list"
+        | "kernel.v1.package.status"
+        | "kernel.v1.package.describe"
+        | "kernel.v1.project.list"
+        | "kernel.v1.project.get"
+        | "kernel.v1.project.status"
+        | "kernel.v1.target.list"
+        | "kernel.v1.target.status"
+        | "kernel.v1.exec.list"
+        | "kernel.v1.exec.status"
+        | "kernel.v1.exec.logs"
+        | "kernel.v1.port.list"
+        | "kernel.v1.port.status"
+        | "kernel.v1.proxy.list"
+        | "kernel.v1.proxy.status"
+        | "kernel.v1.capability.discover"
+        | "kernel.v1.capability.describe"
+        | "kernel.v1.extension_point.list"
+        | "kernel.v1.extension_point.describe"
+        | "kernel.v1.hook.list"
+        | "kernel.v1.asset.get"
+        | "kernel.v1.asset.list"
+        | "kernel.v1.projection.get"
+        | "kernel.v1.projection.list"
+        | "kernel.v1.host.info"
+        | "kernel.v1.host.ping"
+        | "kernel.v1.host.diagnostics"
+        | "kernel.v1.surface.resolve_bundle"
+        | "kernel.v1.surface.contribution.list"
+        | "kernel.v1.surface.contribution.describe"
+        | "kernel.v1.proposal.get"
+        | "kernel.v1.proposal.list" => HostAccessScope::Observe,
+
+        "host.project.start"
+        | "host.project.stop"
+        | "kernel.v1.project.start"
+        | "kernel.v1.project.stop"
+        | "kernel.v1.session.open"
+        | "kernel.v1.session.close"
+        | "kernel.v1.session.fork" => HostAccessScope::ProjectOperate,
+
+        "host.target.register"
+        | "host.target.unregister"
+        | "host.exec.start"
+        | "host.exec.stop"
+        | "host.port.lease"
+        | "host.port.release"
+        | "host.proxy.register"
+        | "host.proxy.unregister"
+        | "kernel.v1.target.register"
+        | "kernel.v1.target.unregister"
+        | "kernel.v1.exec.start"
+        | "kernel.v1.exec.stop"
+        | "kernel.v1.port.lease"
+        | "kernel.v1.port.release"
+        | "kernel.v1.proxy.register"
+        | "kernel.v1.proxy.unregister" => HostAccessScope::Deploy,
+
+        "change.proposal.create" | "kernel.v1.proposal.create" => HostAccessScope::DevelopPropose,
+        "change.proposal.approve"
+        | "change.proposal.reject"
+        | "kernel.v1.proposal.approve"
+        | "kernel.v1.proposal.reject" => HostAccessScope::DevelopApprove,
+        "change.proposal.apply" | "kernel.v1.proposal.apply" => HostAccessScope::DevelopExecute,
+
+        // Unknown and broad administrative methods fail closed for scoped devices.
+        _ => HostAccessScope::AccessManage,
+    }
+}
+
 pub struct ServiceError {
     error: anyhow::Error,
     status: Option<StatusCode>,
@@ -5565,6 +6003,8 @@ pub struct ServiceError {
 impl ServiceError {
     fn with_status(status: StatusCode, message: impl Into<String>) -> Self {
         let code = match status {
+            StatusCode::UNAUTHORIZED => "kernel/v1/error/unauthorized",
+            StatusCode::FORBIDDEN => "kernel/v1/error/permission_denied",
             StatusCode::NOT_FOUND => "kernel/v1/error/not_found",
             StatusCode::TOO_MANY_REQUESTS => "kernel/v1/error/package_state",
             StatusCode::BAD_REQUEST => "kernel/v1/error/invalid_request",
@@ -5625,6 +6065,127 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn root_token_comparison_accepts_only_the_exact_credential() {
+        assert!(root_token_matches("secret-token", "secret-token"));
+        assert!(!root_token_matches("secret-token", "secret-token-2"));
+        assert!(!root_token_matches("", "secret-token"));
+    }
+
+    #[test]
+    fn query_credentials_are_limited_to_get_event_streams() -> anyhow::Result<()> {
+        let event_request = Request::builder()
+            .method(Method::GET)
+            .uri("/kernel/v1/event.subscribe/session-1?access_token=event-token")
+            .body(Body::empty())?;
+        assert_eq!(
+            presented_host_credentials(&event_request)
+                .event_query
+                .as_deref(),
+            Some("event-token")
+        );
+
+        let job_events = Request::builder()
+            .method(Method::GET)
+            .uri("/host/v1/build-deploy/job-1/events?access_token=device-token")
+            .body(Body::empty())?;
+        assert_eq!(
+            presented_host_credentials(&job_events)
+                .event_query
+                .as_deref(),
+            Some("device-token")
+        );
+
+        for request in [
+            Request::builder()
+                .method(Method::GET)
+                .uri("/rpc?access_token=leak")
+                .body(Body::empty())?,
+            Request::builder()
+                .method(Method::POST)
+                .uri("/host/v1/build-deploy/job-1/events?access_token=leak")
+                .body(Body::empty())?,
+        ] {
+            assert!(presented_host_credentials(&request).event_query.is_none());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn cookie_mutations_require_same_origin_when_origin_is_present() -> anyhow::Result<()> {
+        let same_origin = Request::builder()
+            .method(Method::POST)
+            .uri("/host/v1/deploy")
+            .header(header::HOST, "host.example.test:443")
+            .header(header::ORIGIN, "https://host.example.test")
+            .body(Body::empty())?;
+        assert!(!unsafe_cookie_origin_mismatch(
+            &same_origin,
+            HostCredentialSource::DeviceCookie
+        ));
+
+        let cross_origin = Request::builder()
+            .method(Method::POST)
+            .uri("/host/v1/deploy")
+            .header(header::HOST, "host.example.test")
+            .header(header::ORIGIN, "https://evil.example.test")
+            .body(Body::empty())?;
+        assert!(unsafe_cookie_origin_mismatch(
+            &cross_origin,
+            HostCredentialSource::DeviceCookie
+        ));
+
+        let bearer_cross_origin = Request::builder()
+            .method(Method::POST)
+            .uri("/host/v1/deploy")
+            .header(header::HOST, "host.example.test")
+            .header(header::ORIGIN, "https://evil.example.test")
+            .body(Body::empty())?;
+        assert!(!unsafe_cookie_origin_mismatch(
+            &bearer_cross_origin,
+            HostCredentialSource::Authorization
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn host_scope_mapping_is_explicit_and_fails_closed() {
+        assert_eq!(
+            required_host_scope_for_http(&Method::GET, "/host/v1/projects/demo/changes"),
+            Some(HostAccessScope::DevelopPropose)
+        );
+        assert_eq!(
+            required_host_scope_for_http(
+                &Method::POST,
+                "/host/v1/projects/demo/changes/change-1/approve"
+            ),
+            Some(HostAccessScope::DevelopApprove)
+        );
+        assert_eq!(
+            required_host_scope_for_http(
+                &Method::POST,
+                "/host/v1/projects/demo/changes/change-1/execute"
+            ),
+            Some(HostAccessScope::DevelopExecute)
+        );
+        assert_eq!(
+            required_host_scope_for_http(&Method::POST, "/host/v1/deploy"),
+            Some(HostAccessScope::Deploy)
+        );
+        assert_eq!(
+            required_host_scope_for_http(&Method::POST, "/unrecognized"),
+            Some(HostAccessScope::AccessManage)
+        );
+        assert_eq!(
+            required_host_scope_for_protocol_method("kernel.v1.project.start"),
+            HostAccessScope::ProjectOperate
+        );
+        assert_eq!(
+            required_host_scope_for_protocol_method("unknown.future.method"),
+            HostAccessScope::AccessManage
+        );
+    }
 
     #[test]
     fn workspace_clone_url_policy_rejects_unsafe_sources() {
@@ -5732,6 +6293,7 @@ mod tests {
             container_port: 3000,
             port_name: "web".to_string(),
             route_id: "route-build".to_string(),
+            route_access: ProxyRouteAccess::HostAuthenticated,
             health_path: Some("/health".to_string()),
             approved: true,
             source_commit: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
@@ -6014,6 +6576,7 @@ mod tests {
         HostBuildDeployResponse {
             route_id: "route-build".to_string(),
             public_url: "/p/route-build/".to_string(),
+            route_access: ProxyRouteAccess::HostAuthenticated,
             port_lease_id: "port-lease-000001".to_string(),
             container_id: "container-000001".to_string(),
             container_name: Some("ygg-build-deploy-route-build-3000".to_string()),
@@ -6491,6 +7054,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -6524,6 +7088,16 @@ mod tests {
         assert_eq!(project_route.status(), StatusCode::OK);
         assert_eq!(
             project_route.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-cache"
+        );
+
+        let pairing_route = app
+            .clone()
+            .oneshot(Request::builder().uri("/pair").body(Body::empty())?)
+            .await?;
+        assert_eq!(pairing_route.status(), StatusCode::OK);
+        assert_eq!(
+            pairing_route.headers().get(header::CACHE_CONTROL).unwrap(),
             "no-cache"
         );
 
@@ -6570,6 +7144,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let health = app
@@ -6599,6 +7174,7 @@ mod tests {
         assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
 
         let allowed = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -6611,6 +7187,37 @@ mod tests {
             )
             .await?;
         assert_eq!(allowed.status(), StatusCode::OK);
+
+        let access_identity = app
+            .oneshot(
+                Request::builder()
+                    .uri("/host/v1/access/me")
+                    .header(header::AUTHORIZATION, "Bearer secret-token")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(access_identity.status(), StatusCode::OK);
+        assert_eq!(
+            access_identity
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .unwrap(),
+            "no-store"
+        );
+        assert_eq!(
+            access_identity
+                .headers()
+                .get(header::REFERRER_POLICY)
+                .unwrap(),
+            "no-referrer"
+        );
+        assert_eq!(
+            access_identity
+                .headers()
+                .get(header::X_CONTENT_TYPE_OPTIONS)
+                .unwrap(),
+            "nosniff"
+        );
         Ok(())
     }
 
@@ -6627,6 +7234,7 @@ mod tests {
                 app_base_domain: None,
                 build_jobs: Arc::new(BuildDeployJobRegistry::default()),
                 development: development_registry(),
+                host_access: host_access_registry(),
             },
             Some("single-use-bootstrap-nonce".to_string()),
         );
@@ -6690,7 +7298,9 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::COOKIE,
-            HeaderValue::from_static("project_session=keep; ygg_host_session=remove; theme=warm"),
+            HeaderValue::from_static(
+                "project_session=keep; ygg_host_session=remove; __Host-ygg_remote_session=remove-too; theme=warm",
+            ),
         );
         strip_host_session_cookie(&mut headers);
         assert_eq!(
@@ -6710,6 +7320,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let denied = app
@@ -6745,6 +7356,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -6801,6 +7413,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let denied = app
@@ -6835,6 +7448,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let denied = app
@@ -6860,6 +7474,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -6908,6 +7523,7 @@ mod tests {
                     port_name: "web".to_string(),
                 },
                 protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
         let app = app_with_state(AppState {
@@ -6917,6 +7533,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let not_ready = app
@@ -7030,6 +7647,7 @@ mod tests {
                     port_name: "web".to_string(),
                 },
                 protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
         runtime
@@ -7044,6 +7662,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -7166,6 +7785,7 @@ mod tests {
                     port_name: "web".to_string(),
                 },
                 protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::Public,
             })
             .await;
         runtime
@@ -7182,15 +7802,15 @@ mod tests {
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/rpc?keep=1&access_token=proxy-token")
+                    .uri("/rpc?keep=1")
                     .header(header::HOST, &vhost)
-                    .header(header::AUTHORIZATION, "Bearer proxy-token")
                     .body(Body::from("vhost body"))?,
             )
             .await?;
@@ -7221,6 +7841,36 @@ mod tests {
     async fn vhost_does_not_trust_arbitrary_hosts() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let private_route_id = "private-route";
+        let private_lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: ExecutionTargetId::from("local"),
+                port_name: "private-web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: None,
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some(private_route_id.to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: private_lease.lease.id,
+                    port_name: "private-web".to_string(),
+                },
+                protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
+            })
+            .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .set_ready(private_route_id, true)
+            .await;
+        let private_vhost = format!("{}.apps.example.test", route_slug(private_route_id));
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -7228,6 +7878,7 @@ mod tests {
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let evil_suffix = app
@@ -7240,6 +7891,17 @@ mod tests {
             )
             .await?;
         assert_eq!(evil_suffix.status(), StatusCode::UNAUTHORIZED);
+
+        let private_route = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header(header::HOST, private_vhost)
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(private_route.status(), StatusCode::NOT_FOUND);
 
         let unknown_route = app
             .oneshot(
@@ -7264,12 +7926,27 @@ mod tests {
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         };
         let route_id = "My_App/Main";
-        let url = service_public_url_for_route(&state, route_id, "/p/My_App/Main/");
+        let url = service_public_url_for_route(
+            &state,
+            route_id,
+            "/p/My_App/Main/",
+            ProxyRouteAccess::Public,
+        );
         assert_eq!(
             url,
             format!("https://{}.apps.example.test/", route_slug(route_id))
+        );
+        assert_eq!(
+            service_public_url_for_route(
+                &state,
+                route_id,
+                "/p/My_App/Main/",
+                ProxyRouteAccess::HostAuthenticated,
+            ),
+            "/p/My_App/Main/"
         );
         Ok(())
     }
@@ -7329,6 +8006,7 @@ mod tests {
                     port_name: "web".to_string(),
                 },
                 protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
         runtime
@@ -7343,6 +8021,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -7382,6 +8061,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let denied = app
@@ -7428,6 +8108,7 @@ mod tests {
                     port_name: "web".to_string(),
                 },
                 protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
         runtime
@@ -7442,6 +8123,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -7526,6 +8208,7 @@ mod tests {
                     port_name: "ws".to_string(),
                 },
                 protocol: ProxyProtocol::Websocket,
+                access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
         runtime
@@ -7540,6 +8223,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let proxy_addr = listener.local_addr()?;
@@ -7599,6 +8283,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -7650,6 +8335,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -7680,6 +8366,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app
@@ -7715,6 +8402,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         for path in [
@@ -7763,6 +8451,7 @@ mod tests {
             app_base_domain: None,
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
+            host_access: host_access_registry(),
         });
 
         let response = app

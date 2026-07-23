@@ -36,7 +36,7 @@ Approval and execution are separate requests. Approval covers the exact server-r
 | `POST` | `.../:change_set_id/execute` | Stage, verify, and promote according to ownership |
 | `POST` | `.../:change_set_id/recover` | Reconcile an interrupted Docker image or managed promotion |
 
-All routes are inside the existing Host token middleware. The current token is a Host-level gate, and `host serve` requires a non-empty token when binding a non-loopback address. Finer project/action scopes, remote identity, and delegation are next-stage work; privileged official packages are not a substitute.
+All routes are inside Host authentication middleware. The root token remains the complete Host gate; paired devices attenuate authority through separate `develop_propose`, `develop_approve`, and `develop_execute` scopes, while unknown mutations fail closed. `host serve` still requires a non-empty root token for a non-loopback bind. See [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) for device pairing, revocation, HTTPS, and cookie boundaries. Project-level multi-tenant scoping remains follow-up work; privileged official packages are not a substitute.
 
 ## Ownership behavior
 
@@ -89,4 +89,4 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 - development/project/deploy ontology in the kernel;
 - a local CLI mutation path that bypasses the public Host API.
 
-Remote CLI control, project-scoped authority, mobile control, artifact permission/GC, and richer verifiers can evolve on this same boundary.
+The mobile PWA now uses scoped device identity through the same Host API and has no side-channel mutation interface. Dedicated remote-CLI UX, project-scoped authority, artifact permission/GC, and richer verifiers can evolve on this same boundary.

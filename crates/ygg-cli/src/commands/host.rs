@@ -835,6 +835,12 @@ where
             .await
             .context("failed to hydrate durable deployment control plane")?;
     println!("  deployment journal events loaded: {deployment_events}");
+    let host_access = ygg_service::host_access_registry();
+    let host_access_events =
+        ygg_service::hydrate_host_access_control_plane(runtime.store(), host_access.clone())
+            .await
+            .context("failed to hydrate durable Host access control plane")?;
+    println!("  Host access journal events loaded: {host_access_events}");
     let development = ygg_service::development_registry();
     let development_lease =
         ygg_service::acquire_development_host_lease(runtime.store(), development.clone())
@@ -901,6 +907,7 @@ where
         app_base_domain,
         build_jobs,
         development,
+        host_access,
     };
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
     let bootstrap_token = std::env::var("YGG_HTTP_BOOTSTRAP_TOKEN")

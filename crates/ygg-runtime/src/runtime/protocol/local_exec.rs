@@ -786,6 +786,7 @@ where
                 "port_lease_id": response.route.upstream.port_lease_id,
                 "port_name": response.route.upstream.port_name,
                 "protocol": response.route.protocol,
+                "access": response.route.access,
                 "public_url": response.route.public_url,
                 "iframe_url": response.route.iframe_url,
                 "status": response.route.status,

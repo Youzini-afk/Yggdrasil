@@ -5,6 +5,7 @@ import { InstalledPackagesPanel } from "./installed-packages";
 import { ProfilesPanel } from "./profiles";
 import { StoragePanel } from "./storage";
 import { AboutPanel } from "./about";
+import { HostAccessPanel } from "./host-access";
 
 export function SettingsPage({ tab }: { tab: SettingsTab }) {
   return (
@@ -19,6 +20,8 @@ function renderTab(tab: SettingsTab) {
   switch (tab) {
     case "api-connections":
       return <ApiConnectionsPanel />;
+    case "host-access":
+      return <HostAccessPanel />;
     case "installed-packages":
       return <InstalledPackagesPanel />;
     case "profiles":

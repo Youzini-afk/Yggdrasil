@@ -21,3 +21,8 @@
 ## 上游集成边界
 
 - [`PI_INTEGRATION.md`](PI_INTEGRATION.md) — pi agent 框架的吸收边界
+
+## Host 控制平面
+
+- [`HOST_DEVELOPMENT_CONTROL_PLANE.md`](HOST_DEVELOPMENT_CONTROL_PLANE.md) — 受控源码变更、验证、promotion 与恢复
+- [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.md) — root / 设备身份、scope、HTTPS pairing 与显式应用路由暴露

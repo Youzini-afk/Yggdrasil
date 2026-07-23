@@ -20,6 +20,24 @@ export interface LocaleDictionary {
   authInvalidToken: string;
   authConnectionFailed: (message: string) => string;
 
+  pairEyebrow: string;
+  pairTitle: string;
+  pairBody: string;
+  pairLoading: string;
+  pairMissingBody: string;
+  pairInvalidTitle: string;
+  pairInvalidBody: string;
+  pairDevice: string;
+  pairPermissions: string;
+  pairGrantExpires: string;
+  pairSecureRequiredTitle: string;
+  pairSecureRequiredBody: string;
+  pairConfirm: string;
+  pairClaiming: string;
+  pairCompleteTitle: string;
+  pairCompleteBody: string;
+  pairOpenHost: string;
+
   topbarHome: string;
   topbarSettings: string;
   topbarProject: (projectId: string) => string;
@@ -416,6 +434,12 @@ export interface LocaleDictionary {
   projectFrameDeploymentNoDurableHistory: string;
   projectFrameDeploymentJobHistory: string;
   projectFrameDeploymentCreatedAt: string;
+  projectFrameRouteExposure: string;
+  projectFrameRoutePrivate: string;
+  projectFrameRoutePrivateBody: string;
+  projectFrameRoutePublic: string;
+  projectFrameRoutePublicBody: string;
+  projectFrameRoutePublicWarning: string;
   projectFrameDeployActionTitle: string;
   projectFrameDeployActionDescription: string;
   projectFrameDeployInvalidTitle: string;
@@ -488,10 +512,70 @@ export interface LocaleDictionary {
   settingsTitle: string;
   settingsHelper: string;
   settingsApiConnections: string;
+  settingsHostAccess: string;
   settingsInstalledPackages: string;
   settingsProfiles: string;
   settingsStorage: string;
   settingsAbout: string;
+
+  accessEyebrow: string;
+  accessTitle: string;
+  accessDescription: string;
+  accessIdentityUnknown: string;
+  accessRootIdentity: string;
+  accessDeviceIdentity: string;
+  accessRefresh: string;
+  accessLimitedTitle: string;
+  accessLimitedBody: string;
+  accessCreateTitle: string;
+  accessCreateBody: string;
+  accessDeviceName: string;
+  accessDevicePlaceholder: string;
+  accessGrantDays: string;
+  accessGrantDaysHelper: string;
+  accessPublicHostUrl: string;
+  accessPublicHostUrlHelper: string;
+  accessHttpsRequired: string;
+  accessPermissions: string;
+  accessCreateValidation: string;
+  accessCreating: string;
+  accessCreateButton: string;
+  accessOneTimeEyebrow: string;
+  accessOneTimeTitle: string;
+  accessOneTimeBody: string;
+  accessCopyLink: string;
+  accessCopied: string;
+  accessShareLink: string;
+  accessPairingShareText: string;
+  accessDevicesTitle: string;
+  accessDevicesBody: string;
+  accessNoDevices: string;
+  accessCurrentDevice: string;
+  accessStatusActive: string;
+  accessStatusRevoked: string;
+  accessStatusExpired: string;
+  accessExpires: (date: string) => string;
+  accessRevoke: string;
+  accessRevokeConfirm: (name: string) => string;
+  accessPendingTitle: string;
+  accessPendingBody: string;
+  accessNoPending: string;
+  accessTicketExpires: (time: string) => string;
+  accessCancelTicket: string;
+  accessScopeObserve: string;
+  accessScopeObserveBody: string;
+  accessScopeProjectOperate: string;
+  accessScopeProjectOperateBody: string;
+  accessScopeDeploy: string;
+  accessScopeDeployBody: string;
+  accessScopeDevelopPropose: string;
+  accessScopeDevelopProposeBody: string;
+  accessScopeDevelopApprove: string;
+  accessScopeDevelopApproveBody: string;
+  accessScopeDevelopExecute: string;
+  accessScopeDevelopExecuteBody: string;
+  accessScopeManage: string;
+  accessScopeManageBody: string;
 
   apiEyebrowLoading: string;
   apiEyebrowCount: (count: number) => string;
@@ -679,6 +763,27 @@ export const labels = {
     authCheckingAccess: "Checking access…",
     authInvalidToken: "Invalid access token. Please check your token and try again.",
     authConnectionFailed: (message) => `Connection failed: ${message}`,
+
+    pairEyebrow: "Secure device pairing",
+    pairTitle: "Connect this device",
+    pairBody:
+      "Review the access prepared by your Yggdrasil Host, then create an expiring, revocable session for this device.",
+    pairLoading: "Validating the one-time invitation…",
+    pairMissingBody: "This pairing link does not contain a one-time credential.",
+    pairInvalidTitle: "Pairing invitation unavailable",
+    pairInvalidBody: "This invitation is invalid, expired, cancelled, or has already been used.",
+    pairDevice: "Device",
+    pairPermissions: "Granted abilities",
+    pairGrantExpires: "Access expires",
+    pairSecureRequiredTitle: "HTTPS is required",
+    pairSecureRequiredBody:
+      "Remote sessions use a Secure, HttpOnly cookie. Reopen this invitation through the Host's HTTPS address.",
+    pairConfirm: "Pair this device",
+    pairClaiming: "Pairing…",
+    pairCompleteTitle: "Device paired",
+    pairCompleteBody:
+      "The one-time invitation has been consumed. This browser now has a scoped session that the Host owner can revoke at any time.",
+    pairOpenHost: "Open Yggdrasil",
 
     topbarHome: "Home",
     topbarSettings: "Settings",
@@ -1093,6 +1198,12 @@ export const labels = {
     projectFrameDeploymentNoDurableHistory: "No durable deployment revision has been recorded for this project.",
     projectFrameDeploymentJobHistory: "Recent deployment jobs",
     projectFrameDeploymentCreatedAt: "Created",
+    projectFrameRouteExposure: "Route exposure",
+    projectFrameRoutePrivate: "Host authenticated",
+    projectFrameRoutePrivateBody: "Only authenticated Host clients can reach this service through the managed /p route.",
+    projectFrameRoutePublic: "Public",
+    projectFrameRoutePublicBody: "Allow unauthenticated requests through the configured virtual-host domain.",
+    projectFrameRoutePublicWarning: "Public exposure bypasses Host authentication for this application route. Publish only services designed for the internet.",
     projectFrameDeployActionTitle: "Explicit Docker deployment",
     projectFrameDeployActionDescription: "Starts one prebuilt HTTP container using host-owned port and proxy resources.",
     projectFrameDeployInvalidTitle: "Deployment metadata is invalid",
@@ -1165,10 +1276,74 @@ export const labels = {
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
     settingsApiConnections: "API Connections",
+    settingsHostAccess: "Host Access",
     settingsInstalledPackages: "Installed Packages",
     settingsProfiles: "Profiles",
     settingsStorage: "Storage",
     settingsAbout: "About",
+
+    accessEyebrow: "Host control plane",
+    accessTitle: "Devices & access",
+    accessDescription:
+      "Pair phones and browsers without copying the Host root token. Every device receives an explicit scope, expiry, and revocable grant stored in the Host journal.",
+    accessIdentityUnknown: "Unknown Host identity",
+    accessRootIdentity: "Host root authority",
+    accessDeviceIdentity: "Paired device session",
+    accessRefresh: "Refresh",
+    accessLimitedTitle: "This device has limited access",
+    accessLimitedBody:
+      "Its grant can use the Host but cannot create, inspect, or revoke other device grants.",
+    accessCreateTitle: "Pair another device",
+    accessCreateBody:
+      "Create a short-lived invitation. The invitation is consumed once and the resulting device session never exposes the Host root credential.",
+    accessDeviceName: "Device name",
+    accessDevicePlaceholder: "e.g. Lin's phone",
+    accessGrantDays: "Grant lifetime (days)",
+    accessGrantDaysHelper: "Between 1 and 365 days.",
+    accessPublicHostUrl: "HTTPS Host address",
+    accessPublicHostUrlHelper: "The phone must be able to reach this exact Host address.",
+    accessHttpsRequired: "Enter the public HTTPS origin for this Host, without a path.",
+    accessPermissions: "Device abilities",
+    accessCreateValidation: "Enter a device name, 1–365 days, and a valid HTTPS Host address.",
+    accessCreating: "Creating…",
+    accessCreateButton: "Create pairing link",
+    accessOneTimeEyebrow: "One-time invitation",
+    accessOneTimeTitle: "Send this link to the device",
+    accessOneTimeBody:
+      "It expires in 10 minutes and disappears permanently after the first successful claim. Treat it as a short-lived secret.",
+    accessCopyLink: "Copy link",
+    accessCopied: "Copied",
+    accessShareLink: "Share…",
+    accessPairingShareText: "Pair this device with my Yggdrasil Host.",
+    accessDevicesTitle: "Device grants",
+    accessDevicesBody: "Durable, scoped sessions known to this Host.",
+    accessNoDevices: "No paired device grants yet.",
+    accessCurrentDevice: "This device",
+    accessStatusActive: "Active",
+    accessStatusRevoked: "Revoked",
+    accessStatusExpired: "Expired",
+    accessExpires: (date) => `expires ${date}`,
+    accessRevoke: "Revoke",
+    accessRevokeConfirm: (name) => `Revoke Host access for ${name}?`,
+    accessPendingTitle: "Pending invitations",
+    accessPendingBody: "Unclaimed pairing links that have not expired.",
+    accessNoPending: "No pending invitations.",
+    accessTicketExpires: (time) => `invitation expires ${time}`,
+    accessCancelTicket: "Cancel",
+    accessScopeObserve: "Observe",
+    accessScopeObserveBody: "Read Host, project, deployment, and diagnostic state.",
+    accessScopeProjectOperate: "Operate projects",
+    accessScopeProjectOperateBody: "Start, stop, open, and fork project sessions.",
+    accessScopeDeploy: "Deploy",
+    accessScopeDeployBody: "Build, deploy, recover, and manage runtime routes.",
+    accessScopeDevelopPropose: "Propose changes",
+    accessScopeDevelopProposeBody: "Draft and inspect controlled project change sets.",
+    accessScopeDevelopApprove: "Approve changes",
+    accessScopeDevelopApproveBody: "Approve or reject reviewed change sets.",
+    accessScopeDevelopExecute: "Execute changes",
+    accessScopeDevelopExecuteBody: "Run, promote, and recover approved change sets.",
+    accessScopeManage: "Manage access",
+    accessScopeManageBody: "Create and revoke device grants. Reserve for trusted administrators.",
 
     apiEyebrowLoading: "API Connections · loading…",
     apiEyebrowCount: (count) => `API Connections · ${count} keys stored`,
@@ -1366,6 +1541,24 @@ export const labels = {
     authCheckingAccess: "正在检查访问权限…",
     authInvalidToken: "访问令牌无效。请检查令牌后重试。",
     authConnectionFailed: (message) => `连接失败：${message}`,
+
+    pairEyebrow: "安全设备配对",
+    pairTitle: "连接这台设备",
+    pairBody: "确认 Yggdrasil Host 为此设备准备的权限，然后创建一个可过期、可撤销的设备会话。",
+    pairLoading: "正在验证一次性邀请…",
+    pairMissingBody: "此配对链接中没有一次性凭据。",
+    pairInvalidTitle: "配对邀请不可用",
+    pairInvalidBody: "此邀请无效、已过期、已取消，或已经被使用。",
+    pairDevice: "设备",
+    pairPermissions: "授予能力",
+    pairGrantExpires: "访问到期时间",
+    pairSecureRequiredTitle: "必须使用 HTTPS",
+    pairSecureRequiredBody: "远程会话使用 Secure、HttpOnly Cookie。请通过 Host 的 HTTPS 地址重新打开此邀请。",
+    pairConfirm: "配对此设备",
+    pairClaiming: "正在配对…",
+    pairCompleteTitle: "设备已配对",
+    pairCompleteBody: "一次性邀请已经消耗。本浏览器现持有受限会话，Host 所有者可随时撤销。",
+    pairOpenHost: "打开 Yggdrasil",
 
     topbarHome: "首页",
     topbarSettings: "设置",
@@ -1770,6 +1963,12 @@ export const labels = {
     projectFrameDeploymentNoDurableHistory: "该项目尚无持久化部署修订。",
     projectFrameDeploymentJobHistory: "近期部署任务",
     projectFrameDeploymentCreatedAt: "创建时间",
+    projectFrameRouteExposure: "路由暴露范围",
+    projectFrameRoutePrivate: "需要 Host 认证",
+    projectFrameRoutePrivateBody: "只有已认证的 Host 客户端可通过托管的 /p 路由访问此服务。",
+    projectFrameRoutePublic: "公开访问",
+    projectFrameRoutePublicBody: "允许未经认证的请求通过已配置的虚拟主机域名访问。",
+    projectFrameRoutePublicWarning: "公开访问会绕过该应用路由的 Host 认证。请只发布已按互联网暴露场景设计的服务。",
     projectFrameDeployActionTitle: "显式 Docker 部署",
     projectFrameDeployActionDescription: "使用主机拥有的端口和代理资源启动一个预构建 HTTP 容器。",
     projectFrameDeployInvalidTitle: "部署元数据无效",
@@ -1842,10 +2041,72 @@ export const labels = {
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",
     settingsApiConnections: "API 连接",
+    settingsHostAccess: "Host 访问",
     settingsInstalledPackages: "已安装包",
     settingsProfiles: "配置档",
     settingsStorage: "存储",
     settingsAbout: "关于",
+
+    accessEyebrow: "Host 控制平面",
+    accessTitle: "设备与访问",
+    accessDescription:
+      "无需复制 Host 根令牌即可配对手机和浏览器。每台设备都有明确的权限范围、到期时间和可撤销授权，并持久记录在 Host 日志中。",
+    accessIdentityUnknown: "未知 Host 身份",
+    accessRootIdentity: "Host 根权限",
+    accessDeviceIdentity: "已配对设备会话",
+    accessRefresh: "刷新",
+    accessLimitedTitle: "此设备仅有受限权限",
+    accessLimitedBody: "它可以使用 Host，但不能创建、查看或撤销其他设备授权。",
+    accessCreateTitle: "配对另一台设备",
+    accessCreateBody:
+      "创建一个短时有效的邀请。邀请只能使用一次，生成的设备会话不会暴露 Host 根凭据。",
+    accessDeviceName: "设备名称",
+    accessDevicePlaceholder: "例如：林的手机",
+    accessGrantDays: "授权有效期（天）",
+    accessGrantDaysHelper: "可设置 1 到 365 天。",
+    accessPublicHostUrl: "Host HTTPS 地址",
+    accessPublicHostUrlHelper: "手机必须能够访问这个准确的 Host 地址。",
+    accessHttpsRequired: "请输入此 Host 的公网 HTTPS 源地址，不要包含路径。",
+    accessPermissions: "设备能力",
+    accessCreateValidation: "请填写设备名称、1–365 天有效期和有效的 Host HTTPS 地址。",
+    accessCreating: "正在创建…",
+    accessCreateButton: "创建配对链接",
+    accessOneTimeEyebrow: "一次性邀请",
+    accessOneTimeTitle: "把此链接发送到目标设备",
+    accessOneTimeBody: "链接将在 10 分钟后过期，并在首次成功领取后永久失效。请把它视为短期秘密。",
+    accessCopyLink: "复制链接",
+    accessCopied: "已复制",
+    accessShareLink: "分享…",
+    accessPairingShareText: "将此设备与我的 Yggdrasil Host 配对。",
+    accessDevicesTitle: "设备授权",
+    accessDevicesBody: "此 Host 已知的持久、受限设备会话。",
+    accessNoDevices: "尚无已配对的设备授权。",
+    accessCurrentDevice: "当前设备",
+    accessStatusActive: "有效",
+    accessStatusRevoked: "已撤销",
+    accessStatusExpired: "已过期",
+    accessExpires: (date) => `到期于 ${date}`,
+    accessRevoke: "撤销",
+    accessRevokeConfirm: (name) => `撤销 ${name} 的 Host 访问权限？`,
+    accessPendingTitle: "待领取邀请",
+    accessPendingBody: "尚未领取且未过期的配对链接。",
+    accessNoPending: "没有待领取邀请。",
+    accessTicketExpires: (time) => `邀请将在 ${time} 过期`,
+    accessCancelTicket: "取消",
+    accessScopeObserve: "查看",
+    accessScopeObserveBody: "读取 Host、项目、部署和诊断状态。",
+    accessScopeProjectOperate: "操作项目",
+    accessScopeProjectOperateBody: "启动、停止、打开和分叉项目会话。",
+    accessScopeDeploy: "部署",
+    accessScopeDeployBody: "构建、部署、恢复并管理运行时路由。",
+    accessScopeDevelopPropose: "提出变更",
+    accessScopeDevelopProposeBody: "起草并查看受控项目变更集。",
+    accessScopeDevelopApprove: "审批变更",
+    accessScopeDevelopApproveBody: "批准或拒绝已经审阅的变更集。",
+    accessScopeDevelopExecute: "执行变更",
+    accessScopeDevelopExecuteBody: "运行、提升并恢复已批准的变更集。",
+    accessScopeManage: "管理访问",
+    accessScopeManageBody: "创建和撤销设备授权。仅应授予可信管理员。",
 
     apiEyebrowLoading: "API 连接 · 加载中…",
     apiEyebrowCount: (count) => `API 连接 · 已存储 ${count} 个密钥`,

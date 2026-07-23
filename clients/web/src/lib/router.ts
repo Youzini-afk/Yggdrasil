@@ -1,13 +1,14 @@
 /**
  * Tiny in-app router — hash-based, three routes plus query/state params.
  *
- * We intentionally avoid React Router for a desktop shell with five static
- * pages. Hash routing avoids server config, works in Tauri WebView, and
+ * We intentionally avoid React Router for a desktop shell with a small fixed
+ * route set. Hash routing avoids server config, works in Tauri WebView, and
  * survives reloads.
  *
  * Route grammar:
  *   #/                                Home
  *   #/settings/api-connections        Settings page
+ *   #/settings/host-access            Paired devices and scoped access
  *   #/settings/installed-packages     ...
  *   #/settings/profiles
  *   #/settings/storage
@@ -19,6 +20,7 @@ import { useEffect, useState } from "react";
 
 export type SettingsTab =
   | "api-connections"
+  | "host-access"
   | "installed-packages"
   | "profiles"
   | "storage"
@@ -34,6 +36,7 @@ export type Route =
 
 export const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: "api-connections", label: "API Connections" },
+  { id: "host-access", label: "Host Access" },
   { id: "installed-packages", label: "Installed Packages" },
   { id: "profiles", label: "Profiles" },
   { id: "storage", label: "Storage" },

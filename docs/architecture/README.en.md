@@ -21,3 +21,8 @@ The kernel + packages + projects three-tier architecture, capability package con
 ## Upstream integration boundaries
 
 - [`PI_INTEGRATION.md`](PI_INTEGRATION.en.md) — absorption boundary for the pi agent framework
+
+## Host control planes
+
+- [`HOST_DEVELOPMENT_CONTROL_PLANE.md`](HOST_DEVELOPMENT_CONTROL_PLANE.en.md) — controlled source changes, verification, promotion, and recovery
+- [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) — root/device identities, scopes, HTTPS pairing, and explicit application-route exposure

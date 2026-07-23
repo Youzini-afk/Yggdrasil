@@ -29,6 +29,7 @@ assertDeepEqual(parseDockerDeploymentDescriptor("project-1", {
     container_port: 8080,
     port_name: "web",
     route_id: "project-1-web",
+    route_access: "host_authenticated",
     pull_if_missing: false,
   },
 });
@@ -40,6 +41,7 @@ assertDeepEqual(parseDockerDeploymentDescriptor("project-1", {
       container_port: 80,
       port_name: "http",
       route_id: "project-1-http",
+      route_access: "public",
       health_path: "/healthz",
       pull_if_missing: true,
     },
@@ -49,6 +51,7 @@ assertDeepEqual(parseDockerDeploymentDescriptor("project-1", {
   container_port: 80,
   port_name: "http",
   route_id: "project-1-http",
+  route_access: "public",
   health_path: "/healthz",
   pull_if_missing: true,
 });
@@ -63,6 +66,10 @@ assertEqual(Boolean(parseDockerDeploymentDescriptor("project-1", {
 
 assertEqual(Boolean(parseDockerDeploymentDescriptor("project-1", {
   deployment: { docker: { image: "example/app:latest", container_port: 80, route_id: "../bad" } },
+}).error), true);
+
+assertEqual(Boolean(parseDockerDeploymentDescriptor("project-1", {
+  deployment: { docker: { image: "example/app:latest", container_port: 80, route_access: "internet" } },
 }).error), true);
 
 assertEqual(Boolean(parseDockerDeploymentDescriptor("project-1", {
@@ -90,6 +97,7 @@ assertDeepEqual(parseBuildDeployDescriptor("project-1", {
   container_port: 3000,
   port_name: "web",
   route_id: "project-1-web",
+  route_access: "host_authenticated",
   runtime_env: [
     { name: "NODE_ENV", value: "production" },
     { name: "API_TOKEN", secret_ref: "project:API_TOKEN" },
@@ -103,6 +111,10 @@ assertEqual(Boolean(parseBuildDeployDescriptor("project-1", {
 
 assertEqual(Boolean(parseBuildDeployDescriptor("project-1", {
   deployment: { build_deploy: { source_url: "https://example.com/repo.git", strategy: "compose", container_port: 3000 } },
+}).error), true);
+
+assertEqual(Boolean(parseBuildDeployDescriptor("project-1", {
+  deployment: { build_deploy: { source_url: "https://example.com/repo.git", container_port: 3000, route_access: "internet" } },
 }).error), true);
 
 assertEqual(Boolean(parseBuildDeployDescriptor("project-1", {

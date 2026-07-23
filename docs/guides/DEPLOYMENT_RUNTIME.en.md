@@ -13,7 +13,7 @@ The kernel exposes four generic primitive families:
 | target | `kernel.v1.target.*` | Describe an execution target. The built-in target is `local`. |
 | exec | `kernel.v1.exec.*` | Start, stop, and inspect controlled local execution. Deny-all by default. |
 | port | `kernel.v1.port.*` | Lease a loopback port from the host. |
-| proxy | `kernel.v1.proxy.*` | Bind a public HTTP / WebSocket route to a port lease. |
+| proxy | `kernel.v1.proxy.*` | Bind a managed HTTP / WebSocket route to a port lease and explicitly record Host-authenticated or public access. |
 
 Docker, git, installation, secret storage, workspaces, and adapters are not kernel concepts. Ordinary capability packages implement them.
 
@@ -21,9 +21,9 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 
 - `LocalExecExecutor` trait: defaults to `DenyAllLocalExecExecutor`; profiles may opt into `LiveLocalExecExecutor`.
 - `LiveLocalExecExecutor`: accepts argv arrays only, never shell strings. cwd, env, logs, timeout, and kill behavior are host-controlled.
-- `ygg-service` reverse proxy: `/p/<route_id>/...` remains available; if `YGG_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is set, `<slug>.apps.example.com/` virtual-host routes are also supported so community apps can own the root path `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
+- `ygg-service` reverse proxy: `/p/<route_id>/...` remains available inside Host authentication. A route gets an additional unauthenticated `<slug>.apps.example.com/` virtual host only when it explicitly selects `public` and `YGG_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is configured, allowing a community app to own `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
 - `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
-- Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user can explicitly Deploy / Stop, start Build & Deploy, recover, or roll back.
+- Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. Host-authenticated is the default.
 - Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
 - Restart reconciliation: after a restart, replayed records are first downgraded (exec → unknown, port → reserved, proxy → stale with `ready=false`), then reconciled against the real world.
 - Readiness gating: proxy routes register with `ready=false`; the reverse proxy returns 503 for routes that are not yet ready, and only forwards once ready.
@@ -43,11 +43,12 @@ project:
         container_port: 3000
         port_name: web        # optional, default: web
         route_id: my-app-web  # optional, default: <project_id>-web
+        route_access: host_authenticated # optional; host_authenticated | public
         health_path: /healthz # optional, used for the readiness probe
         pull_if_missing: false
 ```
 
-The current web broker accepts only these fields. `env`, `volumes`, `mounts`, `binds`, and `secrets` are rejected so the first deployment path cannot silently expand authority.
+The current web broker accepts only these fields. Missing `route_access` and older descriptors resolve to `host_authenticated`; public access must also be selected explicitly in the deployment UI. `env`, `volumes`, `mounts`, `binds`, and `secrets` are rejected so the first deployment path cannot silently expand authority.
 
 ## Build & Deploy descriptor
 
@@ -65,6 +66,7 @@ project:
         container_port: 3000
         port_name: web
         route_id: my-app-web
+        route_access: host_authenticated # host_authenticated | public
         health_path: /healthz
         runtime_env:
           - name: NODE_ENV
@@ -93,7 +95,7 @@ The Deploy button in the project console never runs automatically. After user co
 1. The host re-validates the request (client fields are not trusted).
 2. `kernel.v1.port.lease`: lease a loopback port.
 3. `kernel.v1.capability.invoke` → `official/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
-4. `kernel.v1.proxy.register`: bind a route to that port lease (registered with `ready=false`).
+4. `kernel.v1.proxy.register`: bind the route and explicit `route_access` to that port lease (registered with `ready=false`).
 5. Readiness probe: TCP-connect to the loopback port (with an optional health_path HTTP probe). The route is flipped to `ready=true` and success returned only if the probe passes within a bounded timeout.
 
 If any step fails, the broker rolls back in reverse: unregister proxy, stop the just-started container, release the port lease. Because orchestration is host-side, closing the browser tab does not leave orphan containers or port leases.
@@ -110,14 +112,14 @@ ygg host serve --app-base-domain apps.example.com
 YGG_APP_BASE_DOMAIN=apps.example.com ygg host serve
 ```
 
-When enabled, the service derives a DNS-safe slug from `route_id` and presents the public URL as `https://<slug>.apps.example.com/`. Without a base domain, it keeps returning `/p/<route_id>/`.
+Configuring a base domain does not publish any route by itself. Only a route registered as `public` gets a DNS-safe slug derived from `route_id` and a public URL such as `https://<slug>.apps.example.com/`. A `host_authenticated` route, or any deployment without a base domain, keeps the Host-authenticated `/p/<route_id>/` URL.
 
 Boundary rules:
 
-- Hostnames are a service-layer access mode, not kernel schema. `kernel.v1.proxy.*` does not know DNS.
+- `ProxyRouteAccess` is a generic proxy-route property. Hostname derivation remains service-layer behavior; the kernel does not know DNS.
 - Only `<slug>.<app_base_domain>` matches. Arbitrary hosts, the bare base domain, and fake suffixes such as `foo.apps.example.com.evil.com` do not match.
 - `X-Forwarded-Host` is not trusted.
-- vhost app entry does not require the Ygg shell token; it is the deployed app's public entry. Ygg RPC / host APIs still live on the main host and remain token-protected.
+- Only a `route_access=public` vhost entry bypasses Ygg Host identity; it is the deployed app's public entry. A private vhost returns 404, while `/p`, RPC, and Host APIs still require Host identity and scopes.
 - Upstream must still be a loopback lease, and the route must be active + ready.
 - vhost requests set upstream `Host` to the app hostname; `Authorization`, Ygg `access_token` query values, and `Referer` are not forwarded.
 - vhost responses strip the `Domain` attribute from `Set-Cookie`, making cookies host-only. `Location` is only rewritten for same-upstream redirects; external absolute redirects are still stripped.
@@ -136,7 +138,7 @@ Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediat
 
 Job intent, the latest state snapshot, immutable deployment revisions, and the active pointer are written to the current profile's `EventStore`. SQLite / Postgres profiles therefore restore the control plane across host restarts; the in-memory profile remains development-only. An incomplete job is deterministically marked Failed after restart, and the host never automatically replays clone / build / deploy side effects. The full live log remains a bounded in-memory ring; the journal retains only redacted state and the last event.
 
-Every successful Build & Deploy creates a `DeploymentRevision` containing source ref, build artifact identity, route configuration, and a redacted receipt. It never stores raw secrets or host mount paths. A revision is automatically recoverable only when every runtime env value came from a `secret_ref` and no host mount was used. Plain env values and mounts become explicit blockers that require a manual rebuild. Journal events remain immutable; the live control-plane projection and API retain the most recent 64 revisions per project so restart memory and response size remain bounded.
+Every successful Build & Deploy creates a `DeploymentRevision` containing source ref, build artifact identity, `route_access`, route configuration, and a redacted receipt. It never stores raw secrets or host mount paths. A revision is automatically recoverable only when every runtime env value came from a `secret_ref` and no host mount was used. Plain env values and mounts become explicit blockers that require a manual rebuild. Recover and rollback preserve the revision's route-exposure choice. Journal events remain immutable; the live control-plane projection and API retain the most recent 64 revisions per project so restart memory and response size remain bounded.
 
 Project-scoped host APIs:
 
@@ -158,6 +160,7 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 - Deny-all by default. No profile opt-in means no real local process start.
 - Ports bind to loopback only.
 - Proxy upstreams must reference active port leases, and `port_name` must match.
+- Proxy routes default to `host_authenticated`. A public vhost requires explicit `route_access: public`; configuring a wildcard domain never publishes existing routes in bulk.
 - Path-prefix proxying does not follow upstream redirects and strips `Set-Cookie`, `Location`, CORS, and other dangerous response headers. Vhost proxying only allows host-only cookies and same-upstream `Location` rewrites.
 - Prebuilt-image deployment does not accept env / volume / secret fields. Source Build & Deploy accepts only explicitly approved runtime env / volume fields; raw runtime secrets are injected only inside the host-private runner, and build-time secrets are not supported yet.
 - Docker is implemented by an ordinary capability package. No official fast path.
@@ -166,6 +169,6 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 
 - Native execution remains trusted/dev-oriented. It is not a full OS sandbox.
 - **Auto-restart** is not implemented and remains a separate future phase. The host-plane now has durable revisions and explicit recovery, but health supervision still only monitors, flips readiness, and audits; it never replays deployment side effects without user authorization.
-- Remote targets and multi-client public exposure are not implemented; ports bind to loopback only.
+- Remote execution targets are not implemented; ports bind to loopback only. Multi-client control of one Host and explicit public vhosts are implemented, but neither is a remote target nor an application identity system.
 - Docker descriptors still lack pull progress and long-term log archival.
 - External project wizards can generate deployment descriptors later, but deployment must remain an explicit user action.

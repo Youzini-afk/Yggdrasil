@@ -1,4 +1,4 @@
-import { Folder, GitBranch, Info, Package, Plug } from "@/components/icons";
+import { Folder, GitBranch, Info, Package, Plug, ShieldCheck } from "@/components/icons";
 import { useRoute } from "@/lib/router";
 import type { SettingsTab } from "@/lib/router";
 import { cn } from "@/lib/cn";
@@ -9,14 +9,16 @@ const NAV_ITEMS: Array<{
   Icon: typeof Plug;
 }> = [
   { id: "api-connections", Icon: Plug },
+  { id: "host-access", Icon: ShieldCheck },
   { id: "installed-packages", Icon: Package },
   { id: "profiles", Icon: GitBranch },
   { id: "storage", Icon: Folder },
   { id: "about", Icon: Info },
 ];
 
-const navLabelKey: Record<SettingsTab, "settingsApiConnections" | "settingsInstalledPackages" | "settingsProfiles" | "settingsStorage" | "settingsAbout"> = {
+const navLabelKey: Record<SettingsTab, "settingsApiConnections" | "settingsHostAccess" | "settingsInstalledPackages" | "settingsProfiles" | "settingsStorage" | "settingsAbout"> = {
   "api-connections": "settingsApiConnections",
+  "host-access": "settingsHostAccess",
   "installed-packages": "settingsInstalledPackages",
   profiles: "settingsProfiles",
   storage: "settingsStorage",

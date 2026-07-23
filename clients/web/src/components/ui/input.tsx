@@ -90,14 +90,21 @@ Textarea.displayName = "Textarea";
 
 export interface CheckboxProps {
   checked?: boolean;
+  disabled?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   label: ReactNode;
   className?: string;
 }
 
-export function Checkbox({ checked, onCheckedChange, label, className }: CheckboxProps) {
+export function Checkbox({ checked, disabled, onCheckedChange, label, className }: CheckboxProps) {
   return (
-    <label className={cn("flex cursor-pointer items-center gap-2 text-[12px] text-steel-secondary", className)}>
+    <label
+      className={cn(
+        "flex items-center gap-2 text-[12px] text-steel-secondary",
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+        className,
+      )}
+    >
       <span
         className={cn(
           "relative inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-whisper-border-strong transition",
@@ -119,6 +126,7 @@ export function Checkbox({ checked, onCheckedChange, label, className }: Checkbo
       <input
         type="checkbox"
         checked={!!checked}
+        disabled={disabled}
         onChange={(event) => onCheckedChange?.(event.target.checked)}
         className="sr-only"
       />

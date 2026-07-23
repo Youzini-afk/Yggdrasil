@@ -10,6 +10,11 @@ import {
   storeBrowserAccessToken,
 } from "@/client-core/credentials";
 import { resolveHostBaseUrl } from "@/client-core/host-endpoint";
+import {
+  getHostAccessIdentity,
+  logoutHostAccess,
+  type HostAccessIdentity,
+} from "@/client-core/host-access";
 import { useT } from "@/lib/locale";
 
 export type AuthStatus = "checking" | "optional" | "required" | "authenticated" | "invalid" | "unavailable";
@@ -17,9 +22,10 @@ export type AuthStatus = "checking" | "optional" | "required" | "authenticated" 
 interface AuthContextValue {
   status: AuthStatus;
   token: string | null;
+  identity: HostAccessIdentity | null;
   error: string | null;
   login: (token: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   retry: () => Promise<void>;
 }
 
@@ -43,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const t = useT();
   const [status, setStatus] = useState<AuthStatus>("checking");
   const [token, setToken] = useState<string | null>(null);
+  const [identity, setIdentity] = useState<HostAccessIdentity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const probeIdRef = useRef(0);
   const pendingCredentialRef = useRef<PendingCredentialLease | null>(null);
@@ -62,14 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await validateToken(candidateToken);
         if (probeIdRef.current !== probeId) return;
         if (result === "ok") {
+          const authenticatedIdentity = await getHostAccessIdentity(candidateToken);
+          if (probeIdRef.current !== probeId) return;
           storeBrowserAccessToken(candidateToken);
           pendingCredentialRef.current?.clear();
           setToken(candidateToken);
+          setIdentity(authenticatedIdentity);
           setStatus("authenticated");
         } else {
           clearBrowserAccessToken();
           pendingCredentialRef.current?.clear();
           setToken(null);
+          setIdentity(null);
           setError(t("authInvalidToken"));
           setStatus("invalid");
         }
@@ -77,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (probeIdRef.current !== probeId) return;
         const msg = err instanceof Error ? err.message : String(err);
         setToken(candidateToken);
+        setIdentity(null);
         setError(t("authConnectionFailed", msg));
         setStatus("unavailable");
       }
@@ -97,14 +109,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { authError } = await probeServer(client);
       if (probeIdRef.current !== probeId) return;
       if (!authError) {
+        const hostIdentity = await getHostAccessIdentity(null);
+        if (probeIdRef.current !== probeId) return;
         pendingCredentialRef.current?.clear();
         setToken(null);
-        setStatus("optional");
+        setIdentity(hostIdentity);
+        setStatus(hostIdentity.kind === "device" ? "authenticated" : "optional");
       } else {
         if (candidateToken) {
           await authenticateCandidate(candidateToken, probeId);
         } else {
           setToken(null);
+          setIdentity(null);
           setStatus("required");
         }
       }
@@ -113,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(t("authConnectionFailed", msg));
       setToken(candidateToken);
+      setIdentity(null);
       setStatus("unavailable");
     }
   }, [authenticateCandidate, t]);
@@ -148,17 +165,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [runLoginProbe],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    ++probeIdRef.current;
+    try {
+      await logoutHostAccess(token);
+    } catch {
+      // Local credentials are still cleared if the Host is unavailable. A
+      // surviving remote cookie will be detected by the next startup probe.
+    }
     clearBrowserAccessToken();
     pendingCredentialRef.current?.clear();
     setToken(null);
+    setIdentity(null);
     setError(null);
-    runStartupProbe();
-  }, [runStartupProbe]);
+    await runStartupProbe();
+  }, [runStartupProbe, token]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, token, error, login, logout, retry: runStartupProbe }),
-    [status, token, error, login, logout, runStartupProbe],
+    () => ({ status, token, identity, error, login, logout, retry: runStartupProbe }),
+    [status, token, identity, error, login, logout, runStartupProbe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
