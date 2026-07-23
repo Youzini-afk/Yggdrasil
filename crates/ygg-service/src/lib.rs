@@ -3228,11 +3228,14 @@ where
     {
         Ok(output) => output,
         Err(error) => {
-            cleanup_candidate_after_unknown_start(
+            // Protocol dispatch failed before the Docker provider returned an effect receipt.
+            rollback_deploy(
                 &state,
+                &ProtocolContext::host_dev("host_deploy_compensation"),
                 &request.route_id,
-                &lease_id,
-                "host_deploy_unknown_start",
+                false,
+                None,
+                Some(&lease_id),
             )
             .await;
             return Err(anyhow::anyhow!("docker container start failed: {error}").into());
