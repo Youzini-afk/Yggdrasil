@@ -1001,7 +1001,10 @@ async fn list_managed_async() -> Result<Value, String> {
     let docker = docker().await?;
     let filters = HashMap::from([(
         "label".to_string(),
-        vec!["managed-by=yggdrasil".to_string()],
+        vec![
+            "managed-by=yggdrasil".to_string(),
+            format!("yggdrasil.package_id={PACKAGE_ID}"),
+        ],
     )]);
     let options = ListContainersOptionsBuilder::default()
         .all(true)
@@ -1026,6 +1029,11 @@ async fn list_managed_async() -> Result<Value, String> {
 
 fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
     let labels = container.labels.as_ref()?;
+    if labels.get("managed-by").map(String::as_str) != Some("yggdrasil")
+        || labels.get("yggdrasil.package_id").map(String::as_str) != Some(PACKAGE_ID)
+    {
+        return None;
+    }
     let route_id = labels.get("yggdrasil.route_id")?.clone();
     let port_lease_id = labels.get("yggdrasil.port_lease_id")?.clone();
     let operation_id = labels.get("yggdrasil.deployment_operation_id").cloned();
@@ -2251,6 +2259,7 @@ mod tests {
             names: Some(vec!["/ygg-container-000001".to_string()]),
             labels: Some(HashMap::from([
                 ("managed-by".to_string(), "yggdrasil".to_string()),
+                ("yggdrasil.package_id".to_string(), PACKAGE_ID.to_string()),
                 (
                     "yggdrasil.route_id".to_string(),
                     "proxy-route-000001".to_string(),
@@ -2281,6 +2290,15 @@ mod tests {
         assert_eq!(output["operation_id"], "dop-000001");
         assert_eq!(output["running"], true);
         assert_eq!(output["host_port"], 39000);
+
+        let mut target_owned = container;
+        let labels = target_owned.labels.as_mut().expect("container labels");
+        labels.remove("yggdrasil.package_id");
+        labels.insert(
+            "yggdrasil.target_driver".to_string(),
+            "yggdrasil-target-agent-v1".to_string(),
+        );
+        assert!(managed_container_json(&target_owned).is_none());
     }
 
     #[test]
