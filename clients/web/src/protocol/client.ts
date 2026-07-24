@@ -666,6 +666,79 @@ export interface DevelopmentVerificationResult {
   image?: string | null;
   log_tail?: string | null;
   artifact_ref: ArtifactDescriptor;
+  deployment_artifact_ref?: ArtifactDescriptor;
+}
+
+export type DevelopmentDeploymentStatus =
+  | "preparing"
+  | "building"
+  | "previewing"
+  | "preview_ready"
+  | "approved"
+  | "rejected"
+  | "activating"
+  | "active"
+  | "recovery_required"
+  | "failed";
+
+export interface DevelopmentDeploymentPreviewRequest {
+  target_id: string;
+  container_port: number;
+  port_name: string;
+  route_id: string;
+  route_access?: "host_authenticated" | "public";
+  health_path?: string;
+  idempotency_key?: string;
+}
+
+export interface DevelopmentDeploymentPreview {
+  route_id: string;
+  public_url: string;
+  port_lease_id: string;
+  deployment: { deployment_id: string; route_id: string; port_lease_id: string };
+  image: string;
+  image_id: string;
+  container_id: string;
+  container_name?: string | null;
+  build_operation_id: string;
+  deployment_operation_id: string;
+  ready_at_ms: number;
+}
+
+export interface DevelopmentDeploymentRecord {
+  schema_version: number;
+  deployment_id: string;
+  status: DevelopmentDeploymentStatus;
+  target_id: string;
+  source_tree_digest: string;
+  verification_ref: ArtifactDescriptor;
+  build_context_ref: ArtifactDescriptor;
+  authority_ref: ArtifactDescriptor;
+  dockerfile: string;
+  network_mode: DevelopmentNetworkMode;
+  container_port: number;
+  port_name: string;
+  route_id: string;
+  route_access: "host_authenticated" | "public";
+  health_path?: string | null;
+  preview_route_id: string;
+  preview_port_lease_id?: string | null;
+  target_deployment_id?: string | null;
+  build_id: string;
+  build_descriptor_hash: string;
+  build_operation_id?: string | null;
+  deployment_operation_id?: string | null;
+  preview?: DevelopmentDeploymentPreview | null;
+  preview_ref?: ArtifactDescriptor | null;
+  approval_decision?: DevelopmentApprovalDecision | null;
+  approval_ref?: ArtifactDescriptor | null;
+  activation_revision_id?: string | null;
+  previous_revision_id?: string | null;
+  error?: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+  idempotency_key?: string | null;
+  request_digest: string;
 }
 
 export interface DevelopmentApprovalDecision {
@@ -711,6 +784,7 @@ export interface DevelopmentChangeRecord {
   } | null;
   recovery_kind?: "docker_verification" | "managed_promotion" | null;
   commit?: Record<string, unknown> | null;
+  deployment?: DevelopmentDeploymentRecord | null;
   error?: string | null;
   created_at_ms: number;
   updated_at_ms: number;
@@ -1230,6 +1304,17 @@ export class YggProtocolClient {
 
   recoverProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
     return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/recover`, {});
+  }
+
+  createProjectDeploymentPreview(
+    projectId: string,
+    changeSetId: string,
+    input: DevelopmentDeploymentPreviewRequest,
+  ): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(
+      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/preview`,
+      input,
+    );
   }
 
   subscribeBuildDeployJob(jobId: string, onEvent: (event: BuildDeployJobEvent) => void, onError?: (error: Event) => void) {

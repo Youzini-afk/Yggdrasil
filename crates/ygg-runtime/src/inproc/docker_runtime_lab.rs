@@ -29,6 +29,7 @@ use serde_json::Value;
 
 use super::safety;
 use super::InprocInvocation;
+use crate::object_store::sha256_digest;
 use crate::runtime::{DeploymentReconcileSource, ManagedContainerReport};
 
 const PACKAGE_ID: &str = "official/docker-runtime-lab";
@@ -658,6 +659,7 @@ struct BuildImageSpec {
     dockerfile: String,
     source_commit: Option<String>,
     build_descriptor_hash: Option<String>,
+    expected_context_digest: Option<String>,
     build_args: HashMap<String, String>,
     max_context_bytes: u64,
     max_context_files: u64,
@@ -669,6 +671,13 @@ struct ContextTar {
     bytes: Vec<u8>,
     files: u64,
     total_bytes: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedDockerBuildContext {
+    pub bytes: Vec<u8>,
+    pub files: u64,
+    pub total_bytes: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -687,6 +696,7 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
     })
     .await
     .map_err(|e| format!("build context task failed: {e}"))??;
+    let context_digest = verified_context_digest(&spec, &prepared.context)?;
     let docker = docker().await?;
 
     let mut labels = build_labels(&spec);
@@ -753,6 +763,7 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
         "generated_dockerfile": prepared.generated_dockerfile,
         "source_commit": spec.source_commit,
         "build_descriptor_hash": spec.build_descriptor_hash,
+        "context_digest": context_digest,
         "context": {
             "files": prepared.context.files,
             "total_bytes": prepared.context.total_bytes,
@@ -1216,6 +1227,16 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
     validate_dockerfile_path(&dockerfile)?;
     let source_commit = optional_labelish(input, "source_commit")?;
     let build_descriptor_hash = optional_labelish(input, "build_descriptor_hash")?;
+    let expected_context_digest = input
+        .get("expected_context_digest")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    if expected_context_digest
+        .as_deref()
+        .is_some_and(|digest| !is_sha256_digest(digest))
+    {
+        return Err("expected_context_digest must be a lowercase sha256 digest".to_string());
+    }
     let build_args = parse_build_args(input.get("build_args"))?;
     let max_context_bytes = input
         .get("max_context_bytes")
@@ -1243,11 +1264,47 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         dockerfile,
         source_commit,
         build_descriptor_hash,
+        expected_context_digest,
         build_args,
         max_context_bytes,
         max_context_files,
         build_timeout_secs,
     })
+}
+
+pub fn prepare_docker_build_context(input: &Value) -> anyhow::Result<PreparedDockerBuildContext> {
+    let spec = parse_build_image_request(input).map_err(anyhow::Error::msg)?;
+    anyhow::ensure!(
+        spec.strategy == BuildStrategy::Dockerfile,
+        "deployable build contexts only support dockerfile strategy"
+    );
+    let prepared = prepare_build_context(&spec).map_err(anyhow::Error::msg)?;
+    verified_context_digest(&spec, &prepared.context).map_err(anyhow::Error::msg)?;
+    Ok(PreparedDockerBuildContext {
+        bytes: prepared.context.bytes,
+        files: prepared.context.files,
+        total_bytes: prepared.context.total_bytes,
+    })
+}
+
+fn verified_context_digest(spec: &BuildImageSpec, context: &ContextTar) -> Result<String, String> {
+    let digest = sha256_digest(&context.bytes);
+    if spec
+        .expected_context_digest
+        .as_deref()
+        .is_some_and(|expected| expected != digest)
+    {
+        return Err("build context digest did not match the verified artifact".to_string());
+    }
+    Ok(digest)
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn valid_development_change_id(value: &str) -> bool {
@@ -2437,6 +2494,7 @@ mod tests {
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
             build_descriptor_hash: None,
+            expected_context_digest: None,
             build_args: HashMap::new(),
             max_context_bytes: 1024,
             max_context_files: 10,
@@ -2509,6 +2567,7 @@ mod tests {
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
             build_descriptor_hash: None,
+            expected_context_digest: None,
             build_args: HashMap::new(),
             max_context_bytes: 1024,
             max_context_files: 10,
@@ -2516,6 +2575,11 @@ mod tests {
         };
         let tar = create_context_tar(&spec).expect("context tar builds");
         assert_eq!(tar.files, 2);
+        let digest = verified_context_digest(&spec, &tar).expect("context digest is computed");
+        let mut mismatched = spec.clone();
+        mismatched.expected_context_digest = Some(format!("sha256:{}", "0".repeat(64)));
+        assert_ne!(digest, mismatched.expected_context_digest.clone().unwrap());
+        assert!(verified_context_digest(&mismatched, &tar).is_err());
         assert!(tar.total_bytes > 0);
 
         let mut tiny = spec.clone();
@@ -2546,6 +2610,7 @@ mod tests {
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
             build_descriptor_hash: None,
+            expected_context_digest: None,
             build_args: HashMap::new(),
             max_context_bytes: 1024,
             max_context_files: 10,

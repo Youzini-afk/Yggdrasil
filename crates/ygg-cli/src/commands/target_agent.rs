@@ -1352,6 +1352,25 @@ async fn execute_operation(
                 },
             )
             .await?;
+            if let Err(error) = ygg_runtime::wait_for_managed_target_deployment_readiness(
+                &applied,
+                deployment.health_path.as_deref(),
+            )
+            .await
+            {
+                let cleanup = ygg_runtime::stop_managed_target_deployment(
+                    &managed_deployment_ref(operation, &deployment.deployment),
+                    0,
+                    true,
+                )
+                .await;
+                if cleanup.is_err() {
+                    return Err(ygg_runtime::managed_target_deployment_outcome_unknown(
+                        "candidate readiness cleanup",
+                    ));
+                }
+                return Err(error);
+            }
             Ok(serde_json::to_value(applied)?)
         }
         TargetOperationSpec::DeploymentObserve { deployment } => {
@@ -1408,6 +1427,44 @@ async fn execute_operation(
                 "size_bytes": size_bytes,
                 "verified": true
             }))
+        }
+        TargetOperationSpec::VerifierRun {
+            verifier:
+                DeclarativeVerifierDescriptor::DockerBuild {
+                    digest,
+                    expected_size_bytes,
+                    dockerfile,
+                    network_mode,
+                    build_id,
+                    source_tree_digest,
+                    build_descriptor_hash,
+                },
+        } => {
+            materialize_artifact(
+                client,
+                config,
+                credential,
+                data_dir,
+                operation,
+                digest,
+                *expected_size_bytes,
+            )
+            .await?;
+            let context_tar = tokio::fs::read(artifact_path(data_dir, digest)?).await?;
+            Ok(serde_json::to_value(
+                ygg_runtime::build_managed_target_image(ygg_runtime::ManagedTargetImageBuild {
+                    target_id: operation.target_id.clone(),
+                    project_id: operation.project_id.to_string(),
+                    build_id: build_id.clone(),
+                    dockerfile: dockerfile.clone(),
+                    network_mode: *network_mode,
+                    source_tree_digest: source_tree_digest.clone(),
+                    build_descriptor_hash: build_descriptor_hash.clone(),
+                    context_digest: digest.clone(),
+                    context_tar,
+                })
+                .await?,
+            )?)
         }
     }
 }

@@ -20,7 +20,9 @@ mod capability_tool_bridge_lab;
 mod common;
 mod context_lab;
 mod docker_runtime_lab;
-pub use docker_runtime_lab::DockerDeploymentReconcileSource;
+pub use docker_runtime_lab::{
+    prepare_docker_build_context, DockerDeploymentReconcileSource, PreparedDockerBuildContext,
+};
 mod experience_observability_lab;
 mod experience_runtime_lab;
 mod git_tools_lab;

@@ -1,18 +1,22 @@
 use std::collections::HashMap;
+use std::io::Cursor;
+use std::path::{Component, Path};
 use std::time::Duration;
 
 use anyhow::Context;
+use bollard::body_full;
 use bollard::models::{
     ContainerCreateBody, ContainerSummary, ContainerSummaryStateEnum, HostConfig, PortBinding,
     PortMap,
 };
 use bollard::query_parameters::{
-    CreateContainerOptionsBuilder, CreateImageOptionsBuilder, ListContainersOptionsBuilder,
-    RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
+    BuildImageOptionsBuilder, CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
+    ListContainersOptionsBuilder, RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
 };
 use bollard::Docker;
+use bytes::Bytes;
 use futures::StreamExt;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -21,6 +25,12 @@ const DRIVER_ID: &str = "yggdrasil-target-agent-v1";
 const DOCKER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const DOCKER_EFFECT_TIMEOUT: Duration = Duration::from_secs(60);
 const DOCKER_PULL_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+const DOCKER_BUILD_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+const READINESS_TIMEOUT: Duration = Duration::from_secs(30);
+const READINESS_INTERVAL: Duration = Duration::from_millis(250);
+const READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+const MAX_BUILD_CONTEXT_BYTES: usize = 256 * 1024 * 1024;
+const MAX_BUILD_CONTEXT_FILES: u64 = 25_000;
 
 #[derive(Debug, Error)]
 #[error("managed target deployment outcome is unknown after {stage}")]
@@ -38,6 +48,10 @@ pub fn is_managed_target_deployment_outcome_unknown(error: &anyhow::Error) -> bo
 
 fn outcome_unknown(stage: &'static str) -> anyhow::Error {
     ManagedTargetDeploymentOutcomeUnknown { stage }.into()
+}
+
+pub fn managed_target_deployment_outcome_unknown(stage: &'static str) -> anyhow::Error {
+    outcome_unknown(stage)
 }
 
 mod docker_container_id {
@@ -64,6 +78,45 @@ pub struct ManagedTargetDeploymentApply {
     pub requested_host_port: Option<u16>,
     pub pull_if_missing: bool,
     pub operation_id: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ManagedTargetBuildNetworkMode {
+    None,
+    Bridge,
+}
+
+impl ManagedTargetBuildNetworkMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Bridge => "bridge",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManagedTargetImageBuild {
+    pub target_id: String,
+    pub project_id: String,
+    pub build_id: String,
+    pub dockerfile: String,
+    pub network_mode: ManagedTargetBuildNetworkMode,
+    pub source_tree_digest: String,
+    pub build_descriptor_hash: String,
+    pub context_digest: String,
+    pub context_tar: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ManagedTargetImageBuildReceipt {
+    pub image: String,
+    pub image_id: String,
+    pub build_id: String,
+    pub context_digest: String,
+    pub source_tree_digest: String,
+    pub build_descriptor_hash: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,6 +175,121 @@ pub struct ManagedTargetDeploymentStopReceipt {
 
 pub async fn validate_managed_target_deployment_runtime() -> anyhow::Result<()> {
     docker().await.map(|_| ())
+}
+
+pub async fn build_managed_target_image(
+    request: ManagedTargetImageBuild,
+) -> anyhow::Result<ManagedTargetImageBuildReceipt> {
+    validate_image_build_request(&request)?;
+    validate_build_context_tar(&request.context_tar, &request.dockerfile)?;
+    anyhow::ensure!(
+        crate::sha256_digest(&request.context_tar) == request.context_digest,
+        "managed target build context digest did not match"
+    );
+
+    let docker = docker().await?;
+    let image = target_image_tag(&request.project_id, &request.build_id);
+    let labels = HashMap::from([
+        ("managed-by".to_string(), "yggdrasil".to_string()),
+        ("yggdrasil.target_driver".to_string(), DRIVER_ID.to_string()),
+        ("yggdrasil.target_id".to_string(), request.target_id.clone()),
+        (
+            "yggdrasil.project_id".to_string(),
+            request.project_id.clone(),
+        ),
+        ("yggdrasil.build_id".to_string(), request.build_id.clone()),
+        (
+            "yggdrasil.source_tree_digest".to_string(),
+            request.source_tree_digest.clone(),
+        ),
+        (
+            "yggdrasil.build_context_digest".to_string(),
+            request.context_digest.clone(),
+        ),
+        (
+            "yggdrasil.build_descriptor_hash".to_string(),
+            request.build_descriptor_hash.clone(),
+        ),
+    ]);
+    let options = BuildImageOptionsBuilder::default()
+        .dockerfile(&request.dockerfile)
+        .t(&image)
+        .q(false)
+        .rm(true)
+        .forcerm(true)
+        .memory(1024 * 1024 * 1024)
+        .cpuquota(100_000)
+        .networkmode(request.network_mode.as_str())
+        .labels(&labels)
+        .build();
+    let build = async {
+        let mut stream = docker.build_image(
+            options,
+            None,
+            Some(body_full(Bytes::from(request.context_tar))),
+        );
+        while let Some(item) = stream.next().await {
+            let item = item.context("managed target Docker build failed")?;
+            anyhow::ensure!(
+                item.error_detail
+                    .and_then(|detail| detail.message)
+                    .is_none(),
+                "managed target Docker build failed"
+            );
+        }
+        Ok::<_, anyhow::Error>(())
+    };
+    tokio::time::timeout(DOCKER_BUILD_TIMEOUT, build)
+        .await
+        .context("managed target Docker build timed out")??;
+    let inspected = docker
+        .inspect_image(&image)
+        .await
+        .context("managed target built image inspect failed")?;
+    let image_id = inspected
+        .id
+        .context("managed target built image has no content-addressable id")?;
+    let actual_labels = inspected
+        .config
+        .and_then(|config| config.labels)
+        .context("managed target built image has no provenance labels")?;
+    for (name, expected) in &labels {
+        anyhow::ensure!(
+            actual_labels.get(name) == Some(expected),
+            "managed target built image provenance label mismatch"
+        );
+    }
+    Ok(ManagedTargetImageBuildReceipt {
+        image,
+        image_id,
+        build_id: request.build_id,
+        context_digest: request.context_digest,
+        source_tree_digest: request.source_tree_digest,
+        build_descriptor_hash: request.build_descriptor_hash,
+    })
+}
+
+pub async fn wait_for_managed_target_deployment_readiness(
+    deployment: &ManagedTargetDeploymentObservation,
+    health_path: Option<&str>,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        deployment.running && deployment.bind_host == BIND_HOST && deployment.host_port > 0,
+        "managed target deployment is not a running loopback candidate"
+    );
+    if let Some(path) = health_path {
+        validate_health_path(path)?;
+    }
+    let deadline = tokio::time::Instant::now() + READINESS_TIMEOUT;
+    loop {
+        match probe_managed_target_deployment(deployment.host_port, health_path).await {
+            Ok(()) => return Ok(()),
+            Err(error) if tokio::time::Instant::now() >= deadline => {
+                return Err(error.context("managed target readiness deadline expired"));
+            }
+            Err(_) => tokio::time::sleep(READINESS_INTERVAL).await,
+        }
+    }
 }
 
 pub async fn apply_managed_target_deployment(
@@ -513,6 +681,170 @@ async fn docker() -> anyhow::Result<Docker> {
     Ok(docker)
 }
 
+fn validate_image_build_request(request: &ManagedTargetImageBuild) -> anyhow::Result<()> {
+    for (name, value) in [
+        ("target_id", request.target_id.as_str()),
+        ("project_id", request.project_id.as_str()),
+        ("build_id", request.build_id.as_str()),
+    ] {
+        validate_label_value(name, value)?;
+    }
+    validate_relative_path("dockerfile", &request.dockerfile)?;
+    for (name, value) in [
+        ("source_tree_digest", request.source_tree_digest.as_str()),
+        (
+            "build_descriptor_hash",
+            request.build_descriptor_hash.as_str(),
+        ),
+        ("context_digest", request.context_digest.as_str()),
+    ] {
+        anyhow::ensure!(is_sha256_digest(value), "managed target {name} is invalid");
+    }
+    anyhow::ensure!(
+        !request.context_tar.is_empty() && request.context_tar.len() <= MAX_BUILD_CONTEXT_BYTES,
+        "managed target build context size is invalid"
+    );
+    Ok(())
+}
+
+fn validate_build_context_tar(bytes: &[u8], dockerfile: &str) -> anyhow::Result<()> {
+    let mut archive = tar::Archive::new(Cursor::new(bytes));
+    let mut files = 0u64;
+    let mut dockerfile_present = false;
+    for entry in archive
+        .entries()
+        .context("managed target build context is not a tar archive")?
+    {
+        let entry = entry.context("managed target build context entry is invalid")?;
+        let kind = entry.header().entry_type();
+        anyhow::ensure!(
+            kind.is_file() || kind.is_dir(),
+            "managed target build context contains a non-file entry"
+        );
+        let path = entry
+            .path()
+            .context("managed target build context path is invalid")?;
+        anyhow::ensure!(
+            !path.is_absolute()
+                && path
+                    .components()
+                    .all(|component| matches!(component, Component::Normal(_))),
+            "managed target build context path escaped its root"
+        );
+        if kind.is_file() {
+            files = files.saturating_add(1);
+            anyhow::ensure!(
+                files <= MAX_BUILD_CONTEXT_FILES,
+                "managed target build context file limit exceeded"
+            );
+            if path == Path::new(dockerfile) {
+                dockerfile_present = true;
+            }
+        }
+    }
+    anyhow::ensure!(
+        dockerfile_present,
+        "managed target build context does not contain its Dockerfile"
+    );
+    Ok(())
+}
+
+fn validate_relative_path(name: &str, value: &str) -> anyhow::Result<()> {
+    let path = Path::new(value);
+    anyhow::ensure!(
+        !value.is_empty()
+            && value.len() <= 255
+            && !path.is_absolute()
+            && path
+                .components()
+                .all(|component| matches!(component, Component::Normal(_))),
+        "managed target {name} is invalid"
+    );
+    Ok(())
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn target_image_tag(project_id: &str, build_id: &str) -> String {
+    format!(
+        "yggdrasil/{}:{}",
+        sanitize_image_component(project_id, 80),
+        sanitize_image_component(build_id, 120)
+    )
+}
+
+fn sanitize_image_component(value: &str, max_len: usize) -> String {
+    let mut output = value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-') {
+                character.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .take(max_len)
+        .collect::<String>();
+    while output.contains("--") {
+        output = output.replace("--", "-");
+    }
+    let output = output.trim_matches(['.', '-']).to_string();
+    if output.is_empty() {
+        "build".to_string()
+    } else {
+        output
+    }
+}
+
+fn validate_health_path(path: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        path.starts_with('/')
+            && path.len() <= 256
+            && !path.contains(['\r', '\n'])
+            && !path.starts_with("//"),
+        "managed target health path is invalid"
+    );
+    Ok(())
+}
+
+async fn probe_managed_target_deployment(
+    port: u16,
+    health_path: Option<&str>,
+) -> anyhow::Result<()> {
+    tokio::time::timeout(
+        READINESS_CONNECT_TIMEOUT,
+        tokio::net::TcpStream::connect((BIND_HOST, port)),
+    )
+    .await
+    .context("managed target TCP readiness probe timed out")?
+    .context("managed target TCP readiness probe failed")?;
+    let Some(path) = health_path else {
+        return Ok(());
+    };
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(READINESS_CONNECT_TIMEOUT)
+        .build()?;
+    let status = client
+        .get(format!("http://{BIND_HOST}:{port}{path}"))
+        .send()
+        .await
+        .context("managed target HTTP readiness probe failed")?
+        .status();
+    anyhow::ensure!(
+        status.is_success() || status.is_redirection() || status.is_client_error(),
+        "managed target HTTP readiness probe returned {status}"
+    );
+    Ok(())
+}
+
 fn validate_apply_request(request: &ManagedTargetDeploymentApply) -> anyhow::Result<()> {
     validate_reference(&request.reference())?;
     validate_label_value("port_name", &request.port_name)?;
@@ -837,6 +1169,142 @@ mod tests {
         assert!(!is_managed_target_deployment_outcome_unknown(
             &anyhow::anyhow!("known failure")
         ));
+    }
+
+    #[tokio::test]
+    async fn verified_build_context_rejects_non_file_entries_and_wrong_digest() {
+        let mut tar = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_size(13);
+        header.set_mode(0o644);
+        header.set_cksum();
+        tar.append_data(&mut header, "Dockerfile", b"FROM scratch\n".as_slice())
+            .unwrap();
+        let bytes = tar.into_inner().unwrap();
+        validate_build_context_tar(&bytes, "Dockerfile").unwrap();
+
+        let mut invalid_tar = tar::Builder::new(Vec::new());
+        let mut link = tar::Header::new_gnu();
+        link.set_entry_type(tar::EntryType::Symlink);
+        link.set_link_name("Dockerfile").unwrap();
+        link.set_size(0);
+        link.set_mode(0o777);
+        link.set_cksum();
+        invalid_tar
+            .append_data(&mut link, "Dockerfile.link", std::io::empty())
+            .unwrap();
+        let invalid_bytes = invalid_tar.into_inner().unwrap();
+        assert!(validate_build_context_tar(&invalid_bytes, "Dockerfile").is_err());
+
+        let mut request = ManagedTargetImageBuild {
+            target_id: "target-1".to_string(),
+            project_id: "project-1".to_string(),
+            build_id: "build-1".to_string(),
+            dockerfile: "Dockerfile".to_string(),
+            network_mode: ManagedTargetBuildNetworkMode::None,
+            source_tree_digest: format!("sha256:{}", "a".repeat(64)),
+            build_descriptor_hash: format!("sha256:{}", "b".repeat(64)),
+            context_digest: crate::sha256_digest(&bytes),
+            context_tar: bytes,
+        };
+        validate_image_build_request(&request).unwrap();
+        request.context_digest = format!("sha256:{}", "c".repeat(64));
+        let error = build_managed_target_image(request).await.unwrap_err();
+        assert!(error.to_string().contains("context digest did not match"));
+        assert!(validate_health_path("/ready").is_ok());
+        assert!(validate_health_path("//remote.example/").is_err());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn verified_build_context_deploys_on_local_and_agent_targets_smoke() -> anyhow::Result<()>
+    {
+        if std::env::var("YGG_TARGET_DEPLOYMENT_SMOKE").ok().as_deref() != Some("1") {
+            return Ok(());
+        }
+        let dockerfile = b"FROM nginx:1.27-alpine\n";
+        let mut archive = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_size(dockerfile.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        archive.append_data(&mut header, "Dockerfile", dockerfile.as_slice())?;
+        let context_tar = archive.into_inner()?;
+        let context_digest = crate::sha256_digest(&context_tar);
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+
+        for target_id in ["local", "agent-smoke"] {
+            let target_suffix = target_id.replace('-', "");
+            let project_id = format!("smoke-{target_suffix}-{suffix}");
+            let build_id = format!("build-{target_suffix}-{suffix}");
+            let build = build_managed_target_image(ManagedTargetImageBuild {
+                target_id: target_id.to_string(),
+                project_id: project_id.clone(),
+                build_id: build_id.clone(),
+                dockerfile: "Dockerfile".to_string(),
+                network_mode: ManagedTargetBuildNetworkMode::None,
+                source_tree_digest: format!("sha256:{}", "a".repeat(64)),
+                build_descriptor_hash: format!("sha256:{}", "b".repeat(64)),
+                context_digest: context_digest.clone(),
+                context_tar: context_tar.clone(),
+            })
+            .await?;
+            let deployment_id = format!("deployment-{target_suffix}-{suffix}");
+            let route_id = format!("route-{target_suffix}-{suffix}");
+            let lease_id = format!("lease-{target_suffix}-{suffix}");
+            let operation_id = format!("operation-{target_suffix}-{suffix}");
+            let applied = apply_managed_target_deployment(&ManagedTargetDeploymentApply {
+                target_id: target_id.to_string(),
+                project_id: project_id.clone(),
+                deployment_id: deployment_id.clone(),
+                route_id: route_id.clone(),
+                port_lease_id: lease_id.clone(),
+                port_name: "http".to_string(),
+                image: build.image_id.clone(),
+                container_port: 80,
+                requested_host_port: None,
+                pull_if_missing: false,
+                operation_id,
+            })
+            .await?;
+            let preview_result = async {
+                wait_for_managed_target_deployment_readiness(&applied, Some("/")).await?;
+                anyhow::ensure!(
+                    applied.image_id.as_deref() == Some(build.image_id.as_str()),
+                    "smoke deployment did not use the verified built image"
+                );
+                Ok::<_, anyhow::Error>(())
+            }
+            .await;
+            let stopped = stop_managed_target_deployment(
+                &ManagedTargetDeploymentRef {
+                    target_id: target_id.to_string(),
+                    project_id,
+                    deployment_id,
+                    route_id,
+                    port_lease_id: lease_id,
+                },
+                0,
+                true,
+            )
+            .await;
+            let remove_options = bollard::query_parameters::RemoveImageOptionsBuilder::default()
+                .force(true)
+                .noprune(false)
+                .build();
+            let removed = docker()
+                .await?
+                .remove_image(&build.image, Some(remove_options), None)
+                .await;
+            preview_result?;
+            stopped?;
+            removed?;
+            anyhow::ensure!(
+                count_managed_target_deployments(target_id).await? == 0,
+                "smoke deployment cleanup was incomplete"
+            );
+        }
+        Ok(())
     }
 
     #[test]

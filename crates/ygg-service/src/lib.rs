@@ -1059,6 +1059,9 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
         return Some(HostAccessScope::AccessManage);
     }
     if path.starts_with("/host/v1/projects/") && path.contains("/changes") {
+        if path.contains("/deployment/") {
+            return Some(HostAccessScope::Deploy);
+        }
         if method == Method::GET || path.ends_with("/changes") {
             return Some(HostAccessScope::DevelopPropose);
         }
@@ -1718,6 +1721,8 @@ pub enum DeploymentOperation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeploymentAuthorityLease {
     operation_id: String,
+    #[serde(default = "default_local_target_id")]
+    target_id: String,
     identity_kind: HostAccessIdentityKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     grant_id: Option<String>,
@@ -1730,9 +1735,14 @@ struct DeploymentAuthorityLease {
 }
 
 impl DeploymentAuthorityLease {
-    fn from_identity(operation_id: String, identity: &HostAccessIdentity) -> Self {
+    fn from_identity(
+        operation_id: String,
+        target_id: impl Into<String>,
+        identity: &HostAccessIdentity,
+    ) -> Self {
         Self {
             operation_id,
+            target_id: target_id.into(),
             identity_kind: identity.kind,
             grant_id: identity.grant_id.clone(),
             scopes: identity.scopes.clone(),
@@ -1745,6 +1755,7 @@ impl DeploymentAuthorityLease {
     fn unavailable(operation_id: String) -> Self {
         Self {
             operation_id,
+            target_id: default_local_target_id(),
             identity_kind: HostAccessIdentityKind::Device,
             grant_id: None,
             scopes: BTreeSet::new(),
@@ -1774,8 +1785,8 @@ impl DeploymentAuthorityLease {
         );
         anyhow::ensure!(
             self.allows_resource(HostAccessResourceKind::Project, project_id.as_str())
-                && self.allows_resource(HostAccessResourceKind::Target, "local"),
-            "deployment authority lease does not include the project and local target"
+                && self.allows_resource(HostAccessResourceKind::Target, &self.target_id),
+            "deployment authority lease does not include the project and target"
         );
         if let Some(expires_at_ms) = self.expires_at_ms {
             anyhow::ensure!(
@@ -1831,11 +1842,15 @@ impl DeploymentAuthorityLease {
                 ProtocolResourceSelector {
                     owner: "host".to_string(),
                     kind: "target".to_string(),
-                    id: Some("local".to_string()),
+                    id: Some(self.target_id.clone()),
                 },
             ],
         )
     }
+}
+
+fn default_local_target_id() -> String {
+    "local".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -2214,7 +2229,7 @@ impl BuildDeployJobRegistry {
             &uuid::Uuid::new_v4().simple().to_string()[..8],
             sanitize_container_name(&request.route_id)
         );
-        let authority = DeploymentAuthorityLease::from_identity(job_id.clone(), identity);
+        let authority = DeploymentAuthorityLease::from_identity(job_id.clone(), "local", identity);
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         jobs.insert(
             job_id.clone(),
@@ -3257,6 +3272,7 @@ where
     let authority = request.project_id.as_ref().map(|_| {
         DeploymentAuthorityLease::from_identity(
             format!("dop-{}", uuid::Uuid::new_v4().simple()),
+            "local",
             &identity,
         )
     });
@@ -4196,6 +4212,7 @@ where
     require_identity_target(&identity, "local")?;
     let authority = DeploymentAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
+        "local",
         &identity,
     );
     let permit = state
@@ -4255,6 +4272,7 @@ where
     require_identity_target(&identity, "local")?;
     let authority = DeploymentAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
+        "local",
         &identity,
     );
     let permit = state
@@ -4517,6 +4535,7 @@ where
         Some(project_id) => {
             let authority = DeploymentAuthorityLease::from_identity(
                 format!("dop-{}", uuid::Uuid::new_v4().simple()),
+                "local",
                 &identity,
             );
             deployment_effect_context(&state, Some(&authority), project_id, "host_deploy_stop")
@@ -8448,6 +8467,13 @@ mod tests {
             Some(HostAccessScope::DevelopExecute)
         );
         assert_eq!(
+            required_host_scope_for_http(
+                &Method::POST,
+                "/host/v1/projects/demo/changes/change-1/deployment/preview"
+            ),
+            Some(HostAccessScope::Deploy)
+        );
+        assert_eq!(
             required_host_scope_for_http(&Method::POST, "/host/v1/deploy"),
             Some(HostAccessScope::Deploy)
         );
@@ -8969,6 +8995,7 @@ mod tests {
     fn deployment_authority_lease_expires_before_new_effects() {
         let mut authority = DeploymentAuthorityLease::from_identity(
             "deployment-expired".to_string(),
+            "local",
             &HostAccessIdentity::root(),
         );
         authority.expires_at_ms = Some(chrono::Utc::now().timestamp_millis() - 1);

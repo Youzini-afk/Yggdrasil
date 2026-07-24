@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
-use axum::extract::{Path, State};
+use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -23,9 +23,19 @@ use ygg_core::{
     COMPONENT_EVIDENCE_TYPE_URI, EFFECT_RECEIPT_TYPE_URI,
 };
 use ygg_core::{EventEnvelope, EventSequence};
-use ygg_runtime::{ArtifactCommitRequest, EventStore, Runtime};
+use ygg_runtime::{ArtifactCommitRequest, EventStore, ProtocolContext, ProxyRouteAccess, Runtime};
 
-use crate::{invoke_docker_runtime_lab, now_millis, require_built_image, AppState, ServiceError};
+use crate::host_access::HostAccessIdentity;
+use crate::target_agent::{
+    CreateTargetOperationRequest, DeclarativeVerifierDescriptor, TargetDeploymentDescriptor,
+    TargetDeploymentRef, TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+};
+use crate::{
+    call_host_protocol, deployment_effect_context, invoke_docker_runtime_lab, now_millis,
+    require_built_image, require_identity_project, require_identity_target, required_string,
+    service_public_url_for_route, value_field, AppState, BuildDeployProjectGuard,
+    DeploymentAuthorityLease, ServiceError,
+};
 
 const DEVELOPMENT_JOURNAL_PREFIX: &str = "host/control/v1/development.";
 const DEVELOPMENT_SNAPSHOT_EVENT: &str = "host/control/v1/development.change.snapshot";
@@ -48,6 +58,14 @@ const SOURCE_FILE_ARTIFACT_TYPE_URI: &str = "urn:yggdrasil:artifact:source-file:
 const DEVELOPMENT_BUNDLE_ARTIFACT_TYPE_URI: &str =
     "urn:yggdrasil:artifact:development-patch-bundle:v1";
 const DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI: &str = "urn:yggdrasil:artifact:development-result:v1";
+const DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI: &str =
+    "urn:yggdrasil:artifact:docker-build-context:v1";
+const DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI: &str =
+    "urn:yggdrasil:artifact:deployment-authority:v1";
+const DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI: &str =
+    "urn:yggdrasil:artifact:deployment-preview:v1";
+const DEVELOPMENT_DEPLOYMENT_OPERATION_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(15 * 60);
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -174,6 +192,111 @@ pub struct DevelopmentVerificationResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub log_tail: Option<String>,
     pub artifact_ref: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_artifact_ref: Option<ArtifactDescriptor>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DevelopmentDeploymentPreviewRequest {
+    pub target_id: String,
+    pub container_port: u16,
+    pub port_name: String,
+    pub route_id: String,
+    #[serde(default)]
+    pub route_access: ProxyRouteAccess,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub health_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DevelopmentDeploymentStatus {
+    Preparing,
+    Building,
+    Previewing,
+    PreviewReady,
+    Approved,
+    Rejected,
+    Activating,
+    Active,
+    RecoveryRequired,
+    Failed,
+}
+
+impl DevelopmentDeploymentStatus {
+    fn executing(self) -> bool {
+        matches!(self, Self::Preparing | Self::Building | Self::Previewing)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DevelopmentDeploymentPreview {
+    pub route_id: String,
+    pub public_url: String,
+    pub port_lease_id: String,
+    pub deployment: TargetDeploymentRef,
+    pub image: String,
+    pub image_id: String,
+    pub container_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub container_name: Option<String>,
+    pub build_operation_id: String,
+    pub deployment_operation_id: String,
+    pub ready_at_ms: u128,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DevelopmentDeploymentRecord {
+    pub schema_version: u16,
+    pub deployment_id: String,
+    pub status: DevelopmentDeploymentStatus,
+    pub target_id: String,
+    pub source_tree_digest: String,
+    pub verification_ref: ArtifactDescriptor,
+    pub build_context_ref: ArtifactDescriptor,
+    pub authority_ref: ArtifactDescriptor,
+    pub dockerfile: String,
+    pub network_mode: DevelopmentNetworkMode,
+    pub container_port: u16,
+    pub port_name: String,
+    pub route_id: String,
+    #[serde(default)]
+    pub route_access: ProxyRouteAccess,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub health_path: Option<String>,
+    pub preview_route_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview_port_lease_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_deployment_id: Option<String>,
+    pub build_id: String,
+    pub build_descriptor_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_operation_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_operation_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<DevelopmentDeploymentPreview>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview_ref: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval_decision: Option<PolicyDecision>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval_ref: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activation_revision_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_revision_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    pub created_at_ms: u128,
+    pub updated_at_ms: u128,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
+    pub request_digest: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -212,6 +335,8 @@ pub struct DevelopmentChangeRecord {
     pub recovery_kind: Option<DevelopmentRecoveryKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<ChangeCommit>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment: Option<DevelopmentDeploymentRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub created_at_ms: u128,
@@ -825,6 +950,10 @@ where
             "/host/v1/projects/:project_id/changes/:change_set_id/recover",
             post(recover_change::<S>),
         )
+        .route(
+            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/preview",
+            post(create_deployment_preview::<S>),
+        )
 }
 
 async fn list_changes<S>(
@@ -1143,6 +1272,1090 @@ where
             )
         })?;
     Ok(Json(recovered))
+}
+
+async fn create_deployment_preview<S>(
+    State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
+    Path((project_id, change_set_id)): Path<(String, String)>,
+    Json(request): Json<DevelopmentDeploymentPreviewRequest>,
+) -> Result<(StatusCode, Json<DevelopmentChangeRecord>), ServiceError>
+where
+    S: EventStore,
+{
+    ensure_development_host_lease(&state).await?;
+    let project_id = parse_project_id(&project_id)?;
+    require_identity_project(&identity, project_id.as_str())?;
+    require_identity_target(&identity, &request.target_id)?;
+    validate_deployment_preview_request(&request)?;
+
+    let change_lock = state.development.lock_for(&change_set_id);
+    let _change_guard = change_lock.lock().await;
+    refresh_development_project(&state, &project_id).await?;
+    let mut record = change_for_project(&state, &project_id, &change_set_id)?;
+    if record.status != DevelopmentChangeStatus::Committed
+        || record.workspace_ownership != DevelopmentWorkspaceOwnership::ManagedExternal
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment preview requires a committed managed-external change",
+        ));
+    }
+
+    let (dockerfile, network_mode) = match &record.verification_plan {
+        DevelopmentVerificationPlan::DockerBuild {
+            dockerfile,
+            network_mode,
+            ..
+        } => (dockerfile.clone(), *network_mode),
+        DevelopmentVerificationPlan::StaticValidation => {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment preview requires Docker build verification",
+            ));
+        }
+    };
+    let source_tree_digest = record.proposed_tree_digest.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "committed development change has no verified source tree",
+        )
+    })?;
+    let verification = record.verification_result.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "committed development change has no verification result",
+        )
+    })?;
+    let build_context_ref = validate_deployment_verification_provenance(
+        &record,
+        &verification,
+        &dockerfile,
+        network_mode,
+        &source_tree_digest,
+    )?;
+    verify_deployment_artifact_content(state.runtime.as_ref(), &verification.artifact_ref).await?;
+    verify_deployment_artifact_content(state.runtime.as_ref(), &build_context_ref).await?;
+
+    let workspace = resolve_project_workspace(&state, &project_id).map_err(|error| {
+        tracing::warn!(project_id = %project_id, error = %error, "deployment workspace resolution failed");
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "managed project workspace is unavailable for deployment preview",
+        )
+    })?;
+    let live_tree = workspace_tree_hash(&workspace.root)
+        .await
+        .map_err(|error| {
+            internal_development_error("failed to verify the live deployment workspace", error)
+        })?;
+    ensure_descriptor_matches_workspace(&workspace, &live_tree.sha256).map_err(|error| {
+        tracing::warn!(project_id = %project_id, error = %error, "deployment workspace descriptor changed");
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "managed project workspace no longer matches its descriptor",
+        )
+    })?;
+    if live_tree.sha256 != source_tree_digest {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "managed project workspace changed after Docker verification",
+        ));
+    }
+
+    state
+        .build_jobs
+        .ensure_route_available_for_project(&request.route_id, &project_id)
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    if state
+        .target_agents
+        .project_for_operation_route(&request.route_id)
+        .is_some_and(|owner| owner != project_id)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment route is owned by another project",
+        ));
+    }
+
+    let request_digest = deployment_preview_request_digest(
+        &record,
+        &request,
+        &verification.artifact_ref,
+        &build_context_ref,
+    )
+    .map_err(|error| {
+        internal_development_error("failed to bind deployment preview request", error)
+    })?;
+    if let Some(existing) = record.deployment.as_ref() {
+        if existing.request_digest == request_digest {
+            return Ok((StatusCode::OK, Json(record)));
+        }
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "this development change already has a different deployment request",
+        ));
+    }
+
+    let deployment_suffix = uuid::Uuid::new_v4().simple().to_string();
+    let deployment_id = format!("dep-{deployment_suffix}");
+    let preview_route_id = format!("preview-{deployment_suffix}");
+    if state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&preview_route_id)
+        .await
+        .is_some_and(|route| route.status != ygg_runtime::ProxyRouteStatusKind::Removed)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "generated deployment preview route already exists",
+        ));
+    }
+    let build_id = format!("verified-{deployment_suffix}");
+    let build_descriptor_hash = deployment_build_descriptor_hash(
+        &project_id,
+        &build_context_ref,
+        &source_tree_digest,
+        &dockerfile,
+        network_mode,
+        &build_id,
+    );
+    let authority = DeploymentAuthorityLease::from_identity(
+        format!("dop-{deployment_suffix}"),
+        request.target_id.clone(),
+        &identity,
+    );
+    deployment_effect_context(
+        &state,
+        Some(&authority),
+        &project_id,
+        "host_development_deployment_prepare",
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment authority validation failed");
+        ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "deployment authority is no longer valid for the selected project and target",
+        )
+    })?;
+    let authority_ref = commit_json_artifact(
+        state.runtime.as_ref(),
+        DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI,
+        &json!({
+            "schema_version": 1,
+            "deployment_id": deployment_id,
+            "project_id": project_id,
+            "change_set_id": change_set_id,
+            "target_id": request.target_id,
+            "authority": authority,
+        }),
+        vec![
+            record.intent_ref.digest.clone(),
+            record
+                .approval_ref
+                .as_ref()
+                .map(|item| item.digest.clone())
+                .ok_or_else(|| {
+                    ServiceError::with_status(
+                        StatusCode::CONFLICT,
+                        "committed development change has no approval artifact",
+                    )
+                })?,
+            verification.artifact_ref.digest.clone(),
+            build_context_ref.digest.clone(),
+        ],
+        BTreeMap::from([
+            ("project_id".to_string(), json!(project_id.as_str())),
+            ("change_set_id".to_string(), json!(change_set_id)),
+            ("target_id".to_string(), json!(request.target_id)),
+            ("deployment_id".to_string(), json!(deployment_id)),
+        ]),
+    )
+    .await
+    .map_err(|error| internal_development_error("failed to persist deployment authority", error))?;
+
+    let permit = state
+        .build_jobs
+        .acquire_project_operation(&project_id)
+        .await
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let project_guard = BuildDeployProjectGuard {
+        registry: state.build_jobs.clone(),
+        project_id: project_id.clone(),
+    };
+    let now = now_millis();
+    record.revision += 1;
+    record.updated_at_ms = now;
+    record.deployment = Some(DevelopmentDeploymentRecord {
+        schema_version: 1,
+        deployment_id: deployment_id.clone(),
+        status: DevelopmentDeploymentStatus::Preparing,
+        target_id: request.target_id.clone(),
+        source_tree_digest,
+        verification_ref: verification.artifact_ref,
+        build_context_ref,
+        authority_ref,
+        dockerfile,
+        network_mode,
+        container_port: request.container_port,
+        port_name: request.port_name,
+        route_id: request.route_id,
+        route_access: request.route_access,
+        health_path: request.health_path,
+        preview_route_id,
+        preview_port_lease_id: None,
+        target_deployment_id: None,
+        build_id,
+        build_descriptor_hash,
+        build_operation_id: None,
+        deployment_operation_id: None,
+        preview: None,
+        preview_ref: None,
+        approval_decision: None,
+        approval_ref: None,
+        activation_revision_id: None,
+        previous_revision_id: None,
+        error: None,
+        created_at_ms: now,
+        updated_at_ms: now,
+        idempotency_key: request.idempotency_key,
+        request_digest,
+    });
+    let record = match persist_record(&state, record).await {
+        Ok(record) => record,
+        Err(error) => {
+            drop(project_guard);
+            drop(permit);
+            return Err(development_persistence_error(
+                "failed to persist deployment preview start",
+                error,
+            ));
+        }
+    };
+
+    let task_state = state.clone();
+    let task_change_set_id = change_set_id.clone();
+    let task_project_id = project_id.clone();
+    tokio::spawn(async move {
+        let _permit = permit;
+        let _project_guard = project_guard;
+        if let Err(error) =
+            run_deployment_preview(&task_state, &task_change_set_id, &authority).await
+        {
+            tracing::warn!(
+                project_id = %task_project_id,
+                change_set_id = %task_change_set_id,
+                error = %error,
+                "development deployment preview failed"
+            );
+            let mut retry_delay = std::time::Duration::from_millis(100);
+            loop {
+                match complete_deployment_preview_failure(&task_state, &task_change_set_id).await {
+                    Ok(()) => break,
+                    Err(persist_error) => {
+                        tracing::warn!(
+                            project_id = %task_project_id,
+                            change_set_id = %task_change_set_id,
+                            error = %persist_error,
+                            "failed to persist deployment preview failure; retrying while Host lease remains active"
+                        );
+                        if verify_development_host_lease(
+                            task_state.runtime.store().as_ref(),
+                            task_state.development.as_ref(),
+                        )
+                        .await
+                        .is_err()
+                        {
+                            break;
+                        }
+                        tokio::time::sleep(retry_delay).await;
+                        retry_delay = retry_delay
+                            .saturating_mul(2)
+                            .min(std::time::Duration::from_secs(5));
+                    }
+                }
+            }
+        }
+    });
+
+    Ok((StatusCode::ACCEPTED, Json(record)))
+}
+
+fn validate_deployment_preview_request(
+    request: &DevelopmentDeploymentPreviewRequest,
+) -> Result<(), ServiceError> {
+    let valid_target = !request.target_id.is_empty()
+        && request.target_id.len() <= 128
+        && request
+            .target_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._".contains(&byte));
+    let valid_port_name = !request.port_name.is_empty()
+        && request.port_name.len() <= 64
+        && request
+            .port_name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._".contains(&byte));
+    let valid_health_path = request.health_path.as_deref().is_none_or(|path| {
+        path.starts_with('/')
+            && !path.starts_with("//")
+            && path.len() <= 256
+            && !path.contains(['\r', '\n'])
+    });
+    let valid_idempotency = request.idempotency_key.as_deref().is_none_or(|key| {
+        !key.is_empty()
+            && key.len() <= 128
+            && key
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-._:".contains(&byte))
+    });
+    if !valid_target
+        || request.container_port == 0
+        || !valid_port_name
+        || !crate::is_safe_route_token(&request.route_id)
+        || !valid_health_path
+        || !valid_idempotency
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::BAD_REQUEST,
+            "deployment preview contains an invalid target, port, route, health path, or idempotency key",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_deployment_verification_provenance(
+    record: &DevelopmentChangeRecord,
+    verification: &DevelopmentVerificationResult,
+    dockerfile: &str,
+    network_mode: DevelopmentNetworkMode,
+    source_tree_digest: &str,
+) -> Result<ArtifactDescriptor, ServiceError> {
+    let context = verification
+        .deployment_artifact_ref
+        .clone()
+        .ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "Docker verification predates deployable artifact provenance",
+            )
+        })?;
+    let valid = verification.succeeded
+        && verification.kind == "docker_build"
+        && verification.network_mode == network_mode
+        && verification.artifact_ref.artifact_type_uri == DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI
+        && verification.artifact_ref.media_type == "application/json"
+        && verification
+            .artifact_ref
+            .references
+            .contains(&record.change_set_ref.digest)
+        && verification
+            .artifact_ref
+            .references
+            .contains(&context.digest)
+        && context.artifact_type_uri == DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI
+        && context.media_type == "application/x-tar"
+        && context.references.contains(&record.change_set_ref.digest)
+        && context
+            .annotations
+            .get("project_id")
+            .and_then(Value::as_str)
+            == Some(record.project_id.as_str())
+        && context
+            .annotations
+            .get("change_set_id")
+            .and_then(Value::as_str)
+            == Some(record.change_set.id.as_str())
+        && context
+            .annotations
+            .get("tree_digest")
+            .and_then(Value::as_str)
+            == Some(source_tree_digest)
+        && context
+            .annotations
+            .get("dockerfile")
+            .and_then(Value::as_str)
+            == Some(dockerfile);
+    if !valid {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "Docker verification provenance is incomplete or inconsistent",
+        ));
+    }
+    Ok(context)
+}
+
+async fn verify_deployment_artifact_content<S>(
+    runtime: &Runtime<S>,
+    descriptor: &ArtifactDescriptor,
+) -> Result<(), ServiceError>
+where
+    S: EventStore,
+{
+    let info = runtime
+        .object_store()
+        .verify(&descriptor.digest)
+        .await
+        .map_err(|error| {
+            internal_development_error("verified deployment artifact is unavailable", error)
+        })?;
+    if info.size_bytes != descriptor.size_bytes {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "verified deployment artifact descriptor does not match stored content",
+        ));
+    }
+    Ok(())
+}
+
+fn deployment_preview_request_digest(
+    record: &DevelopmentChangeRecord,
+    request: &DevelopmentDeploymentPreviewRequest,
+    verification_ref: &ArtifactDescriptor,
+    build_context_ref: &ArtifactDescriptor,
+) -> anyhow::Result<String> {
+    let bytes = serde_json::to_vec(&json!({
+        "schema_version": 1,
+        "project_id": record.project_id,
+        "change_set_id": record.change_set.id,
+        "request": request,
+        "verification_digest": verification_ref.digest,
+        "build_context_digest": build_context_ref.digest,
+    }))?;
+    Ok(format!("sha256:{:x}", Sha256::digest(bytes)))
+}
+
+fn deployment_build_descriptor_hash(
+    project_id: &ProjectId,
+    build_context_ref: &ArtifactDescriptor,
+    source_tree_digest: &str,
+    dockerfile: &str,
+    network_mode: DevelopmentNetworkMode,
+    build_id: &str,
+) -> String {
+    let mut hasher = Sha256::new();
+    for value in [
+        "yggdrasil.verified-deployment-build.v1",
+        project_id.as_str(),
+        &build_context_ref.digest,
+        source_tree_digest,
+        dockerfile,
+        network_mode.as_str(),
+        build_id,
+    ] {
+        hasher.update(value.as_bytes());
+        hasher.update(b"\0");
+    }
+    format!("sha256:{:x}", hasher.finalize())
+}
+
+async fn update_deployment_record<S, F>(
+    state: &AppState<S>,
+    change_set_id: &str,
+    mutate: F,
+) -> anyhow::Result<DevelopmentChangeRecord>
+where
+    S: EventStore,
+    F: FnOnce(&mut DevelopmentDeploymentRecord) -> anyhow::Result<()>,
+{
+    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
+        .await?;
+    let change_lock = state.development.lock_for(change_set_id);
+    let _guard = change_lock.lock().await;
+    let mut record = state
+        .development
+        .get(change_set_id)
+        .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
+    anyhow::ensure!(
+        record.status == DevelopmentChangeStatus::Committed,
+        "deployment parent change is no longer committed"
+    );
+    let deployment = record
+        .deployment
+        .as_mut()
+        .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
+    mutate(deployment)?;
+    deployment.updated_at_ms = now_millis();
+    record.revision = record.revision.saturating_add(1);
+    record.updated_at_ms = now_millis();
+    persist_record(state, record.clone()).await?;
+    Ok(record)
+}
+
+async fn await_target_operation<S>(
+    state: &AppState<S>,
+    target_id: &str,
+    operation: TargetOperationRecord,
+) -> anyhow::Result<TargetOperationRecord>
+where
+    S: EventStore,
+{
+    if operation.status.is_terminal() {
+        Ok(operation)
+    } else {
+        crate::target_agent::wait_for_host_operation(
+            state,
+            target_id,
+            &operation.operation_id,
+            DEVELOPMENT_DEPLOYMENT_OPERATION_TIMEOUT,
+        )
+        .await
+    }
+}
+
+fn require_succeeded_target_operation(
+    operation: TargetOperationRecord,
+    effect: &str,
+) -> anyhow::Result<TargetOperationRecord> {
+    anyhow::ensure!(
+        operation.status == TargetOperationStatusKind::Succeeded,
+        "{effect} did not succeed"
+    );
+    let receipt = operation
+        .receipt
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("{effect} completed without a receipt"))?;
+    anyhow::ensure!(
+        receipt.status == crate::target_agent::TargetOperationReceiptStatus::Succeeded,
+        "{effect} receipt did not succeed"
+    );
+    Ok(operation)
+}
+
+async fn run_deployment_preview<S>(
+    state: &AppState<S>,
+    change_set_id: &str,
+    authority: &DeploymentAuthorityLease,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let building = update_deployment_record(state, change_set_id, |deployment| {
+        anyhow::ensure!(
+            matches!(
+                deployment.status,
+                DevelopmentDeploymentStatus::Preparing | DevelopmentDeploymentStatus::Building
+            ),
+            "deployment preview is not in its build phase"
+        );
+        deployment.status = DevelopmentDeploymentStatus::Building;
+        deployment.error = None;
+        Ok(())
+    })
+    .await?;
+    let deployment = building
+        .deployment
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
+    let project_id = building.project_id.clone();
+    deployment_effect_context(
+        state,
+        Some(authority),
+        &project_id,
+        "host_development_deployment_build",
+    )
+    .await?;
+    let build_operation = crate::target_agent::submit_host_operation(
+        state,
+        &deployment.target_id,
+        CreateTargetOperationRequest {
+            project_id: project_id.clone(),
+            spec: TargetOperationSpec::VerifierRun {
+                verifier: DeclarativeVerifierDescriptor::DockerBuild {
+                    digest: deployment.build_context_ref.digest.clone(),
+                    expected_size_bytes: Some(deployment.build_context_ref.size_bytes),
+                    dockerfile: deployment.dockerfile.clone(),
+                    network_mode: match deployment.network_mode {
+                        DevelopmentNetworkMode::None => {
+                            ygg_runtime::ManagedTargetBuildNetworkMode::None
+                        }
+                        DevelopmentNetworkMode::Bridge => {
+                            ygg_runtime::ManagedTargetBuildNetworkMode::Bridge
+                        }
+                    },
+                    build_id: deployment.build_id.clone(),
+                    source_tree_digest: deployment.source_tree_digest.clone(),
+                    build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+                },
+            },
+            idempotency_key: Some(format!("{}:build", deployment.deployment_id)),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await
+    .map_err(|error| error.error)?;
+    let build_operation_id = build_operation.operation_id.clone();
+    update_deployment_record(state, change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id,
+            "deployment preview identity changed"
+        );
+        current.build_operation_id = Some(build_operation_id.clone());
+        Ok(())
+    })
+    .await?;
+    let build_operation = require_succeeded_target_operation(
+        await_target_operation(state, &deployment.target_id, build_operation).await?,
+        "target Docker build",
+    )?;
+    let build_output = &build_operation
+        .receipt
+        .as_ref()
+        .expect("succeeded target operation has a receipt")
+        .output;
+    let image = required_string(build_output, "image", "target Docker build receipt")?;
+    let image_id = required_string(build_output, "image_id", "target Docker build receipt")?;
+    anyhow::ensure!(
+        required_string(
+            build_output,
+            "context_digest",
+            "target Docker build receipt"
+        )? == deployment.build_context_ref.digest
+            && required_string(
+                build_output,
+                "source_tree_digest",
+                "target Docker build receipt"
+            )? == deployment.source_tree_digest
+            && required_string(
+                build_output,
+                "build_descriptor_hash",
+                "target Docker build receipt"
+            )? == deployment.build_descriptor_hash
+            && required_string(build_output, "build_id", "target Docker build receipt")?
+                == deployment.build_id,
+        "target Docker build receipt does not match the verified build descriptor"
+    );
+
+    let port_context = deployment_effect_context(
+        state,
+        Some(authority),
+        &project_id,
+        "host_development_deployment_port_lease",
+    )
+    .await?;
+    let lease = call_host_protocol(
+        state,
+        &port_context,
+        "kernel.v1.port.lease",
+        json!({
+            "target_id": deployment.target_id,
+            "port_name": deployment.port_name,
+            "protocol": "tcp",
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))?;
+    let port_lease_id = required_string(&lease, "id", "deployment preview port lease")?;
+    let target_deployment_id = format!("preview-{}", deployment.deployment_id);
+    let previewing = update_deployment_record(state, change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id
+                && current.status == DevelopmentDeploymentStatus::Building,
+            "deployment preview changed before candidate preparation"
+        );
+        current.status = DevelopmentDeploymentStatus::Previewing;
+        current.preview_port_lease_id = Some(port_lease_id.clone());
+        current.target_deployment_id = Some(target_deployment_id.clone());
+        Ok(())
+    })
+    .await?;
+    let deployment = previewing
+        .deployment
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
+
+    let route_context = deployment_effect_context(
+        state,
+        Some(authority),
+        &project_id,
+        "host_development_deployment_preview_route",
+    )
+    .await?;
+    let route = call_host_protocol(
+        state,
+        &route_context,
+        "kernel.v1.proxy.register",
+        json!({
+            "route_id": deployment.preview_route_id,
+            "protocol": "http",
+            "access": ProxyRouteAccess::HostAuthenticated,
+            "upstream": {
+                "port_lease_id": port_lease_id,
+                "port_name": deployment.port_name,
+            },
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))?;
+    let registered_route_id = required_string(&route, "id", "deployment preview route")?;
+    anyhow::ensure!(
+        registered_route_id == deployment.preview_route_id,
+        "deployment preview route identity changed during registration"
+    );
+    let fallback_public_url = required_string(&route, "public_url", "deployment preview route")?;
+    let public_url = service_public_url_for_route(
+        state,
+        &registered_route_id,
+        &fallback_public_url,
+        ProxyRouteAccess::HostAuthenticated,
+    );
+
+    deployment_effect_context(
+        state,
+        Some(authority),
+        &project_id,
+        "host_development_deployment_candidate_apply",
+    )
+    .await?;
+    let target_deployment = TargetDeploymentRef {
+        deployment_id: target_deployment_id,
+        route_id: deployment.preview_route_id.clone(),
+        port_lease_id: port_lease_id.clone(),
+    };
+    let apply_operation = crate::target_agent::submit_host_operation(
+        state,
+        &deployment.target_id,
+        CreateTargetOperationRequest {
+            project_id: project_id.clone(),
+            spec: TargetOperationSpec::DeploymentApply {
+                deployment: TargetDeploymentDescriptor {
+                    deployment: target_deployment.clone(),
+                    port_name: deployment.port_name.clone(),
+                    image: image_id.clone(),
+                    container_port: deployment.container_port,
+                    requested_host_port: None,
+                    pull_if_missing: false,
+                    health_path: deployment.health_path.clone(),
+                },
+            },
+            idempotency_key: Some(format!("{}:apply", deployment.deployment_id)),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await
+    .map_err(|error| error.error)?;
+    let deployment_operation_id = apply_operation.operation_id.clone();
+    update_deployment_record(state, change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id
+                && current.status == DevelopmentDeploymentStatus::Previewing,
+            "deployment preview changed before candidate receipt persistence"
+        );
+        current.deployment_operation_id = Some(deployment_operation_id.clone());
+        Ok(())
+    })
+    .await?;
+    let apply_operation = require_succeeded_target_operation(
+        await_target_operation(state, &deployment.target_id, apply_operation).await?,
+        "target deployment apply",
+    )?;
+    let apply_output = &apply_operation
+        .receipt
+        .as_ref()
+        .expect("succeeded target operation has a receipt")
+        .output;
+    anyhow::ensure!(
+        apply_output.get("running").and_then(Value::as_bool) == Some(true),
+        "target deployment receipt is not running"
+    );
+    let container_id = required_string(
+        apply_output,
+        "container_id",
+        "target deployment apply receipt",
+    )?;
+    let container_name = apply_output
+        .get("container_name")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    anyhow::ensure!(
+        required_string(apply_output, "image_id", "target deployment apply receipt")? == image_id,
+        "target deployment used a different image than the verified target build"
+    );
+    let ready_route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.preview_route_id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("deployment preview route disappeared"))?;
+    anyhow::ensure!(
+        ready_route.status == ygg_runtime::ProxyRouteStatusKind::Active
+            && ready_route.ready
+            && ready_route.upstream.port_lease_id == port_lease_id,
+        "deployment preview route did not become ready"
+    );
+
+    let preview = DevelopmentDeploymentPreview {
+        route_id: registered_route_id,
+        public_url,
+        port_lease_id,
+        deployment: target_deployment,
+        image,
+        image_id,
+        container_id,
+        container_name,
+        build_operation_id,
+        deployment_operation_id,
+        ready_at_ms: now_millis(),
+    };
+    let preview_ref = commit_json_artifact(
+        state.runtime.as_ref(),
+        DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI,
+        &json!({
+            "schema_version": 1,
+            "project_id": project_id,
+            "change_set_id": change_set_id,
+            "deployment_id": deployment.deployment_id,
+            "source_tree_digest": deployment.source_tree_digest,
+            "verification_ref": deployment.verification_ref,
+            "build_context_ref": deployment.build_context_ref,
+            "authority_ref": deployment.authority_ref,
+            "preview": preview,
+        }),
+        vec![
+            deployment.verification_ref.digest.clone(),
+            deployment.build_context_ref.digest.clone(),
+            deployment.authority_ref.digest.clone(),
+        ],
+        BTreeMap::from([
+            ("project_id".to_string(), json!(project_id.as_str())),
+            ("change_set_id".to_string(), json!(change_set_id)),
+            ("deployment_id".to_string(), json!(deployment.deployment_id)),
+            ("target_id".to_string(), json!(deployment.target_id)),
+            (
+                "source_tree_digest".to_string(),
+                json!(deployment.source_tree_digest),
+            ),
+        ]),
+    )
+    .await?;
+    update_deployment_record(state, change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id
+                && current.status == DevelopmentDeploymentStatus::Previewing,
+            "deployment preview changed before readiness persistence"
+        );
+        current.status = DevelopmentDeploymentStatus::PreviewReady;
+        current.preview = Some(preview);
+        current.preview_ref = Some(preview_ref);
+        current.error = None;
+        Ok(())
+    })
+    .await?;
+    Ok(())
+}
+
+fn target_operation_outcome_is_uncertain<S>(state: &AppState<S>, operation_id: &str) -> bool
+where
+    S: EventStore,
+{
+    state
+        .target_agents
+        .operation(operation_id)
+        .is_none_or(|operation| {
+            !operation.status.is_terminal()
+                || operation.status == TargetOperationStatusKind::OutcomeUnknown
+        })
+}
+
+async fn stop_completed_preview_candidate<S>(
+    state: &AppState<S>,
+    project_id: &ProjectId,
+    deployment: &DevelopmentDeploymentRecord,
+) -> anyhow::Result<bool>
+where
+    S: EventStore,
+{
+    let Some(operation_id) = deployment.deployment_operation_id.as_deref() else {
+        return Ok(state
+            .target_agents
+            .project_for_operation_route(&deployment.preview_route_id)
+            .is_none());
+    };
+    let Some(operation) = state.target_agents.operation(operation_id) else {
+        return Ok(false);
+    };
+    match operation.status {
+        TargetOperationStatusKind::Succeeded => {}
+        TargetOperationStatusKind::Failed
+        | TargetOperationStatusKind::Cancelled
+        | TargetOperationStatusKind::Expired => return Ok(true),
+        TargetOperationStatusKind::Requested
+        | TargetOperationStatusKind::Accepted
+        | TargetOperationStatusKind::Running
+        | TargetOperationStatusKind::OutcomeUnknown => return Ok(false),
+    }
+    let (Some(target_deployment_id), Some(port_lease_id)) = (
+        deployment.target_deployment_id.as_ref(),
+        deployment.preview_port_lease_id.as_ref(),
+    ) else {
+        return Ok(false);
+    };
+    let cleanup = crate::target_agent::submit_host_operation(
+        state,
+        &deployment.target_id,
+        CreateTargetOperationRequest {
+            project_id: project_id.clone(),
+            spec: TargetOperationSpec::DeploymentStop {
+                deployment: TargetDeploymentRef {
+                    deployment_id: target_deployment_id.clone(),
+                    route_id: deployment.preview_route_id.clone(),
+                    port_lease_id: port_lease_id.clone(),
+                },
+                grace_seconds: 0,
+                force_remove: true,
+            },
+            idempotency_key: Some(format!("{}:cleanup", deployment.deployment_id)),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await;
+    let Ok(cleanup) = cleanup else {
+        return Ok(false);
+    };
+    let cleanup = match await_target_operation(state, &deployment.target_id, cleanup).await {
+        Ok(cleanup) => cleanup,
+        Err(_) => return Ok(false),
+    };
+    Ok(cleanup.status == TargetOperationStatusKind::Succeeded)
+}
+
+async fn cleanup_preview_host_resources<S>(
+    state: &AppState<S>,
+    deployment: &DevelopmentDeploymentRecord,
+) -> anyhow::Result<bool>
+where
+    S: EventStore,
+{
+    let Some(port_lease_id) = deployment.preview_port_lease_id.as_deref() else {
+        return Ok(true);
+    };
+    let context = ProtocolContext::host_dev("host_development_deployment_compensation");
+    if let Some(route) = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.preview_route_id)
+        .await
+    {
+        if route.status != ygg_runtime::ProxyRouteStatusKind::Removed {
+            if route.upstream.port_lease_id != port_lease_id {
+                return Ok(false);
+            }
+            if let Err(error) = call_host_protocol(
+                state,
+                &context,
+                "kernel.v1.proxy.unregister",
+                json!({ "route_id": deployment.preview_route_id }),
+            )
+            .await
+            {
+                tracing::warn!(
+                    deployment_id = %deployment.deployment_id,
+                    error = %error,
+                    "deployment preview route cleanup failed"
+                );
+            }
+        }
+    }
+    let route_removed = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.preview_route_id)
+        .await
+        .is_none_or(|route| route.status == ygg_runtime::ProxyRouteStatusKind::Removed);
+    if !route_removed {
+        return Ok(false);
+    }
+
+    if state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(port_lease_id)
+        .await
+        .is_some_and(|lease| lease.status != ygg_runtime::PortLeaseStatusKind::Released)
+    {
+        if let Err(error) = call_host_protocol(
+            state,
+            &context,
+            "kernel.v1.port.release",
+            json!({ "lease_id": port_lease_id }),
+        )
+        .await
+        {
+            tracing::warn!(
+                deployment_id = %deployment.deployment_id,
+                error = %error,
+                "deployment preview port cleanup failed"
+            );
+        }
+    }
+    Ok(state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(port_lease_id)
+        .await
+        .is_none_or(|lease| lease.status == ygg_runtime::PortLeaseStatusKind::Released))
+}
+
+async fn complete_deployment_preview_failure<S>(
+    state: &AppState<S>,
+    change_set_id: &str,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
+        .await?;
+    let record = state
+        .development
+        .get(change_set_id)
+        .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
+    let Some(deployment) = record.deployment.clone() else {
+        anyhow::bail!("development deployment disappeared");
+    };
+    if !deployment.status.executing() {
+        return Ok(());
+    }
+    let operation_uncertain = deployment
+        .build_operation_id
+        .as_deref()
+        .is_some_and(|id| target_operation_outcome_is_uncertain(state, id))
+        || deployment
+            .deployment_operation_id
+            .as_deref()
+            .is_some_and(|id| target_operation_outcome_is_uncertain(state, id));
+    let cleanup_complete = if operation_uncertain {
+        false
+    } else {
+        stop_completed_preview_candidate(state, &record.project_id, &deployment).await?
+            && cleanup_preview_host_resources(state, &deployment).await?
+    };
+    update_deployment_record(state, change_set_id, |current| {
+        if !current.status.executing() {
+            return Ok(());
+        }
+        if operation_uncertain || !cleanup_complete {
+            current.status = DevelopmentDeploymentStatus::RecoveryRequired;
+            current.error = Some(
+                "deployment preview outcome requires explicit reconciliation; details redacted"
+                    .to_string(),
+            );
+        } else {
+            current.status = DevelopmentDeploymentStatus::Failed;
+            current.error = Some("deployment preview failed; details redacted".to_string());
+        }
+        Ok(())
+    })
+    .await?;
+    Ok(())
 }
 
 fn development_project_session(project_id: &ProjectId) -> String {
@@ -1490,6 +2703,50 @@ where
             cleanup_change_root(&snapshot.record.project_id, &change_set_id);
         }
     }
+
+    let interrupted_deployments = {
+        registry
+            .changes
+            .lock()
+            .expect("development changes lock poisoned")
+            .values()
+            .filter(|stored| {
+                stored
+                    .record
+                    .deployment
+                    .as_ref()
+                    .is_some_and(|deployment| deployment.status.executing())
+            })
+            .map(|stored| stored.record.change_set.id.clone())
+            .collect::<Vec<_>>()
+    };
+    for change_set_id in interrupted_deployments {
+        verify_development_host_lease(store.as_ref(), registry.as_ref()).await?;
+        let Some(mut snapshot) = registry.snapshot(&change_set_id) else {
+            continue;
+        };
+        let Some(deployment) = snapshot.record.deployment.as_mut() else {
+            continue;
+        };
+        if !deployment.status.executing() {
+            continue;
+        }
+        deployment.status = DevelopmentDeploymentStatus::RecoveryRequired;
+        deployment.error = Some(
+            "host restarted during deployment preview; target operation reconciliation is required"
+                .to_string(),
+        );
+        deployment.updated_at_ms = now_millis();
+        snapshot.record.revision = snapshot.record.revision.saturating_add(1);
+        snapshot.record.updated_at_ms = now_millis();
+        let expected_next = registry.project_journal_next(&snapshot.record.project_id);
+        let event = append_development_journal_event(store.as_ref(), &snapshot, expected_next)
+            .await?
+            .ok_or_else(|| {
+                anyhow::anyhow!("development journal changed during deployment recovery")
+            })?;
+        registry.apply_journal_event(&event)?;
+    }
     Ok(events.len())
 }
 
@@ -1656,6 +2913,7 @@ where
         managed_promotion: None,
         recovery_kind: None,
         commit: None,
+        deployment: None,
         error: None,
         created_at_ms: timestamp_ms,
         updated_at_ms: timestamp_ms,
@@ -2977,6 +4235,7 @@ where
                 image: None,
                 log_tail: None,
                 artifact_ref,
+                deployment_artifact_ref: None,
             })
         }
         DevelopmentVerificationPlan::DockerBuild {
@@ -2991,24 +4250,53 @@ where
                 .digest
                 .strip_prefix("sha256:")
                 .unwrap_or(&record.change_set_ref.digest);
+            let build_input = json!({
+                "approved": true,
+                "strategy": "dockerfile",
+                "project_id": record.project_id.as_str(),
+                "build_id": build_id,
+                "development_change_id": record.change_set.id,
+                "context_dir": scratch.to_string_lossy(),
+                "dockerfile": dockerfile,
+                "build_descriptor_hash": descriptor_hash,
+                "network_mode": network_mode.as_str(),
+                "build_timeout_secs": timeout_secs.unwrap_or(900),
+                "max_context_bytes": DEVELOPMENT_WORKSPACE_MAX_BYTES,
+                "max_context_files": DEVELOPMENT_WORKSPACE_MAX_FILES,
+            });
+            let prepared = tokio::task::spawn_blocking({
+                let build_input = build_input.clone();
+                move || ygg_runtime::prepare_docker_build_context(&build_input)
+            })
+            .await
+            .context("deployable build context task failed")??;
+            let deployment_artifact_ref = state
+                .runtime
+                .commit_artifact(ArtifactCommitRequest {
+                    artifact_type_uri: DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI.to_string(),
+                    media_type: "application/x-tar".to_string(),
+                    bytes: prepared.bytes.into(),
+                    references: vec![record.change_set_ref.digest.clone()],
+                    annotations: BTreeMap::from([
+                        ("project_id".to_string(), json!(record.project_id.as_str())),
+                        ("change_set_id".to_string(), json!(record.change_set.id)),
+                        (
+                            "tree_digest".to_string(),
+                            json!(record.proposed_tree_digest),
+                        ),
+                        ("dockerfile".to_string(), json!(dockerfile)),
+                        ("files".to_string(), json!(prepared.files)),
+                        ("total_bytes".to_string(), json!(prepared.total_bytes)),
+                    ]),
+                })
+                .await?;
+            let mut verified_build_input = build_input;
+            verified_build_input["expected_context_digest"] = json!(deployment_artifact_ref.digest);
             let output = invoke_docker_runtime_lab(
                 state,
                 &context,
                 "official/docker-runtime-lab/build_image",
-                json!({
-                    "approved": true,
-                    "strategy": "dockerfile",
-                    "project_id": record.project_id.as_str(),
-                    "build_id": build_id,
-                    "development_change_id": record.change_set.id,
-                    "context_dir": scratch.to_string_lossy(),
-                    "dockerfile": dockerfile,
-                    "build_descriptor_hash": descriptor_hash,
-                    "network_mode": network_mode.as_str(),
-                    "build_timeout_secs": timeout_secs.unwrap_or(900),
-                    "max_context_bytes": DEVELOPMENT_WORKSPACE_MAX_BYTES,
-                    "max_context_files": DEVELOPMENT_WORKSPACE_MAX_FILES,
-                }),
+                verified_build_input,
             )
             .await?;
             let image = require_built_image(&output)?;
@@ -3043,13 +4331,17 @@ where
                 "network_mode": network_mode,
                 "image_ref": image,
                 "image_retained": false,
+                "deployment_artifact_ref": deployment_artifact_ref,
                 "diagnostic_log_digest": diagnostic_log_digest,
             });
             let artifact_ref = commit_json_artifact(
                 state.runtime.as_ref(),
                 DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI,
                 &payload,
-                vec![record.change_set_ref.digest.clone()],
+                vec![
+                    record.change_set_ref.digest.clone(),
+                    deployment_artifact_ref.digest.clone(),
+                ],
                 BTreeMap::from([("result_kind".to_string(), json!("docker_build"))]),
             )
             .await?;
@@ -3060,6 +4352,7 @@ where
                 image: None,
                 log_tail: None,
                 artifact_ref,
+                deployment_artifact_ref: Some(deployment_artifact_ref),
             })
         }
     }
@@ -3108,15 +4401,19 @@ where
         "source_workspace_modified": status == DevelopmentChangeStatus::Committed,
         "linked_local_source_write": false,
     });
+    let mut result_references = vec![
+        record.change_set_ref.digest.clone(),
+        verification.artifact_ref.digest.clone(),
+        bundle_ref.digest.clone(),
+    ];
+    if let Some(artifact) = verification.deployment_artifact_ref.as_ref() {
+        result_references.push(artifact.digest.clone());
+    }
     let result_ref = commit_json_artifact(
         state.runtime.as_ref(),
         DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI,
         &actual,
-        vec![
-            record.change_set_ref.digest.clone(),
-            verification.artifact_ref.digest.clone(),
-            bundle_ref.digest.clone(),
-        ],
+        result_references,
         BTreeMap::from([("result_kind".to_string(), json!(effect_kind))]),
     )
     .await?;
@@ -3138,6 +4435,14 @@ where
         .approval_ref
         .clone()
         .ok_or_else(|| anyhow::anyhow!("approval artifact is missing"))?;
+    let mut output_refs = vec![
+        verification.artifact_ref.clone(),
+        bundle_ref.clone(),
+        result_ref.clone(),
+    ];
+    if let Some(artifact) = verification.deployment_artifact_ref.clone() {
+        output_refs.push(artifact);
+    }
     let receipt = EffectReceipt {
         schema_version: 1,
         receipt_type_uri: ygg_core::EFFECT_RECEIPT_TYPE_URI.to_string(),
@@ -3147,11 +4452,7 @@ where
         component_ref,
         protocol_profiles: vec!["host/control/v1".to_string()],
         input_refs: vec![record.change_set_ref.clone()],
-        output_refs: vec![
-            verification.artifact_ref.clone(),
-            bundle_ref.clone(),
-            result_ref.clone(),
-        ],
+        output_refs: output_refs.clone(),
         external_effect_refs: Vec::new(),
         authority_ref: None,
         policy_decision_ref: Some(approval_ref.clone()),
@@ -3187,7 +4488,7 @@ where
         started_at,
         completed_at: now,
         operation_receipts: vec![receipt_ref],
-        result_refs: vec![verification.artifact_ref.clone(), bundle_ref, result_ref],
+        result_refs: output_refs,
         error: None,
         branch_id: None,
         idempotency_key: record.change_set.idempotency_key.clone(),
@@ -3813,10 +5114,49 @@ mod tests {
             managed_promotion: None,
             recovery_kind: None,
             commit: None,
+            deployment: None,
             error: None,
             created_at_ms: 1,
             updated_at_ms: 1,
             idempotency_key: Some("test-key".to_string()),
+        }
+    }
+
+    fn deployment(status: DevelopmentDeploymentStatus) -> DevelopmentDeploymentRecord {
+        DevelopmentDeploymentRecord {
+            schema_version: 1,
+            deployment_id: "dep-0123456789abcdef".to_string(),
+            status,
+            target_id: "local".to_string(),
+            source_tree_digest: format!("sha256:{}", "1".repeat(64)),
+            verification_ref: artifact('2'),
+            build_context_ref: artifact('3'),
+            authority_ref: artifact('4'),
+            dockerfile: "Dockerfile".to_string(),
+            network_mode: DevelopmentNetworkMode::None,
+            container_port: 8080,
+            port_name: "web".to_string(),
+            route_id: "project-web".to_string(),
+            route_access: ProxyRouteAccess::HostAuthenticated,
+            health_path: Some("/healthz".to_string()),
+            preview_route_id: "preview-0123456789abcdef".to_string(),
+            preview_port_lease_id: None,
+            target_deployment_id: None,
+            build_id: "verified-0123456789abcdef".to_string(),
+            build_descriptor_hash: format!("sha256:{}", "5".repeat(64)),
+            build_operation_id: None,
+            deployment_operation_id: None,
+            preview: None,
+            preview_ref: None,
+            approval_decision: None,
+            approval_ref: None,
+            activation_revision_id: None,
+            previous_revision_id: None,
+            error: None,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+            idempotency_key: Some("preview-1".to_string()),
+            request_digest: format!("sha256:{}", "6".repeat(64)),
         }
     }
 
@@ -3827,6 +5167,82 @@ mod tests {
         assert!(safe_workspace_relative_path(".git/config").is_err());
         assert!(safe_workspace_relative_path("config/.env").is_err());
         assert!(safe_workspace_relative_path("C:\\outside").is_err());
+    }
+
+    #[test]
+    fn deployment_preview_requires_exact_verification_provenance() {
+        let mut record = record(DevelopmentChangeStatus::Committed);
+        record.verification_plan = DevelopmentVerificationPlan::DockerBuild {
+            dockerfile: "Dockerfile".to_string(),
+            network_mode: DevelopmentNetworkMode::None,
+            timeout_secs: None,
+        };
+        let source_tree_digest = record.proposed_tree_digest.clone().unwrap();
+        let mut context = artifact('1');
+        context.artifact_type_uri = DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI.to_string();
+        context.media_type = "application/x-tar".to_string();
+        context.references = vec![record.change_set_ref.digest.clone()];
+        context.annotations = BTreeMap::from([
+            ("project_id".to_string(), json!(record.project_id.as_str())),
+            ("change_set_id".to_string(), json!(record.change_set.id)),
+            ("tree_digest".to_string(), json!(source_tree_digest)),
+            ("dockerfile".to_string(), json!("Dockerfile")),
+        ]);
+        let mut result = artifact('2');
+        result.artifact_type_uri = DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI.to_string();
+        result.references = vec![record.change_set_ref.digest.clone(), context.digest.clone()];
+        let verification = DevelopmentVerificationResult {
+            kind: "docker_build".to_string(),
+            succeeded: true,
+            network_mode: DevelopmentNetworkMode::None,
+            image: None,
+            log_tail: None,
+            artifact_ref: result,
+            deployment_artifact_ref: Some(context.clone()),
+        };
+        assert!(validate_deployment_verification_provenance(
+            &record,
+            &verification,
+            "Dockerfile",
+            DevelopmentNetworkMode::None,
+            &source_tree_digest,
+        )
+        .is_ok());
+
+        let mut tampered = verification;
+        tampered
+            .deployment_artifact_ref
+            .as_mut()
+            .unwrap()
+            .annotations
+            .insert(
+                "tree_digest".to_string(),
+                json!(format!("sha256:{}", "0".repeat(64))),
+            );
+        assert!(validate_deployment_verification_provenance(
+            &record,
+            &tampered,
+            "Dockerfile",
+            DevelopmentNetworkMode::None,
+            &source_tree_digest,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn deployment_preview_request_is_typed_and_label_safe() {
+        let mut request = DevelopmentDeploymentPreviewRequest {
+            target_id: "target-1".to_string(),
+            container_port: 8080,
+            port_name: "web".to_string(),
+            route_id: "project-web".to_string(),
+            route_access: ProxyRouteAccess::HostAuthenticated,
+            health_path: Some("/healthz".to_string()),
+            idempotency_key: Some("preview-1".to_string()),
+        };
+        assert!(validate_deployment_preview_request(&request).is_ok());
+        request.health_path = Some("//remote.example".to_string());
+        assert!(validate_deployment_preview_request(&request).is_err());
     }
 
     #[test]
@@ -3956,6 +5372,40 @@ mod tests {
             Some(DevelopmentRecoveryKind::ManagedPromotion)
         );
         assert_eq!(restored.commit.unwrap().status, ChangeCommitStatus::Partial);
+        release_development_host_lease(store, &lease).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn development_hydration_requires_recovery_for_interrupted_preview() -> anyhow::Result<()>
+    {
+        let store = Arc::new(InMemoryEventStore::default());
+        let mut record = record(DevelopmentChangeStatus::Committed);
+        record.deployment = Some(deployment(DevelopmentDeploymentStatus::Previewing));
+        let snapshot = DevelopmentChangeSnapshot {
+            record,
+            request_fingerprint: "sha256:request".to_string(),
+        };
+        append_development_journal_event(store.as_ref(), &snapshot, 0)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("failed to append initial development snapshot"))?;
+
+        let registry = development_registry();
+        let lease = acquire_development_host_lease(store.clone(), registry.clone()).await?;
+        hydrate_development_control_plane(store.clone(), registry.clone()).await?;
+        let restored = registry.get("chg-0123456789abcdef").unwrap();
+        assert_eq!(restored.status, DevelopmentChangeStatus::Committed);
+        assert_eq!(
+            restored.deployment.unwrap().status,
+            DevelopmentDeploymentStatus::RecoveryRequired
+        );
+        assert_eq!(
+            store
+                .list_kind_prefix(DEVELOPMENT_JOURNAL_PREFIX)
+                .await?
+                .len(),
+            2
+        );
         release_development_host_lease(store, &lease).await?;
         Ok(())
     }

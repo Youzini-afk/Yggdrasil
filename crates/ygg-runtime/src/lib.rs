@@ -36,8 +36,9 @@ pub use contract::{
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{
-    compute_external_workspace_tree_hash, DockerDeploymentReconcileSource, InprocInvocation,
-    InprocPackage, InprocPackageCatalog, KernelEnv, WorkspaceTreeHash,
+    compute_external_workspace_tree_hash, prepare_docker_build_context,
+    DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
+    KernelEnv, PreparedDockerBuildContext, WorkspaceTreeHash,
 };
 pub use object_store::{
     sha256_digest, FilesystemObjectStore, InMemoryObjectStore, ObjectInfo, ObjectStore,
@@ -111,13 +112,15 @@ pub use secret::{
 };
 pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, SubprocessSupervisor};
 pub use target_deployment::{
-    apply_managed_target_deployment, count_managed_target_deployments,
+    apply_managed_target_deployment, build_managed_target_image, count_managed_target_deployments,
     drain_managed_target_deployment, is_managed_target_deployment_outcome_unknown,
-    observe_managed_target_deployment, open_managed_target_tunnel_stream,
-    stop_managed_target_deployment, validate_managed_target_deployment_runtime,
-    ManagedTargetDeploymentApply, ManagedTargetDeploymentDrainReceipt,
-    ManagedTargetDeploymentObservation, ManagedTargetDeploymentOutcomeUnknown,
-    ManagedTargetDeploymentRef, ManagedTargetDeploymentStopReceipt,
+    managed_target_deployment_outcome_unknown, observe_managed_target_deployment,
+    open_managed_target_tunnel_stream, stop_managed_target_deployment,
+    validate_managed_target_deployment_runtime, wait_for_managed_target_deployment_readiness,
+    ManagedTargetBuildNetworkMode, ManagedTargetDeploymentApply,
+    ManagedTargetDeploymentDrainReceipt, ManagedTargetDeploymentObservation,
+    ManagedTargetDeploymentOutcomeUnknown, ManagedTargetDeploymentRef,
+    ManagedTargetDeploymentStopReceipt, ManagedTargetImageBuild, ManagedTargetImageBuildReceipt,
 };
 pub use tavern::TAVERN_COMPAT_DEFERRED;
 pub use ygg_core::{

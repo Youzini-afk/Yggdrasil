@@ -51,6 +51,8 @@ pub struct TargetDeploymentDescriptor {
     pub requested_host_port: Option<u16>,
     #[serde(default)]
     pub pull_if_missing: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub health_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -60,6 +62,16 @@ pub enum DeclarativeVerifierDescriptor {
         digest: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         expected_size_bytes: Option<u64>,
+    },
+    DockerBuild {
+        digest: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_size_bytes: Option<u64>,
+        dockerfile: String,
+        network_mode: ygg_runtime::ManagedTargetBuildNetworkMode,
+        build_id: String,
+        source_tree_digest: String,
+        build_descriptor_hash: String,
     },
 }
 
@@ -120,9 +132,12 @@ impl TargetOperationSpec {
             | Self::DeploymentDrain { .. }
             | Self::DeploymentStop { .. }
             | Self::HealthProbe => Vec::new(),
-            Self::VerifierRun {
-                verifier: DeclarativeVerifierDescriptor::ArtifactIntegrity { digest, .. },
-            } => vec![digest.clone()],
+            Self::VerifierRun { verifier } => match verifier {
+                DeclarativeVerifierDescriptor::ArtifactIntegrity { digest, .. }
+                | DeclarativeVerifierDescriptor::DockerBuild { digest, .. } => {
+                    vec![digest.clone()]
+                }
+            },
         }
     }
 
@@ -137,6 +152,14 @@ impl TargetOperationSpec {
                     DeclarativeVerifierDescriptor::ArtifactIntegrity {
                         digest,
                         expected_size_bytes,
+                    },
+            } if digest == candidate_digest => *expected_size_bytes,
+            Self::VerifierRun {
+                verifier:
+                    DeclarativeVerifierDescriptor::DockerBuild {
+                        digest,
+                        expected_size_bytes,
+                        ..
                     },
             } if digest == candidate_digest => *expected_size_bytes,
             _ => None,
@@ -166,6 +189,31 @@ impl TargetOperationSpec {
                         "deployment grace_seconds must be <= 300",
                     ));
                 }
+            }
+            Self::VerifierRun {
+                verifier:
+                    DeclarativeVerifierDescriptor::DockerBuild {
+                        dockerfile,
+                        build_id,
+                        source_tree_digest,
+                        build_descriptor_hash,
+                        ..
+                    },
+            } => {
+                crate::validate_relative_dockerfile(dockerfile).map_err(|_| {
+                    ServiceError::with_status(
+                        StatusCode::BAD_REQUEST,
+                        "Docker build verifier contains an invalid dockerfile",
+                    )
+                })?;
+                crate::validate_build_id(build_id).map_err(|_| {
+                    ServiceError::with_status(
+                        StatusCode::BAD_REQUEST,
+                        "Docker build verifier contains an invalid build_id",
+                    )
+                })?;
+                validate_sha256_digest(source_tree_digest)?;
+                validate_sha256_digest(build_descriptor_hash)?;
             }
             _ => {}
         }
@@ -320,7 +368,7 @@ impl TargetAgentRegistry {
             .next_sequence
     }
 
-    fn operation(&self, operation_id: &str) -> Option<TargetOperationRecord> {
+    pub(crate) fn operation(&self, operation_id: &str) -> Option<TargetOperationRecord> {
         self.operations
             .lock()
             .expect("target operation state lock poisoned")
@@ -828,6 +876,13 @@ fn validate_deployment_descriptor(
         .has_findings()
         || deployment.container_port == 0
         || deployment.requested_host_port == Some(0)
+        || deployment.health_path.as_deref().is_some_and(|path| {
+            !path.starts_with('/')
+                || path.starts_with("//")
+                || path.len() > 256
+                || path.contains('\r')
+                || path.contains('\n')
+        })
     {
         return Err(ServiceError::with_status(
             StatusCode::BAD_REQUEST,
@@ -1041,6 +1096,21 @@ where
 {
     require_identity_target(&identity, &target_id)?;
     require_identity_project(&identity, request.project_id.as_str())?;
+    let operation = submit_host_operation(&state, &target_id, request).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateTargetOperationResponse { operation }),
+    ))
+}
+
+pub(crate) async fn submit_host_operation<S>(
+    state: &AppState<S>,
+    target_id: &str,
+    request: CreateTargetOperationRequest,
+) -> Result<TargetOperationRecord, ServiceError>
+where
+    S: EventStore,
+{
     validate_create_request(&target_id, &request)?;
     if state
         .runtime
@@ -1054,7 +1124,7 @@ where
             "project is not registered",
         ));
     }
-    validate_deployment_topology(&state, &target_id, &request).await?;
+    validate_deployment_topology(state, target_id, &request).await?;
     sync_target_agent_journal(
         state.runtime.store().as_ref(),
         state.target_agents.as_ref(),
@@ -1066,7 +1136,7 @@ where
         .runtime
         .config()
         .target_registry
-        .status(&target_id)
+        .status(target_id)
         .await
         .ok_or_else(|| ServiceError::with_status(StatusCode::NOT_FOUND, "target not found"))?;
     let driver = resolve_target_driver(&target);
@@ -1117,15 +1187,41 @@ where
     .await
     .map_err(target_conflict_error)?;
     let operation = match driver {
-        TargetDriverKind::Local => drive_local_operation(&state, &operation.operation_id)
+        TargetDriverKind::Local => drive_local_operation(state, &operation.operation_id)
             .await
             .map_err(target_internal_error)?,
         TargetDriverKind::Agent => operation,
     };
-    Ok((
-        StatusCode::CREATED,
-        Json(CreateTargetOperationResponse { operation }),
-    ))
+    Ok(operation)
+}
+
+pub(crate) async fn wait_for_host_operation<S>(
+    state: &AppState<S>,
+    target_id: &str,
+    operation_id: &str,
+    max_wait: std::time::Duration,
+) -> anyhow::Result<TargetOperationRecord>
+where
+    S: EventStore,
+{
+    let deadline = tokio::time::Instant::now() + max_wait;
+    loop {
+        sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+            .await?;
+        let operation = state
+            .target_agents
+            .operation(operation_id)
+            .filter(|operation| operation.target_id == target_id)
+            .ok_or_else(|| anyhow::anyhow!("target operation disappeared"))?;
+        if operation.status.is_terminal() {
+            return Ok(operation);
+        }
+        anyhow::ensure!(
+            tokio::time::Instant::now() < deadline,
+            "target operation did not reach a terminal state in time"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
 }
 
 async fn list_operations<S>(
@@ -1625,7 +1721,7 @@ where
             vec!["local target authority changed before execution".to_string()],
         )
     } else {
-        match execute_local_operation(&running).await {
+        match execute_local_operation(state, &running).await {
             Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
             Err(error) if ygg_runtime::is_managed_target_deployment_outcome_unknown(&error) => (
                 TargetOperationReceiptStatus::OutcomeUnknown,
@@ -1753,8 +1849,34 @@ where
     anyhow::bail!("local target operation journal changed too frequently")
 }
 
-async fn execute_local_operation(operation: &TargetOperationRecord) -> anyhow::Result<Value> {
+async fn execute_local_operation<S>(
+    state: &AppState<S>,
+    operation: &TargetOperationRecord,
+) -> anyhow::Result<Value>
+where
+    S: EventStore,
+{
     match &operation.spec {
+        TargetOperationSpec::ArtifactMaterialize {
+            digest,
+            expected_size_bytes,
+        } => {
+            let info = state.runtime.object_store().verify(digest).await?;
+            anyhow::ensure!(
+                expected_size_bytes.is_none_or(|expected| expected == info.size_bytes),
+                "local target artifact size did not match"
+            );
+            Ok(json!({
+                "digest": digest,
+                "size_bytes": info.size_bytes,
+                "already_present": true
+            }))
+        }
+        TargetOperationSpec::ArtifactRelease { digest } => Ok(json!({
+            "digest": digest,
+            "released": false,
+            "retained_by_host": true
+        })),
         TargetOperationSpec::DeploymentApply { deployment } => {
             let reference = &deployment.deployment;
             let applied = ygg_runtime::apply_managed_target_deployment(
@@ -1773,6 +1895,25 @@ async fn execute_local_operation(operation: &TargetOperationRecord) -> anyhow::R
                 },
             )
             .await?;
+            if let Err(error) = ygg_runtime::wait_for_managed_target_deployment_readiness(
+                &applied,
+                deployment.health_path.as_deref(),
+            )
+            .await
+            {
+                let cleanup = ygg_runtime::stop_managed_target_deployment(
+                    &managed_deployment_ref(operation, &deployment.deployment),
+                    0,
+                    true,
+                )
+                .await;
+                if cleanup.is_err() {
+                    return Err(ygg_runtime::managed_target_deployment_outcome_unknown(
+                        "candidate readiness cleanup",
+                    ));
+                }
+                return Err(error);
+            }
             Ok(serde_json::to_value(applied)?)
         }
         TargetOperationSpec::DeploymentObserve { deployment } => {
@@ -1808,7 +1949,56 @@ async fn execute_local_operation(operation: &TargetOperationRecord) -> anyhow::R
             "healthy": true,
             "checked_at_ms": Utc::now().timestamp_millis()
         })),
-        _ => anyhow::bail!("operation is not implemented by the local target driver"),
+        TargetOperationSpec::VerifierRun {
+            verifier:
+                DeclarativeVerifierDescriptor::ArtifactIntegrity {
+                    digest,
+                    expected_size_bytes,
+                },
+        } => {
+            let info = state.runtime.object_store().verify(digest).await?;
+            anyhow::ensure!(
+                expected_size_bytes.is_none_or(|expected| expected == info.size_bytes),
+                "local target artifact size did not match"
+            );
+            Ok(json!({
+                "digest": digest,
+                "size_bytes": info.size_bytes,
+                "verified": true
+            }))
+        }
+        TargetOperationSpec::VerifierRun {
+            verifier:
+                DeclarativeVerifierDescriptor::DockerBuild {
+                    digest,
+                    expected_size_bytes,
+                    dockerfile,
+                    network_mode,
+                    build_id,
+                    source_tree_digest,
+                    build_descriptor_hash,
+                },
+        } => {
+            let context_tar = state.runtime.object_store().get(digest).await?;
+            anyhow::ensure!(
+                expected_size_bytes.is_none_or(|expected| expected == context_tar.len() as u64),
+                "local target build context size did not match"
+            );
+            Ok(serde_json::to_value(
+                ygg_runtime::build_managed_target_image(ygg_runtime::ManagedTargetImageBuild {
+                    target_id: operation.target_id.clone(),
+                    project_id: operation.project_id.to_string(),
+                    build_id: build_id.clone(),
+                    dockerfile: dockerfile.clone(),
+                    network_mode: *network_mode,
+                    source_tree_digest: source_tree_digest.clone(),
+                    build_descriptor_hash: build_descriptor_hash.clone(),
+                    context_digest: digest.clone(),
+                    context_tar: context_tar.to_vec(),
+                })
+                .await?,
+            )?)
+        }
     }
 }
 
@@ -2744,6 +2934,7 @@ mod tests {
             container_port: 8080,
             requested_host_port: None,
             pull_if_missing: false,
+            health_path: None,
         };
         let create = CreateTargetOperationRequest {
             project_id: ProjectId::new("project-1")?,
@@ -2862,6 +3053,7 @@ mod tests {
                 container_port: 8080,
                 requested_host_port: None,
                 pull_if_missing: false,
+                health_path: None,
             },
         };
         assert!(spec.validate().is_ok());
@@ -2914,6 +3106,39 @@ mod tests {
                 "unexpected": true
             }))
             .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn docker_build_verifier_binds_the_exact_context_and_recipe() -> anyhow::Result<()> {
+        let project_id = ProjectId::new("project-1")?;
+        let spec = TargetOperationSpec::VerifierRun {
+            verifier: DeclarativeVerifierDescriptor::DockerBuild {
+                digest: format!("sha256:{}", "a".repeat(64)),
+                expected_size_bytes: Some(1024),
+                dockerfile: "docker/Dockerfile".to_string(),
+                network_mode: ygg_runtime::ManagedTargetBuildNetworkMode::None,
+                build_id: "build-1".to_string(),
+                source_tree_digest: format!("sha256:{}", "b".repeat(64)),
+                build_descriptor_hash: format!("sha256:{}", "c".repeat(64)),
+            },
+        };
+        assert!(spec.validate().is_ok());
+        assert_eq!(spec.effect(), TargetOperationEffect::VerifierRun);
+        assert_eq!(spec.artifact_digests().len(), 1);
+
+        let mut changed = spec.clone();
+        let TargetOperationSpec::VerifierRun {
+            verifier: DeclarativeVerifierDescriptor::DockerBuild { dockerfile, .. },
+        } = &mut changed
+        else {
+            unreachable!()
+        };
+        *dockerfile = "Dockerfile".to_string();
+        assert_ne!(
+            operation_request_digest("remote-1", &project_id, &spec)?,
+            operation_request_digest("remote-1", &project_id, &changed)?
         );
         Ok(())
     }

@@ -25,6 +25,7 @@ mod driver;
 mod operation;
 mod tunnel;
 
+pub(crate) use operation::{submit_host_operation, wait_for_host_operation};
 pub use operation::{
     verify_target_operation_authority, CreateTargetOperationRequest, CreateTargetOperationResponse,
     DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetDeploymentDescriptor,
