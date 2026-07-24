@@ -8561,7 +8561,7 @@ mod tests {
             ),
             Some(HostAccessScope::Deploy)
         );
-        for action in ["approve", "activate"] {
+        for action in ["approve", "activate", "reconcile"] {
             assert_eq!(
                 required_host_scope_for_http(
                     &Method::POST,

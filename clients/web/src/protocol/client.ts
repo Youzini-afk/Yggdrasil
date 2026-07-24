@@ -1350,6 +1350,13 @@ export class YggProtocolClient {
     );
   }
 
+  reconcileProjectDeployment(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(
+      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/reconcile`,
+      {},
+    );
+  }
+
   subscribeBuildDeployJob(jobId: string, onEvent: (event: BuildDeployJobEvent) => void, onError?: (error: Event) => void) {
     const source = new EventSource(this.buildDeployJobEventsUrl(jobId));
     source.addEventListener("build_deploy", (message) => onEvent(JSON.parse((message as MessageEvent).data)));

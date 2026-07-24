@@ -356,6 +356,28 @@ export function DevelopmentWorkflowCard({
     }
   }, [client, deploymentRouteId, onDeploymentChanged, projectId, t, targetId, toast]);
 
+  const reconcileDeployment = useCallback(async (change: DevelopmentChangeRecord) => {
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameDevelopmentDeploymentReconcileConfirm"))) return;
+    setBusy(change.change_set.id);
+    try {
+      const updated = await client.reconcileProjectDeployment(projectId, change.change_set.id);
+      if (!mounted.current) return;
+      loadGeneration.current += 1;
+      setLoading(false);
+      replaceChange(setChanges, updated);
+      toast.push({ variant: "success", title: t("projectFrameDevelopmentDeploymentReconciled") });
+    } catch (error) {
+      if (mounted.current) {
+        toast.push({ variant: "error", title: t("projectFrameDevelopmentDeploymentReconciliationFailed"), body: errorMessage(error) });
+      }
+    } finally {
+      if (mounted.current) {
+        onDeploymentChanged?.();
+        setBusy(null);
+      }
+    }
+  }, [client, onDeploymentChanged, projectId, t, toast]);
+
   const exportBundle = useCallback(async (change: DevelopmentChangeRecord) => {
     setBusy(change.change_set.id);
     try {
@@ -744,6 +766,16 @@ export function DevelopmentWorkflowCard({
                                     onClick={() => void activateDeployment(change)}
                                   >
                                     {isBusy ? t("projectFrameDevelopmentDeploymentActivating") : t("projectFrameDevelopmentDeploymentActivate")}
+                                  </Button>
+                                ) : null}
+                                {deployment.status === "recovery_required" ? (
+                                  <Button
+                                    tone="primary"
+                                    size="sm"
+                                    disabled={busy !== null}
+                                    onClick={() => void reconcileDeployment(change)}
+                                  >
+                                    {isBusy ? t("projectFrameDevelopmentDeploymentReconciling") : t("projectFrameDevelopmentDeploymentReconcile")}
                                   </Button>
                                 ) : null}
                               </div>

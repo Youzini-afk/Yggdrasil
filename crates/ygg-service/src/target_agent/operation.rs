@@ -377,7 +377,7 @@ impl TargetAgentRegistry {
             .cloned()
     }
 
-    fn operations_for_target(&self, target_id: &str) -> Vec<TargetOperationRecord> {
+    pub(crate) fn operations_for_target(&self, target_id: &str) -> Vec<TargetOperationRecord> {
         let mut operations = self
             .operations
             .lock()

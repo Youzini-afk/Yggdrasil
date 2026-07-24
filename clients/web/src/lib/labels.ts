@@ -433,6 +433,11 @@ export interface LocaleDictionary {
   projectFrameDevelopmentDeploymentActivated: string;
   projectFrameDevelopmentDeploymentActivationFailed: string;
   projectFrameDevelopmentDeploymentRecoveryHint: string;
+  projectFrameDevelopmentDeploymentReconcile: string;
+  projectFrameDevelopmentDeploymentReconciling: string;
+  projectFrameDevelopmentDeploymentReconcileConfirm: string;
+  projectFrameDevelopmentDeploymentReconciled: string;
+  projectFrameDevelopmentDeploymentReconciliationFailed: string;
   projectFrameDevelopmentDeploymentOpenProduction: string;
   projectFrameDeploymentSection: string;
   projectFrameDeploymentDescription: string;
@@ -1268,6 +1273,11 @@ export const labels = {
     projectFrameDevelopmentDeploymentActivated: "Verified deployment activated",
     projectFrameDevelopmentDeploymentActivationFailed: "Could not activate verified deployment",
     projectFrameDevelopmentDeploymentRecoveryHint: "This candidate requires reconciliation. Inspect its durable target operation and deployment revision before retrying.",
+    projectFrameDevelopmentDeploymentReconcile: "Reconcile outcome",
+    projectFrameDevelopmentDeploymentReconciling: "Reconciling…",
+    projectFrameDevelopmentDeploymentReconcileConfirm: "Reconcile durable target truth now? A matching committed activation will be adopted; otherwise an exactly identified uncertain candidate will be stopped and its Host resources cleaned. Effects without durable identity remain blocked for manual inspection.",
+    projectFrameDevelopmentDeploymentReconciled: "Deployment outcome reconciled",
+    projectFrameDevelopmentDeploymentReconciliationFailed: "Deployment still requires reconciliation",
     projectFrameDevelopmentDeploymentOpenProduction: "Open production route",
     projectFrameDeploymentSection: "Deployment",
     projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
@@ -2110,6 +2120,11 @@ export const labels = {
     projectFrameDevelopmentDeploymentActivated: "已验证部署已激活",
     projectFrameDevelopmentDeploymentActivationFailed: "无法激活已验证部署",
     projectFrameDevelopmentDeploymentRecoveryHint: "该候选版本需要对账。重试前请先检查它的持久化目标操作与部署修订。",
+    projectFrameDevelopmentDeploymentReconcile: "对账处理",
+    projectFrameDevelopmentDeploymentReconciling: "正在对账…",
+    projectFrameDevelopmentDeploymentReconcileConfirm: "现在根据持久化目标事实进行对账？若存在完全匹配且已提交的激活修订，将直接采纳；否则会停止能够被精确识别的不确定候选版本并清理其 Host 资源。缺少持久身份的效果仍会阻断并等待人工核验。",
+    projectFrameDevelopmentDeploymentReconciled: "部署结果已完成对账",
+    projectFrameDevelopmentDeploymentReconciliationFailed: "部署仍需要对账",
     projectFrameDevelopmentDeploymentOpenProduction: "打开生产路由",
     projectFrameDeploymentSection: "部署",
     projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",

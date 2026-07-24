@@ -976,6 +976,10 @@ where
             "/host/v1/projects/:project_id/changes/:change_set_id/deployment/activate",
             post(activate_deployment::<S>),
         )
+        .route(
+            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/reconcile",
+            post(reconcile_deployment::<S>),
+        )
 }
 
 async fn list_changes<S>(
@@ -2192,6 +2196,243 @@ where
     }
 }
 
+async fn reconcile_deployment<S>(
+    State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
+    Path((project_id, change_set_id)): Path<(String, String)>,
+) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
+where
+    S: EventStore,
+{
+    ensure_development_host_lease(&state).await?;
+    let project_id = parse_project_id(&project_id)?;
+    require_identity_project(&identity, project_id.as_str())?;
+    refresh_development_project(&state, &project_id).await?;
+    let initial = change_for_project(&state, &project_id, &change_set_id)?;
+    let initial_deployment = initial.deployment.as_ref().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development change has no deployment to reconcile",
+        )
+    })?;
+    require_identity_target(&identity, &initial_deployment.target_id)?;
+    if initial_deployment.status != DevelopmentDeploymentStatus::RecoveryRequired {
+        if matches!(
+            initial_deployment.status,
+            DevelopmentDeploymentStatus::Approved
+                | DevelopmentDeploymentStatus::Rejected
+                | DevelopmentDeploymentStatus::Active
+                | DevelopmentDeploymentStatus::Failed
+        ) {
+            return Ok(Json(initial));
+        }
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development deployment does not require reconciliation",
+        ));
+    }
+    let initial_deployment_id = initial_deployment.deployment_id.clone();
+    let initial_target_id = initial_deployment.target_id.clone();
+
+    let permit = state
+        .build_jobs
+        .acquire_project_operation(&project_id)
+        .await
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let _project_guard = BuildDeployProjectGuard {
+        registry: state.build_jobs.clone(),
+        project_id: project_id.clone(),
+    };
+    let _permit = permit;
+
+    refresh_development_project(&state, &project_id).await?;
+    let record = change_for_project(&state, &project_id, &change_set_id)?;
+    let deployment = record.deployment.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development deployment disappeared during reconciliation",
+        )
+    })?;
+    if deployment.deployment_id != initial_deployment_id
+        || deployment.target_id != initial_target_id
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development deployment changed before reconciliation began",
+        ));
+    }
+    if deployment.status != DevelopmentDeploymentStatus::RecoveryRequired {
+        if matches!(
+            deployment.status,
+            DevelopmentDeploymentStatus::Approved
+                | DevelopmentDeploymentStatus::Rejected
+                | DevelopmentDeploymentStatus::Active
+                | DevelopmentDeploymentStatus::Failed
+        ) {
+            return Ok(Json(record));
+        }
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development deployment changed before reconciliation began",
+        ));
+    }
+
+    let authority = DeploymentAuthorityLease::from_identity(
+        format!("dop-{}", uuid::Uuid::new_v4().simple()),
+        deployment.target_id.clone(),
+        &identity,
+    );
+    deployment_effect_context(
+        &state,
+        Some(&authority),
+        &project_id,
+        "host_development_deployment_reconcile",
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment reconciliation authority validation failed");
+        ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "deployment reconciliation authority is no longer valid",
+        )
+    })?;
+
+    let active_revision = state.build_jobs.active_revision(&project_id);
+    if let Some(active) = active_revision
+        .as_ref()
+        .filter(|active| verified_activation_matches_deployment(active, &record, &deployment))
+    {
+        let updated = update_deployment_record(&state, &change_set_id, |current| {
+            anyhow::ensure!(
+                current.deployment_id == deployment.deployment_id
+                    && current.status == DevelopmentDeploymentStatus::RecoveryRequired,
+                "deployment changed before durable activation adoption"
+            );
+            current.status = DevelopmentDeploymentStatus::Active;
+            current.activation_revision_id = Some(active.revision_id.clone());
+            current.previous_revision_id = active.parent_revision_id.clone();
+            current.error = None;
+            Ok(())
+        })
+        .await
+        .map_err(|error| {
+            development_persistence_error(
+                "failed to adopt the durable deployment activation",
+                error,
+            )
+        })?;
+        if let Some(previous) = active
+            .parent_revision_id
+            .as_deref()
+            .and_then(|revision_id| state.build_jobs.revision(&project_id, revision_id))
+        {
+            for warning in drain_previous_revision(&state, &previous, &active.route_id).await {
+                tracing::warn!(project_id = %project_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete after reconciliation");
+            }
+        }
+        return Ok(Json(updated));
+    }
+    if active_revision
+        .as_ref()
+        .is_some_and(|active| durable_revision_claims_deployment_candidate(active, &deployment))
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "the durable active revision claims this candidate but its provenance is inconsistent; manual reconciliation is required",
+        ));
+    }
+
+    if deployment
+        .approval_decision
+        .as_ref()
+        .is_some_and(|decision| decision.outcome == PolicyDecisionOutcome::Allowed)
+    {
+        let preview = deployment.preview.as_ref().ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "approved deployment reconciliation has no candidate receipt",
+            )
+        })?;
+        let previous_route = active_revision
+            .as_ref()
+            .filter(|previous| previous.route_id == deployment.route_id)
+            .map(|previous| {
+                (
+                    previous.receipt.port_lease_id.as_str(),
+                    previous.port_name.as_str(),
+                    previous.route_access,
+                    false,
+                )
+            });
+        if !compensate_route_alias_to(
+            &state,
+            &deployment.route_id,
+            &preview.port_lease_id,
+            previous_route,
+            "host_development_deployment_reconcile_activation",
+        )
+        .await
+        {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment activation route still requires reconciliation",
+            ));
+        }
+    }
+
+    if deployment.preview_port_lease_id.is_none()
+        && unrecorded_preview_port_lease_may_exist(&state, &deployment).await
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment port allocation has no durable identity; inspect unclaimed target leases before retrying reconciliation",
+        ));
+    }
+
+    if !stop_preview_candidate_for_reconciliation(&state, &record.project_id, &deployment).await?
+        || !cleanup_preview_host_resources(&state, &deployment)
+            .await
+            .map_err(|error| {
+                tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment reconciliation cleanup failed");
+                ServiceError::with_status(
+                    StatusCode::CONFLICT,
+                    "deployment candidate cleanup still requires reconciliation",
+                )
+            })?
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment candidate cleanup still requires reconciliation",
+        ));
+    }
+
+    let rejected = deployment
+        .approval_decision
+        .as_ref()
+        .is_some_and(|decision| decision.outcome == PolicyDecisionOutcome::Denied);
+    let updated = update_deployment_record(&state, &change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id
+                && current.status == DevelopmentDeploymentStatus::RecoveryRequired,
+            "deployment changed before reconciliation persistence"
+        );
+        current.status = if rejected {
+            DevelopmentDeploymentStatus::Rejected
+        } else {
+            DevelopmentDeploymentStatus::Failed
+        };
+        current.error = (!rejected).then(|| {
+            "deployment candidate was conservatively cleaned after reconciliation".to_string()
+        });
+        Ok(())
+    })
+    .await
+    .map_err(|error| {
+        development_persistence_error("failed to persist deployment reconciliation", error)
+    })?;
+    Ok(Json(updated))
+}
+
 fn development_target_network_mode(
     mode: DevelopmentNetworkMode,
 ) -> ygg_runtime::ManagedTargetBuildNetworkMode {
@@ -2199,6 +2440,104 @@ fn development_target_network_mode(
         DevelopmentNetworkMode::None => ygg_runtime::ManagedTargetBuildNetworkMode::None,
         DevelopmentNetworkMode::Bridge => ygg_runtime::ManagedTargetBuildNetworkMode::Bridge,
     }
+}
+
+fn verified_activation_matches_deployment(
+    active: &DeploymentRevision,
+    record: &DevelopmentChangeRecord,
+    deployment: &DevelopmentDeploymentRecord,
+) -> bool {
+    let (
+        Some(preview),
+        Some(preview_ref),
+        Some(approval_ref),
+        Some(port_lease_id),
+        Some(target_deployment_id),
+    ) = (
+        deployment.preview.as_ref(),
+        deployment.preview_ref.as_ref(),
+        deployment.approval_ref.as_ref(),
+        deployment.preview_port_lease_id.as_deref(),
+        deployment.target_deployment_id.as_deref(),
+    )
+    else {
+        return false;
+    };
+    deployment
+        .approval_decision
+        .as_ref()
+        .is_some_and(|decision| {
+            decision.outcome == PolicyDecisionOutcome::Allowed
+                && decision.principal == PrincipalIdentity::HostAdmin
+                && decision.change_set_id
+                    == format!(
+                        "{}:deployment:{}",
+                        record.change_set.id, deployment.deployment_id
+                    )
+        })
+        && preview.route_id == deployment.preview_route_id
+        && preview.port_lease_id == port_lease_id
+        && preview.deployment.deployment_id == target_deployment_id
+        && preview.deployment.route_id == deployment.preview_route_id
+        && preview.deployment.port_lease_id == port_lease_id
+        && deployment.build_operation_id.as_deref() == Some(preview.build_operation_id.as_str())
+        && deployment.deployment_operation_id.as_deref()
+            == Some(preview.deployment_operation_id.as_str())
+        && active.project_id == record.project_id
+        && active.job_id.is_none()
+        && active.operation == DeploymentOperation::VerifiedActivate
+        && active.source_kind == DeploymentSourceKind::VerifiedArtifact
+        && active.verified_change_set_id.as_deref() == Some(record.change_set.id.as_str())
+        && active.source_url == format!("artifact:{}", deployment.build_context_ref.digest)
+        && active.ref_name == record.change_set.id
+        && active.target_id == deployment.target_id
+        && active.target_deployment.as_ref() == Some(&preview.deployment)
+        && active.verification_ref.as_ref() == Some(&deployment.verification_ref)
+        && active.build_context_ref.as_ref() == Some(&deployment.build_context_ref)
+        && active.preview_ref.as_ref() == Some(preview_ref)
+        && active.approval_ref.as_ref() == Some(approval_ref)
+        && active.verified_build_network_mode
+            == Some(development_target_network_mode(deployment.network_mode))
+        && active.source_commit == deployment.source_tree_digest
+        && active.dockerfile.as_deref() == Some(deployment.dockerfile.as_str())
+        && active.container_port == deployment.container_port
+        && active.port_name == deployment.port_name
+        && active.route_id == deployment.route_id
+        && active.route_access == deployment.route_access
+        && active.health_path == deployment.health_path
+        && active.image == preview.image_id
+        && active.build_id == deployment.build_id
+        && active.build_descriptor_hash == deployment.build_descriptor_hash
+        && active.strategy == "verified_artifact"
+        && active.runtime_env.is_empty()
+        && active.recoverable
+        && active.recovery_blockers.is_empty()
+        && active.receipt.route_id == deployment.route_id
+        && active.receipt.route_access == deployment.route_access
+        && active.receipt.port_lease_id == preview.port_lease_id
+        && active.receipt.container_id == preview.container_id
+        && active.receipt.container_name == preview.container_name
+        && active.receipt.image == preview.image_id
+        && active.receipt.build_id == deployment.build_id
+        && active.receipt.source_commit == deployment.source_tree_digest
+        && active.receipt.build_descriptor_hash == deployment.build_descriptor_hash
+        && active.receipt.strategy == "verified_artifact"
+        && active.receipt.runtime_env.is_empty()
+        && active.receipt.runtime_mounts.is_empty()
+        && active.receipt.warnings.is_empty()
+}
+
+fn durable_revision_claims_deployment_candidate(
+    active: &DeploymentRevision,
+    deployment: &DevelopmentDeploymentRecord,
+) -> bool {
+    let Some(preview) = deployment.preview.as_ref() else {
+        return false;
+    };
+    active.target_id == deployment.target_id
+        && (active.target_deployment.as_ref() == Some(&preview.deployment)
+            || active.receipt.port_lease_id == preview.port_lease_id
+            || active.receipt.container_id == preview.container_id)
 }
 
 fn validate_preview_target_operations<S>(
@@ -2356,6 +2695,33 @@ async fn compensate_route_alias<S>(
 where
     S: EventStore,
 {
+    compensate_route_alias_to(
+        state,
+        route_id,
+        candidate_lease_id,
+        previous_route.map(|previous| {
+            (
+                previous.upstream.port_lease_id.as_str(),
+                previous.upstream.port_name.as_str(),
+                previous.access,
+                previous.ready,
+            )
+        }),
+        transport,
+    )
+    .await
+}
+
+async fn compensate_route_alias_to<S>(
+    state: &AppState<S>,
+    route_id: &str,
+    candidate_lease_id: &str,
+    previous_route: Option<(&str, &str, ProxyRouteAccess, bool)>,
+    transport: &str,
+) -> bool
+where
+    S: EventStore,
+{
     let current = state
         .runtime
         .config()
@@ -2368,15 +2734,17 @@ where
     }) {
         return true;
     }
-    if let Some(previous) = previous_route {
+    if let Some((previous_lease_id, previous_port_name, previous_access, previous_ready)) =
+        previous_route
+    {
         return match restore_proxy_route_if_candidate_active(
             state,
             route_id,
             candidate_lease_id,
-            &previous.upstream.port_lease_id,
-            &previous.upstream.port_name,
-            previous.access,
-            previous.ready,
+            previous_lease_id,
+            previous_port_name,
+            previous_access,
+            previous_ready,
             transport,
         )
         .await
@@ -2392,8 +2760,35 @@ where
                     route.status == ygg_runtime::ProxyRouteStatusKind::Removed
                         || route.upstream.port_lease_id != candidate_lease_id
                 }),
-            Err(_) => false,
+            Err(_) => {
+                unregister_route_alias_if_candidate(state, route_id, candidate_lease_id, transport)
+                    .await
+            }
         };
+    }
+    unregister_route_alias_if_candidate(state, route_id, candidate_lease_id, transport).await
+}
+
+async fn unregister_route_alias_if_candidate<S>(
+    state: &AppState<S>,
+    route_id: &str,
+    candidate_lease_id: &str,
+    transport: &str,
+) -> bool
+where
+    S: EventStore,
+{
+    let current = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(route_id)
+        .await;
+    if current.as_ref().is_none_or(|route| {
+        route.status == ygg_runtime::ProxyRouteStatusKind::Removed
+            || route.upstream.port_lease_id != candidate_lease_id
+    }) {
+        return true;
     }
     let context = ProtocolContext::host_dev(transport);
     if call_host_protocol(
@@ -3903,6 +4298,161 @@ where
             !operation.status.is_terminal()
                 || operation.status == TargetOperationStatusKind::OutcomeUnknown
         })
+}
+
+async fn unrecorded_preview_port_lease_may_exist<S>(
+    state: &AppState<S>,
+    deployment: &DevelopmentDeploymentRecord,
+) -> bool
+where
+    S: EventStore,
+{
+    let mut claimed_lease_ids = state
+        .build_jobs
+        .durable_routes()
+        .into_iter()
+        .map(|route| route.port_lease_id)
+        .collect::<HashSet<_>>();
+    claimed_lease_ids.extend(
+        state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .list()
+            .await
+            .into_iter()
+            .filter(|route| route.status != ygg_runtime::ProxyRouteStatusKind::Removed)
+            .map(|route| route.upstream.port_lease_id),
+    );
+    claimed_lease_ids.extend(
+        state
+            .target_agents
+            .operations_for_target(&deployment.target_id)
+            .into_iter()
+            .filter_map(|operation| match operation.spec {
+                TargetOperationSpec::DeploymentApply { deployment } => {
+                    Some(deployment.deployment.port_lease_id)
+                }
+                TargetOperationSpec::DeploymentObserve { deployment }
+                | TargetOperationSpec::DeploymentDrain { deployment, .. }
+                | TargetOperationSpec::DeploymentStop { deployment, .. } => {
+                    Some(deployment.port_lease_id)
+                }
+                _ => None,
+            }),
+    );
+    state
+        .runtime
+        .config()
+        .port_lease_registry
+        .list()
+        .await
+        .into_iter()
+        .any(|lease| {
+            lease.target_id == deployment.target_id
+                && lease.port_name == deployment.port_name
+                && lease.protocol == ygg_runtime::PortProtocol::Tcp
+                && lease.bind == ygg_runtime::PortBindScope::LoopbackOnly
+                && lease.host == "127.0.0.1"
+                && lease.status != ygg_runtime::PortLeaseStatusKind::Released
+                && !claimed_lease_ids.contains(&lease.id)
+        })
+}
+
+async fn stop_preview_candidate_for_reconciliation<S>(
+    state: &AppState<S>,
+    project_id: &ProjectId,
+    deployment: &DevelopmentDeploymentRecord,
+) -> Result<bool, ServiceError>
+where
+    S: EventStore,
+{
+    let (Some(target_deployment_id), Some(port_lease_id)) = (
+        deployment.target_deployment_id.as_ref(),
+        deployment.preview_port_lease_id.as_ref(),
+    ) else {
+        return Ok(state
+            .target_agents
+            .project_for_operation_route(&deployment.preview_route_id)
+            .is_none());
+    };
+    let target_deployment = TargetDeploymentRef {
+        deployment_id: target_deployment_id.clone(),
+        route_id: deployment.preview_route_id.clone(),
+        port_lease_id: port_lease_id.clone(),
+    };
+    let latest_candidate_effect = state
+        .target_agents
+        .operations_for_target(&deployment.target_id)
+        .into_iter()
+        .filter(|operation| {
+            if operation.project_id != *project_id {
+                return false;
+            }
+            match &operation.spec {
+                TargetOperationSpec::DeploymentApply { deployment } => {
+                    deployment.deployment == target_deployment
+                }
+                TargetOperationSpec::DeploymentStop { deployment, .. } => {
+                    *deployment == target_deployment
+                }
+                _ => false,
+            }
+        })
+        .last();
+    if let Some(latest) = latest_candidate_effect {
+        if latest.status == TargetOperationStatusKind::Succeeded
+            && matches!(latest.spec, TargetOperationSpec::DeploymentStop { .. })
+        {
+            return Ok(true);
+        }
+        if matches!(latest.spec, TargetOperationSpec::DeploymentApply { .. })
+            && matches!(
+                latest.status,
+                TargetOperationStatusKind::Failed
+                    | TargetOperationStatusKind::Cancelled
+                    | TargetOperationStatusKind::Expired
+            )
+        {
+            return Ok(true);
+        }
+    }
+    let stop = crate::target_agent::submit_host_operation(
+        state,
+        &deployment.target_id,
+        CreateTargetOperationRequest {
+            project_id: project_id.clone(),
+            spec: TargetOperationSpec::DeploymentStop {
+                deployment: target_deployment,
+                grace_seconds: 0,
+                force_remove: true,
+            },
+            idempotency_key: Some(format!(
+                "{}:reconcile:{}",
+                deployment.deployment_id,
+                &uuid::Uuid::new_v4().simple().to_string()[..12]
+            )),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %project_id, deployment_id = %deployment.deployment_id, error = %error.error, "failed to submit deployment reconciliation stop");
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment target is not ready for candidate reconciliation",
+        )
+    })?;
+    let stop = await_target_operation(state, &deployment.target_id, stop)
+        .await
+        .map_err(|error| {
+            tracing::warn!(project_id = %project_id, deployment_id = %deployment.deployment_id, error = %error, "deployment reconciliation stop outcome is unresolved");
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment candidate stop outcome is still unresolved",
+            )
+        })?;
+    Ok(stop.status == TargetOperationStatusKind::Succeeded)
 }
 
 async fn stop_completed_preview_candidate<S>(
@@ -6788,7 +7338,10 @@ mod tests {
     use axum::body::Body;
     use axum::http::Request;
     use tower::ServiceExt;
-    use ygg_runtime::{InMemoryEventStore, RuntimeConfig};
+    use ygg_runtime::{
+        InMemoryEventStore, PortLeaseRequest, PortProtocol, ProxyProtocol,
+        ProxyRouteRegisterRequest, ProxyRouteUpstream, RuntimeConfig,
+    };
 
     fn artifact(seed: char) -> ArtifactDescriptor {
         ArtifactDescriptor {
@@ -6986,6 +7539,175 @@ mod tests {
         assert!(validate_deployment_preview_request(&request).is_ok());
         request.health_path = Some("//remote.example".to_string());
         assert!(validate_deployment_preview_request(&request).is_err());
+    }
+
+    #[test]
+    fn deployment_reconciliation_adopts_only_the_exact_durable_activation() {
+        let mut record = record(DevelopmentChangeStatus::Committed);
+        let mut deployment = deployment(DevelopmentDeploymentStatus::RecoveryRequired);
+        let preview_ref = artifact('7');
+        let approval_ref = artifact('8');
+        let preview = DevelopmentDeploymentPreview {
+            route_id: deployment.preview_route_id.clone(),
+            public_url: "/p/preview/".to_string(),
+            port_lease_id: "port-lease-1".to_string(),
+            deployment: TargetDeploymentRef {
+                deployment_id: "preview-deployment-1".to_string(),
+                route_id: deployment.preview_route_id.clone(),
+                port_lease_id: "port-lease-1".to_string(),
+            },
+            image: "yggdrasil/verified:test".to_string(),
+            image_id: format!("sha256:{}", "9".repeat(64)),
+            container_id: "container-1".to_string(),
+            container_name: Some("candidate-1".to_string()),
+            build_operation_id: "operation-build".to_string(),
+            deployment_operation_id: "operation-apply".to_string(),
+            ready_at_ms: 1,
+        };
+        deployment.preview_port_lease_id = Some(preview.port_lease_id.clone());
+        deployment.target_deployment_id = Some(preview.deployment.deployment_id.clone());
+        deployment.build_operation_id = Some(preview.build_operation_id.clone());
+        deployment.deployment_operation_id = Some(preview.deployment_operation_id.clone());
+        deployment.preview_ref = Some(preview_ref.clone());
+        deployment.approval_ref = Some(approval_ref.clone());
+        let mut approval_decision = record.policy_decision.clone();
+        approval_decision.change_set_id = format!(
+            "{}:deployment:{}",
+            record.change_set.id, deployment.deployment_id
+        );
+        deployment.approval_decision = Some(approval_decision);
+        deployment.preview = Some(preview.clone());
+        record.deployment = Some(deployment.clone());
+        let mut active = DeploymentRevision {
+            revision_id: "revision-1".to_string(),
+            project_id: record.project_id.clone(),
+            job_id: None,
+            operation: DeploymentOperation::VerifiedActivate,
+            parent_revision_id: None,
+            created_at_ms: 1,
+            target_id: deployment.target_id.clone(),
+            source_kind: DeploymentSourceKind::VerifiedArtifact,
+            source_url: format!("artifact:{}", deployment.build_context_ref.digest),
+            ref_name: record.change_set.id.clone(),
+            dockerfile: Some(deployment.dockerfile.clone()),
+            container_port: deployment.container_port,
+            port_name: deployment.port_name.clone(),
+            route_id: deployment.route_id.clone(),
+            route_access: deployment.route_access,
+            health_path: deployment.health_path.clone(),
+            image: preview.image_id.clone(),
+            build_id: deployment.build_id.clone(),
+            source_commit: deployment.source_tree_digest.clone(),
+            build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+            strategy: "verified_artifact".to_string(),
+            runtime_env: Vec::new(),
+            verified_change_set_id: Some(record.change_set.id.clone()),
+            verification_ref: Some(deployment.verification_ref.clone()),
+            build_context_ref: Some(deployment.build_context_ref.clone()),
+            preview_ref: Some(preview_ref),
+            approval_ref: Some(approval_ref),
+            verified_build_network_mode: Some(development_target_network_mode(
+                deployment.network_mode,
+            )),
+            target_deployment: Some(preview.deployment.clone()),
+            recoverable: true,
+            recovery_blockers: Vec::new(),
+            receipt: HostBuildDeployResponse {
+                route_id: deployment.route_id.clone(),
+                public_url: "/p/project-web/".to_string(),
+                route_access: deployment.route_access,
+                port_lease_id: preview.port_lease_id.clone(),
+                container_id: preview.container_id.clone(),
+                container_name: preview.container_name.clone(),
+                image: preview.image_id,
+                build_id: deployment.build_id.clone(),
+                source_commit: deployment.source_tree_digest.clone(),
+                build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+                strategy: "verified_artifact".to_string(),
+                runtime_env: Vec::new(),
+                runtime_mounts: Vec::new(),
+                warnings: Vec::new(),
+            },
+        };
+        assert!(verified_activation_matches_deployment(
+            &active,
+            &record,
+            &deployment
+        ));
+        active.approval_ref = Some(artifact('0'));
+        assert!(!verified_activation_matches_deployment(
+            &active,
+            &record,
+            &deployment
+        ));
+        active.approval_ref = deployment.approval_ref.clone();
+        active.receipt.container_id = "another-container".to_string();
+        assert!(durable_revision_claims_deployment_candidate(
+            &active,
+            &deployment
+        ));
+        assert!(!verified_activation_matches_deployment(
+            &active,
+            &record,
+            &deployment
+        ));
+    }
+
+    #[tokio::test]
+    async fn deployment_reconciliation_does_not_guess_an_unrecorded_port_lease() {
+        let runtime = Arc::new(Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        ));
+        let lease = runtime
+            .config()
+            .port_lease_registry
+            .lease(PortLeaseRequest {
+                target_id: "local".to_string(),
+                port_name: "web".to_string(),
+                protocol: PortProtocol::Tcp,
+                requested_port: None,
+            })
+            .await
+            .lease;
+        let state = AppState {
+            runtime: runtime.clone(),
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: crate::build_deploy_job_registry(),
+            development: development_registry(),
+            host_access: crate::host_access_registry(),
+            target_agents: crate::target_agent_registry(),
+        };
+        let deployment = deployment(DevelopmentDeploymentStatus::RecoveryRequired);
+
+        assert!(unrecorded_preview_port_lease_may_exist(&state, &deployment).await);
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ProxyRouteRegisterRequest {
+                route_id: Some("another-route".to_string()),
+                upstream: ProxyRouteUpstream {
+                    port_lease_id: lease.id.clone(),
+                    port_name: lease.port_name.clone(),
+                },
+                protocol: ProxyProtocol::Http,
+                access: ProxyRouteAccess::HostAuthenticated,
+            })
+            .await;
+        assert!(!unrecorded_preview_port_lease_may_exist(&state, &deployment).await);
+        runtime
+            .config()
+            .proxy_route_registry
+            .unregister("another-route")
+            .await;
+        runtime
+            .config()
+            .port_lease_registry
+            .release(&lease.id)
+            .await;
+        assert!(!unrecorded_preview_port_lease_may_exist(&state, &deployment).await);
     }
 
     #[tokio::test]

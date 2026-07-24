@@ -505,6 +505,7 @@ await protocolClient.approveProjectDeployment("project-1", "chg-1", {
   reason: "preview reviewed",
 });
 await protocolClient.activateProjectDeployment("project-1", "chg-1");
+await protocolClient.reconcileProjectDeployment("project-1", "chg-1");
 assertDeepEqual(capturedFetches.map((request) => request.input), [
   "http://host.test/host/v1/projects/project-1/changes",
   "http://host.test/host/v1/projects/project-1/changes/chg-1",
@@ -516,6 +517,7 @@ assertDeepEqual(capturedFetches.map((request) => request.input), [
   "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/preview",
   "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/approve",
   "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/activate",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/reconcile",
 ]);
 assertDeepEqual(capturedFetches.map((request) => request.body), [
   undefined,
@@ -540,10 +542,11 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
   },
   { approved: true, reason: "preview reviewed" },
   {},
+  {},
 ]);
 assertDeepEqual(
   capturedFetches.map((request) => new Headers(request.headers).get("authorization")),
-  Array(10).fill("Bearer valid-token"),
+  Array(11).fill("Bearer valid-token"),
 );
 
 capturedRequests.length = 0;
