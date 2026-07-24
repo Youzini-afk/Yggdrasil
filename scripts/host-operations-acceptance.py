@@ -462,14 +462,26 @@ def deploy_approved_change(
     return activated, active
 
 
-def remove_container(container_id: str) -> None:
-    run_checked(["docker", "rm", "--force", container_id], timeout=60)
+def docker_container_id(container_ref: str) -> str:
+    prefix = "docker:"
+    require(container_ref.startswith(prefix), "container receipt is not a typed Docker reference")
+    container_id = container_ref[len(prefix) :]
+    require(
+        len(container_id) == 64
+        and all(character in "0123456789abcdef" for character in container_id),
+        "container receipt has an invalid Docker identity",
+    )
+    return container_id
+
+
+def remove_container(container_ref: str) -> None:
+    run_checked(["docker", "rm", "--force", docker_container_id(container_ref)], timeout=60)
 
 
 def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -> None:
-    for container_id in containers:
+    for container_ref in containers:
         subprocess.run(
-            ["docker", "rm", "--force", container_id],
+            ["docker", "rm", "--force", docker_container_id(container_ref)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
