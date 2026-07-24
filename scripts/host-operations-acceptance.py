@@ -253,7 +253,7 @@ def change_path(project_id: str, change_id: str, suffix: str = "") -> str:
     )
 
 
-def rpc(host: Host, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def rpc(host: Host, method: str, params: dict[str, Any] | None = None) -> Any:
     response = http_json(
         host,
         "/rpc",
@@ -262,19 +262,24 @@ def rpc(host: Host, method: str, params: dict[str, Any] | None = None) -> dict[s
     )
     require(response.get("error") is None, f"{method} returned an RPC error: {response.get('error')}")
     result = response.get("result")
-    require(isinstance(result, dict), f"{method} response is missing its result object")
+    require(result is not None, f"{method} response is missing its result")
     return result
 
 
 def assert_public_inventory(host: Host, project_ids: set[str]) -> None:
-    projects = rpc(host, "host.project.list").get("projects")
+    project_result = rpc(host, "host.project.list")
+    require(isinstance(project_result, dict), "host.project.list did not return an object")
+    projects = project_result.get("projects")
     require(isinstance(projects, list), "host.project.list did not return projects")
     listed = {project.get("id") for project in projects if isinstance(project, dict)}
     require(project_ids <= listed, f"public project inventory is missing {project_ids - listed}")
 
-    targets = rpc(host, "host.target.list").get("targets")
+    targets = rpc(host, "host.target.list")
     require(isinstance(targets, list), "host.target.list did not return targets")
-    local = next((target for target in targets if target.get("id") == "local"), None)
+    local = next(
+        (target for target in targets if isinstance(target, dict) and target.get("id") == "local"),
+        None,
+    )
     require(local is not None and local.get("status") == "available", "local target is not available")
 
 
