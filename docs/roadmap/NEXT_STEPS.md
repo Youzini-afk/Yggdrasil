@@ -73,7 +73,6 @@
 - `yg secret put / list / delete` CLI。
 - OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
 - Host 设备身份已具备 project/target selector、delegation chain、祖先撤销级联与脱敏 allow/deny journal；后续补充面向管理员的显式批量撤销入口，以及长操作 lease epoch 的持续再授权。
-- 为外部项目 intake 增加真正的 transport fetch/download budget；现有 materialization tree 上限不能替代下载预算。
 - 增加更多显式 verifier 与 sandbox backend；每一种都必须声明网络、secret、资源和效果，不能退化为通用 shell runner。
 - 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
 - 部署与创作 UX polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及更丰富但仍走 ChangeSet 审批的部署描述符、adapter 引导式创作和 CLI mutation UX。

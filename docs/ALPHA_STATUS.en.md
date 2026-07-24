@@ -162,7 +162,7 @@ All ordinary packages, no kernel privilege. They live in `packages/official/` an
 **Platform foundation**
 
 - `package-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
-- Package installation foundation: `official/git-tools-lab`, `official/integrity-lab`, and `official/install-lab`.
+- Package installation foundation: `official/git-tools-lab`, `official/integrity-lab`, and `official/install-lab`. Git tree fetches have bounded materialization by default and a measured, interruptible pack-download budget; direct callers cannot disable either hard ceiling.
 
 **Creative capability families**
 

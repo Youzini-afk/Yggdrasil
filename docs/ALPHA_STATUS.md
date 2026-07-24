@@ -162,7 +162,7 @@
 **平台基础**
 
 - `package-lab`、`schema-tools`、`event-tools`、`composition-lab`、`asset-lab`、`projection-lab`、`assistant-lab`。
-- 包安装基础：`official/git-tools-lab`、`official/integrity-lab` 与 `official/install-lab`。
+- 包安装基础：`official/git-tools-lab`、`official/integrity-lab` 与 `official/install-lab`。Git tree fetch 默认执行有界 materialization，并对 pack 下载做可计量、可中断的预算控制；直接调用者也不能关闭两类硬上限。
 
 **创作能力族**
 

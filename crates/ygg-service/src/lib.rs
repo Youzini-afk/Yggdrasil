@@ -103,6 +103,7 @@ const MAX_RUNTIME_MOUNTS: usize = 32;
 const DEPLOYMENT_WORKSPACE_MAX_FILES: u64 = 100_000;
 const DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES: u64 = 100_000;
 const DEPLOYMENT_WORKSPACE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
+const DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const DOCKER_RUNTIME_PACKAGE_ID: &str = "official/docker-runtime-lab";
 const BUILD_DEPLOY_MAX_GLOBAL_ACTIVE: usize = 2;
 const BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE: usize = 1;
@@ -5522,6 +5523,7 @@ fn build_project_workspace_clone_invocation(
             "max_files": DEPLOYMENT_WORKSPACE_MAX_FILES,
             "max_directories": DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES,
             "max_total_bytes": DEPLOYMENT_WORKSPACE_MAX_BYTES,
+            "max_download_bytes": DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES,
         }),
         workspace_dir,
         staging_dir,
@@ -8648,6 +8650,7 @@ mod tests {
                 "max_files": DEPLOYMENT_WORKSPACE_MAX_FILES,
                 "max_directories": DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES,
                 "max_total_bytes": DEPLOYMENT_WORKSPACE_MAX_BYTES,
+                "max_download_bytes": DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES,
             })
         );
         Ok(())

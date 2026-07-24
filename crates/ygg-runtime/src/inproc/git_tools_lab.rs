@@ -6,7 +6,8 @@
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use gix::bstr::ByteSlice;
@@ -17,6 +18,16 @@ use uuid::Uuid;
 use super::InprocInvocation;
 
 const PACKAGE_ID: &str = "official/git-tools-lab";
+const DEFAULT_MAX_FILES: u64 = 25_000;
+const DEFAULT_MAX_DIRECTORIES: u64 = 25_000;
+const DEFAULT_MAX_TOTAL_BYTES: u64 = 256 * 1024 * 1024;
+const DEFAULT_MAX_DOWNLOAD_BYTES: u64 = 512 * 1024 * 1024;
+const HARD_MAX_FILES: u64 = 100_000;
+const HARD_MAX_DIRECTORIES: u64 = 100_000;
+const HARD_MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
+const HARD_MAX_DOWNLOAD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+// Public gix-pack `Bundle::write_to_directory` progress id for bytes read from the pack stream.
+const GIX_READ_PACK_PROGRESS_ID: gix::progress::Id = *b"BWRB";
 
 #[derive(Debug, Deserialize)]
 struct ResolveRefInput {
@@ -34,8 +45,8 @@ struct FetchRefsInput {
 struct FetchTreeInput {
     remote_url: String,
     commit_sha: String,
-    #[serde(default)]
-    ref_name: Option<String>,
+    #[serde(default, rename = "ref_name")]
+    _ref_name: Option<String>,
     dest_dir: String,
     #[serde(default)]
     max_files: Option<u64>,
@@ -43,12 +54,16 @@ struct FetchTreeInput {
     max_directories: Option<u64>,
     #[serde(default)]
     max_total_bytes: Option<u64>,
+    #[serde(default)]
+    max_download_bytes: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ReadSignedTagInput {
     remote_url: String,
     tag: String,
+    #[serde(default)]
+    max_download_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +102,114 @@ struct TreeWriteLimits {
     max_files: Option<u64>,
     max_directories: Option<u64>,
     max_total_bytes: Option<u64>,
+}
+
+struct FetchBudgetState {
+    max_bytes: usize,
+    downloaded_bytes: gix::progress::StepShared,
+    interrupt: AtomicBool,
+    exceeded: AtomicBool,
+}
+
+#[derive(Clone)]
+struct FetchBudgetProgress {
+    state: Arc<FetchBudgetState>,
+    counts_download: bool,
+    id: gix::progress::Id,
+}
+
+impl FetchBudgetProgress {
+    fn root(state: Arc<FetchBudgetState>) -> Self {
+        Self {
+            state,
+            counts_download: false,
+            id: gix::progress::UNKNOWN,
+        }
+    }
+
+    fn record(&self, bytes: usize) {
+        if !self.counts_download {
+            return;
+        }
+        let previous = self
+            .state
+            .downloaded_bytes
+            .fetch_add(bytes, Ordering::Relaxed);
+        if previous > self.state.max_bytes.saturating_sub(bytes) {
+            self.state.exceeded.store(true, Ordering::Relaxed);
+            self.state.interrupt.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+impl gix::Count for FetchBudgetProgress {
+    fn set(&self, step: usize) {
+        if self.counts_download {
+            self.state.downloaded_bytes.store(step, Ordering::Relaxed);
+            if step > self.state.max_bytes {
+                self.state.exceeded.store(true, Ordering::Relaxed);
+                self.state.interrupt.store(true, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn step(&self) -> usize {
+        self.counts_download
+            .then(|| self.state.downloaded_bytes.load(Ordering::Relaxed))
+            .unwrap_or(0)
+    }
+
+    fn inc_by(&self, step: usize) {
+        self.record(step);
+    }
+
+    fn counter(&self) -> gix::progress::StepShared {
+        if self.counts_download {
+            self.state.downloaded_bytes.clone()
+        } else {
+            Arc::new(AtomicUsize::new(0))
+        }
+    }
+}
+
+impl gix::Progress for FetchBudgetProgress {
+    fn init(&mut self, _max: Option<usize>, _unit: Option<gix::progress::Unit>) {}
+
+    fn set_name(&mut self, _name: String) {}
+
+    fn name(&self) -> Option<String> {
+        None
+    }
+
+    fn id(&self) -> gix::progress::Id {
+        self.id
+    }
+
+    fn message(&self, _level: gix::progress::MessageLevel, _message: String) {}
+}
+
+impl gix::NestedProgress for FetchBudgetProgress {
+    type SubProgress = Self;
+
+    fn add_child(&mut self, _name: impl Into<String>) -> Self::SubProgress {
+        Self {
+            state: self.state.clone(),
+            counts_download: self.counts_download,
+            id: gix::progress::UNKNOWN,
+        }
+    }
+
+    fn add_child_with_id(
+        &mut self,
+        _name: impl Into<String>,
+        id: gix::progress::Id,
+    ) -> Self::SubProgress {
+        Self {
+            state: self.state.clone(),
+            counts_download: self.counts_download || id == GIX_READ_PACK_PROGRESS_ID,
+            id,
+        }
+    }
 }
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
@@ -201,11 +324,12 @@ fn fetch_tree(input: Value) -> Result<Value> {
         anyhow::bail!("commit_sha must be a 40-character hex SHA");
     }
     let limits = TreeWriteLimits {
-        max_files: input.max_files,
-        max_directories: input.max_directories,
-        max_total_bytes: input.max_total_bytes,
+        max_files: Some(input.max_files.unwrap_or(DEFAULT_MAX_FILES)),
+        max_directories: Some(input.max_directories.unwrap_or(DEFAULT_MAX_DIRECTORIES)),
+        max_total_bytes: Some(input.max_total_bytes.unwrap_or(DEFAULT_MAX_TOTAL_BYTES)),
     };
     validate_tree_write_limits(&limits)?;
+    let max_download_bytes = validate_download_budget(input.max_download_bytes)?;
 
     let parent = requested_dest
         .parent()
@@ -246,8 +370,8 @@ fn fetch_tree(input: Value) -> Result<Value> {
     let repo_tmp = parent.join(format!("{file_name}.repo.tmp.{}", Uuid::new_v4()));
 
     let outcome = (|| -> Result<Value> {
-        let fetch_ref = input.ref_name.as_deref().unwrap_or(&input.commit_sha);
-        let repo = clone_shallow(&input.remote_url, fetch_ref, &repo_tmp)?;
+        let (repo, downloaded_bytes) =
+            fetch_bare_with_budget(&input.remote_url, &repo_tmp, max_download_bytes)?;
         let commit_id = gix::ObjectId::from_hex(input.commit_sha.as_bytes())?;
         let commit = repo.find_object(commit_id)?.peel_to_commit()?;
         let tree = commit.tree()?;
@@ -268,6 +392,7 @@ fn fetch_tree(input: Value) -> Result<Value> {
             "files_written": stats.files_written,
             "directories_written": stats.directories_written,
             "total_bytes": stats.total_bytes,
+            "downloaded_bytes": downloaded_bytes,
             "tree_hash": tree_hash,
         }))
     })();
@@ -282,6 +407,7 @@ fn fetch_tree(input: Value) -> Result<Value> {
 fn read_signed_tag(input: Value) -> Result<Value> {
     let input: ReadSignedTagInput = serde_json::from_value(input)?;
     validate_remote_url(&input.remote_url)?;
+    let max_download_bytes = validate_download_budget(input.max_download_bytes)?;
     let refs = list_remote_refs_blocking(&input.remote_url)?;
     let wanted = input.tag.trim();
     let candidates = [wanted.to_string(), format!("refs/tags/{wanted}")];
@@ -295,10 +421,9 @@ fn read_signed_tag(input: Value) -> Result<Value> {
         })
         .with_context(|| format!("tag '{wanted}' not found on remote"))?;
 
-    let object_to_fetch = tag_ref.tag_object.as_deref().unwrap_or(&tag_ref.sha);
     let tmp = std::env::temp_dir().join(format!("ygg-git-tag-{}", Uuid::new_v4()));
     let output = (|| -> Result<Value> {
-        let repo = clone_shallow(&input.remote_url, object_to_fetch, &tmp)?;
+        let (repo, _) = fetch_bare_with_budget(&input.remote_url, &tmp, max_download_bytes)?;
         if let Some(tag_object) = &tag_ref.tag_object {
             let id = gix::ObjectId::from_hex(tag_object.as_bytes())?;
             let tag = repo.find_object(id)?.try_into_tag()?;
@@ -450,7 +575,11 @@ fn classify_remote_ref(
     }
 }
 
-fn clone_shallow(remote_url: &str, _ref_name: &str, path: &Path) -> Result<gix::Repository> {
+fn fetch_bare_with_budget(
+    remote_url: &str,
+    path: &Path,
+    max_download_bytes: usize,
+) -> Result<(gix::Repository, u64)> {
     // We only need the object database so `fetch_tree` can read `commit_sha` and
     // write its tree. Avoid `prepare_clone(...).with_ref_name(...)`: the gix
     // 0.83 clone helper has a name-only refspec panic path for HEAD/default
@@ -458,9 +587,21 @@ fn clone_shallow(remote_url: &str, _ref_name: &str, path: &Path) -> Result<gix::
     // clone, but it is deterministic and avoids treating package installation as
     // a branch checkout operation.
     let mut prep = gix::prepare_clone_bare(remote_url, path)?;
-    let interrupt = AtomicBool::new(false);
-    let (repo, _) = prep.fetch_only(gix::progress::Discard, &interrupt)?;
-    Ok(repo)
+    let budget = Arc::new(FetchBudgetState {
+        max_bytes: max_download_bytes,
+        downloaded_bytes: Arc::new(AtomicUsize::new(0)),
+        interrupt: AtomicBool::new(false),
+        exceeded: AtomicBool::new(false),
+    });
+    let fetched = prep.fetch_only(FetchBudgetProgress::root(budget.clone()), &budget.interrupt);
+    if budget.exceeded.load(Ordering::Relaxed) {
+        anyhow::bail!("git transport download budget exceeded (max {max_download_bytes} bytes)");
+    }
+    let (repo, _) = fetched?;
+    Ok((
+        repo,
+        u64::try_from(budget.downloaded_bytes.load(Ordering::Relaxed))?,
+    ))
 }
 
 fn write_tree_recursive(
@@ -549,16 +690,40 @@ fn validate_tree_symlink_target(root: &Path, link: &Path, target: &Path) -> Resu
 }
 
 fn validate_tree_write_limits(limits: &TreeWriteLimits) -> Result<()> {
-    for (name, limit) in [
-        ("max_files", limits.max_files),
-        ("max_directories", limits.max_directories),
-        ("max_total_bytes", limits.max_total_bytes),
+    for (name, limit, hard_max) in [
+        ("max_files", limits.max_files, HARD_MAX_FILES),
+        (
+            "max_directories",
+            limits.max_directories,
+            HARD_MAX_DIRECTORIES,
+        ),
+        (
+            "max_total_bytes",
+            limits.max_total_bytes,
+            HARD_MAX_TOTAL_BYTES,
+        ),
     ] {
         if limit.is_some_and(|limit| limit == 0) {
             anyhow::bail!("{name} must be greater than zero when provided");
         }
+        if limit.is_some_and(|limit| limit > hard_max) {
+            anyhow::bail!("{name} must not exceed {hard_max}");
+        }
     }
     Ok(())
+}
+
+fn validate_download_budget(max_download_bytes: Option<u64>) -> Result<usize> {
+    let max_download_bytes = max_download_bytes.unwrap_or(DEFAULT_MAX_DOWNLOAD_BYTES);
+    anyhow::ensure!(
+        max_download_bytes > 0,
+        "max_download_bytes must be greater than zero"
+    );
+    anyhow::ensure!(
+        max_download_bytes <= HARD_MAX_DOWNLOAD_BYTES,
+        "max_download_bytes must not exceed {HARD_MAX_DOWNLOAD_BYTES}"
+    );
+    usize::try_from(max_download_bytes).context("max_download_bytes does not fit this platform")
 }
 
 fn reserve_tree_directory(stats: &mut TreeWriteStats, limits: &TreeWriteLimits) -> Result<()> {
@@ -613,6 +778,9 @@ fn validate_remote_url(url: &str) -> Result<()> {
     }
     if parsed.host_str().is_none() {
         anyhow::bail!("URL must have a host");
+    }
+    if parsed.query().is_some() || parsed.fragment().is_some() {
+        anyhow::bail!("URL must not contain query or fragment");
     }
     Ok(())
 }
@@ -680,6 +848,8 @@ mod tests {
     #[test]
     fn rejects_remote_url_userinfo() {
         assert!(validate_remote_url("https://user:pass@example.com/repo.git").is_err());
+        assert!(validate_remote_url("https://example.com/repo.git?token=secret").is_err());
+        assert!(validate_remote_url("https://example.com/repo.git#secret").is_err());
     }
 
     #[test]
@@ -709,6 +879,53 @@ mod tests {
 
         let mut stats = TreeWriteStats::default();
         assert!(reserve_tree_blob(&mut stats, &limits, 5).is_err());
+    }
+
+    #[test]
+    fn git_fetch_budget_interrupts_pack_download() {
+        let state = Arc::new(FetchBudgetState {
+            max_bytes: 4,
+            downloaded_bytes: Arc::new(AtomicUsize::new(0)),
+            interrupt: AtomicBool::new(false),
+            exceeded: AtomicBool::new(false),
+        });
+        let mut root = FetchBudgetProgress::root(state.clone());
+        let other = gix::NestedProgress::add_child_with_id(&mut root, "objects", *b"OBJS");
+        gix::Count::inc_by(&other, 10);
+        assert_eq!(state.downloaded_bytes.load(Ordering::Relaxed), 0);
+        let pack = gix::NestedProgress::add_child_with_id(
+            &mut root,
+            "read pack",
+            GIX_READ_PACK_PROGRESS_ID,
+        );
+
+        gix::Count::inc_by(&pack, 4);
+        assert!(!state.interrupt.load(Ordering::Relaxed));
+        gix::Count::inc_by(&pack, 1);
+        assert!(state.exceeded.load(Ordering::Relaxed));
+        assert!(state.interrupt.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn git_fetch_defaults_are_bounded() {
+        assert_eq!(
+            validate_download_budget(None).unwrap(),
+            DEFAULT_MAX_DOWNLOAD_BYTES as usize
+        );
+        assert!(validate_download_budget(Some(0)).is_err());
+        assert!(validate_download_budget(Some(HARD_MAX_DOWNLOAD_BYTES + 1)).is_err());
+
+        let defaults = TreeWriteLimits {
+            max_files: Some(DEFAULT_MAX_FILES),
+            max_directories: Some(DEFAULT_MAX_DIRECTORIES),
+            max_total_bytes: Some(DEFAULT_MAX_TOTAL_BYTES),
+        };
+        assert!(validate_tree_write_limits(&defaults).is_ok());
+        assert!(validate_tree_write_limits(&TreeWriteLimits {
+            max_files: Some(HARD_MAX_FILES + 1),
+            ..TreeWriteLimits::default()
+        })
+        .is_err());
     }
 
     #[test]

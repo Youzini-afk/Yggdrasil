@@ -28,7 +28,7 @@ External Project Operating Plane 说明 Yggdrasil 不必只接入已经适配清
 - `managed`（默认）：本地目录或 git tree 复制/获取到 `<data>/workspaces/external/<project_id>/<content_digest>`。安装计划记录内容 digest，重复安装同一来源和内容是幂等的；卸载只会归档/删除这个 host-owned 根，不会触碰用户源目录。
 - `linked_local`（CLI `--link-local`）：workspace 直接指向 canonical 本地源目录，descriptor 明确标记为用户拥有。它是可变引用，不伪造 content digest；卸载永远只移除 Ygg 项目记录，不删除或归档源目录。
 
-managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目录、`node_modules`、`target`、虚拟环境和常见语言缓存；工作树上限为 25,000 个文件、25,000 个目录和 256 MiB。绝对、悬空或逃逸 workspace root 的 symlink 会被拒绝；托管存储的每一级祖先都必须是 canonical data root 下的真实目录。HTTPS git tree 接受同一套有界 materialization、hash、大小和 symlink 校验；submodule entry 等不支持的 tree mode 会明确失败。这些上限约束写入 workspace 的选定 tree，不约束当前 Git transport 下载的临时 bare repository；仓库级 fetch budget 仍是需要 fail-closed 收紧的 transport hardening 项。内联凭据和 query 参数会被拒绝，认证只能由 Host 带外提供，绝不嵌入 descriptor。
+managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目录、`node_modules`、`target`、虚拟环境和常见语言缓存；materialized tree 默认最多 25,000 个文件、25,000 个目录和 256 MiB，直接 capability 调用也不能把硬上限抬过 100,000 个文件、100,000 个目录或 1 GiB。绝对、悬空或逃逸 workspace root 的 symlink 会被拒绝；托管存储的每一级祖先都必须是 canonical data root 下的真实目录。HTTPS git tree 接受同一套有界 materialization、hash、大小和 symlink 校验；submodule entry 等不支持的 tree mode 会明确失败。临时 bare fetch 现在会在 gix 读取时累计 Git pack 字节，超过默认 512 MiB 即 fail-closed 中断；Host 部署 workspace clone 因其 1 GiB tree 上限而显式使用 2 GiB 硬上限。transport 仍是如实标注的 full bare fetch，而不是伪称 shallow clone，但已不再无界。内联凭据、query 参数与 fragment 都会被拒绝，认证只能由 Host 带外提供，绝不嵌入 descriptor。
 
 项目 ID 由安全 slug 加 96-bit source identity hash 构成，因此同名但不同路径/URL 的来源不会碰撞。descriptor 还记录 `source_kind`、`workspace_ownership` 和可用时的 `source_digest`。相同 ID 若已有不兼容 descriptor 会 fail-closed；并发 materialization 只会复用 digest 完全一致的胜者。
 
@@ -145,7 +145,6 @@ GitHub CI 的 [`External project Host operations acceptance`](../../.github/work
 external intake、受控源码 ChangeSet、verified local/Agent deployment 与真实项目故障恢复已形成第一条 Host 闭环。下一步不是加入任意命令执行，而是在相同边界上继续收紧和扩展：
 
 - artifact 的细粒度读取权限、加密/保留策略、reachability GC 与 journal snapshot compaction。
-- 为 Git transport 增加真正的 fetch/download budget；当前 materialization tree 上限不能替代下载预算。
 - 更多显式 verifier 与沙箱后端；每一种都必须声明网络、secret、资源和效果，不能退化成通用 shell runner。
 - native verified bundle 的人工/工具化应用，以及更深入的 project graph、dependency risk analysis、受控 adapter / deployment descriptor 引导式创作和同合同 CLI mutation UX。
 - 管理员批量撤销与长操作 lease-epoch 持续再授权。

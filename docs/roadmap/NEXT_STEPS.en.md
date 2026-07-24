@@ -74,7 +74,6 @@ These are known to-dos. Priority follows real friction.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
 - Host device identity now has project/target selectors, delegation chains, ancestor-revocation cascade, and redacted allow/deny journals. Remaining work is an explicit administrator bulk-revoke operation and continuous lease-epoch reauthorization for long operations.
-- Add a real transport fetch/download budget to external-project intake; current materialized-tree limits are not a download budget.
 - Add more explicit verifiers and sandbox backends. Each must declare network, secret, resource, and effect needs and must not collapse into a generic shell runner.
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
 - Deployment and authoring UX polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and richer guided deployment-descriptor/adapter authoring plus CLI mutation UX that still crosses ChangeSet approval.
