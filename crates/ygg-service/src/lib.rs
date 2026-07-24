@@ -3003,6 +3003,7 @@ where
 #[derive(Debug)]
 pub struct DeploymentControlPlaneReconcileSummary {
     pub durable_routes_restored: usize,
+    pub target_deployments_projected: usize,
     pub orphan_candidates_found: usize,
     pub runtime: ygg_runtime::DeploymentReconcileSummary,
 }
@@ -3076,6 +3077,13 @@ where
             .set_ready(&route.route_id, false)
             .await;
     }
+
+    // Target-operation receipts are the specific owner of local/Agent target
+    // containers. Project them before the generic Docker-broker reconcile so
+    // its legacy local-container scan cannot remove their routes or leases.
+    // If projection is uncertain, fail closed with the stale records intact.
+    let target_deployments_projected =
+        target_agent::reconcile_target_deployment_control_plane(state).await?;
 
     let managed = state
         .runtime
@@ -3155,6 +3163,7 @@ where
     let runtime = state.runtime.reconcile_deployment().await?;
     Ok(DeploymentControlPlaneReconcileSummary {
         durable_routes_restored,
+        target_deployments_projected,
         orphan_candidates_found,
         runtime,
     })

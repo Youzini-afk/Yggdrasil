@@ -931,8 +931,9 @@ where
     };
     match ygg_service::reconcile_deployment_control_plane(&state).await {
         Ok(summary) => println!(
-            "  deployment reconcile: durable_routes_restored={} orphan_candidates_found={} routes_promoted={} routes_removed={} leases_promoted={} leases_released={}",
+            "  deployment reconcile: durable_routes_restored={} target_deployments_projected={} orphan_candidates_found={} routes_promoted={} routes_removed={} leases_promoted={} leases_released={}",
             summary.durable_routes_restored,
+            summary.target_deployments_projected,
             summary.orphan_candidates_found,
             summary.runtime.routes_promoted,
             summary.runtime.routes_removed,
@@ -941,12 +942,6 @@ where
         ),
         Err(error) => eprintln!(
             "warning: deployment reconcile paused; stale runtime records were preserved: {error}"
-        ),
-    }
-    match ygg_service::reconcile_target_deployment_control_plane(&state).await {
-        Ok(projected) => println!("  target deployment projections restored: {projected}"),
-        Err(error) => eprintln!(
-            "warning: target deployment projection reconcile paused; routes remain unavailable: {error}"
         ),
     }
     let _health_supervisor = ygg_service::spawn_health_supervisor(state.clone());
