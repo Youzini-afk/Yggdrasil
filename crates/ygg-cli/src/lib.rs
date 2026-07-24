@@ -75,6 +75,14 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                         commands::host_access::revoke(&context.endpoint, &access_token, &grant_id)
                             .await
                     }
+                    HostAccessCommand::BulkRevoke { grant_ids } => {
+                        commands::host_access::bulk_revoke(
+                            &context.endpoint,
+                            &access_token,
+                            grant_ids,
+                        )
+                        .await
+                    }
                     HostAccessCommand::Projects => {
                         commands::host_access::projects(&context.endpoint, &access_token).await
                     }

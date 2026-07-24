@@ -50,7 +50,7 @@
 - Contract Registry `0.5.0` 已完成第一次真实 Deprecated → Legacy Adapter 转换：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 是 Candidate，其 `kernel.v1.*` alias 保留 `0.4.0` 弃用历史并从 `0.5.0` 起冻结为 identity Legacy Adapter。它们只接受安全修复和数据读取兼容，不增加新字段语义；HTTP、host stdio 与 subprocess reverse stdio 返回 additive lifecycle diagnostics，生成 SDK 以队列保留警告；`ygg contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
 - 基于 profile 的 `ygg host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
-- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 `project` / `target` 资源选择器衰减，支持有界委托、祖先撤销级联、过期和撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority，项目会话必须显式绑定项目；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。移动 PWA 与 `yg host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
+- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 `project` / `target` 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority，项目会话必须显式绑定项目；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。开发长操作会在 Docker 与 managed-workspace 效应前、以及阻塞验证结束后刷新 grant/祖先状态。移动 PWA 与 `yg host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
 - TCP 传输留作后续工作；WASM 与远程入口在清单中已是一等形式，执行延后。
 
 ## 包执行

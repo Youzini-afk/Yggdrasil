@@ -72,13 +72,14 @@ sandbox surface frame 是 opaque origin，不能安全携带 Host Cookie 或 Bea
 | `access_manage` | `POST /host/v1/access/pairings` | 创建邀请 |
 | `access_manage` | `POST .../pairings/:id/cancel` | 取消 pending 邀请 |
 | `access_manage` | `POST .../grants/:id/revoke` | 撤销设备 grant |
+| `access_manage` | `POST /host/v1/access/grants/revoke` | 原子撤销最多 256 个设备 grant |
 | any Host identity | `POST /host/v1/access/logout` | 清除浏览器 Host Cookie |
 
 ## 持久化与凭据边界
 
 - pairing 和 grant 转换写入 EventStore 的专用 `host_control_access` journal；SQLite / PostgreSQL Host 重启后重新水化同一投影。
 - journal 只保存带 domain separation 的 SHA-256 credential digest，不保存 pairing token、access token 或 Cookie 原值。
-- pairing claim、cancel、grant revoke 使用 expected-tail compare-and-append；并发领取只有一个能成功。
+- pairing claim、cancel、grant revoke 使用 expected-tail compare-and-append；并发领取只有一个能成功。批量撤销会先校验全部 grant，再以一条有界、已排序的 journal transition 提交，并支持幂等重试。
 - grant 的撤销和过期在每次认证时检查，不依赖浏览器主动刷新状态。
 - 委派 grant 保存 `parent_grant_id` 与 `delegation_depth`；每次认证沿祖先链 fail closed，父 grant 撤销会级联失效。
 - Bearer / Cookie 有明确优先级。查询参数凭据仅允许在 `GET /kernel/v1/event.subscribe/:session_id` 和 `GET /host/v1/build-deploy/:job_id/events` 这两个浏览器 SSE 入口使用；其他路径不会把 URL token 当作凭据。
@@ -101,6 +102,8 @@ ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   --project my-project__abc12345 --target local
 ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  bulk-revoke <grant-id> <grant-id> ...
 ```
 
 `--endpoint` / `YGG_HOST_URL` 仍可为单次命令覆盖当前连接；`ygg host connection local` 返回默认 loopback Host。

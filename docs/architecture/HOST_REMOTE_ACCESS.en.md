@@ -72,13 +72,14 @@ Routes:
 | `access_manage` | `POST /host/v1/access/pairings` | Create an invitation |
 | `access_manage` | `POST .../pairings/:id/cancel` | Cancel a pending invitation |
 | `access_manage` | `POST .../grants/:id/revoke` | Revoke a device grant |
+| `access_manage` | `POST /host/v1/access/grants/revoke` | Atomically revoke up to 256 device grants |
 | any Host identity | `POST /host/v1/access/logout` | Clear browser Host cookies |
 
 ## Persistence and credential boundary
 
 - Pairing and grant transitions are written to the dedicated `host_control_access` EventStore journal. SQLite and PostgreSQL Hosts rehydrate the same projection after restart.
 - The journal stores only domain-separated SHA-256 credential digests, never pairing tokens, access tokens, or cookie values.
-- Pairing claim/cancel and grant revoke use expected-tail compare-and-append. Only one concurrent claim can commit.
+- Pairing claim/cancel and grant revoke use expected-tail compare-and-append. Only one concurrent claim can commit; bulk revoke validates every grant before committing one sorted, bounded journal transition and is idempotent on retry.
 - Grant revocation and expiry are checked on every authentication, rather than relying on the browser to refresh state.
 - Delegated grants retain `parent_grant_id` and `delegation_depth`; authentication walks ancestors fail-closed, and parent revocation cascades.
 - Bearer and cookie credentials have explicit precedence. Query credentials are accepted only by `GET /kernel/v1/event.subscribe/:session_id` and `GET /host/v1/build-deploy/:job_id/events`, the two browser SSE entry points; no other route treats a URL token as a credential.
@@ -101,6 +102,8 @@ ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   --project my-project__abc12345 --target local
 ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  bulk-revoke <grant-id> <grant-id> ...
 ```
 
 `--endpoint` / `YGG_HOST_URL` still overrides the selected connection for one command. `ygg host connection local` returns to the default loopback Host.

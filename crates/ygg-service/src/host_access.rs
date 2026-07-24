@@ -26,6 +26,7 @@ const MAX_PAIRING_TTL_SECS: u64 = 10 * 60;
 const DEFAULT_GRANT_TTL_SECS: u64 = 90 * 24 * 60 * 60;
 const MAX_GRANT_TTL_SECS: u64 = 365 * 24 * 60 * 60;
 const MAX_DELEGATION_DEPTH: u16 = 32;
+const MAX_BULK_GRANT_REVOCATIONS: usize = 256;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -318,6 +319,10 @@ enum HostAccessJournalEvent {
         grant_id: String,
         revoked_at_ms: i64,
     },
+    GrantsRevoked {
+        grant_ids: Vec<String>,
+        revoked_at_ms: i64,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -448,6 +453,17 @@ struct ClaimPairingRequest {
 #[derive(Debug, Serialize)]
 struct ClaimPairingResponse {
     grant: HostAccessGrantView,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BulkRevokeGrantsRequest {
+    grant_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct BulkRevokeGrantsResponse {
+    grants: Vec<HostAccessGrantView>,
 }
 
 #[derive(Debug, Serialize)]
@@ -632,15 +648,35 @@ impl HostAccessRegistry {
                 grant_id,
                 revoked_at_ms,
             } => {
-                let grant = state
-                    .grants
-                    .get_mut(&grant_id)
-                    .ok_or_else(|| anyhow::anyhow!("revoked Host grant does not exist"))?;
+                apply_grant_revocation(&mut state, &grant_id, revoked_at_ms)?;
+            }
+            HostAccessJournalEvent::GrantsRevoked {
+                grant_ids,
+                revoked_at_ms,
+            } => {
                 anyhow::ensure!(
-                    grant.revoked_at_ms.is_none(),
-                    "Host grant was already revoked"
+                    !grant_ids.is_empty() && grant_ids.len() <= MAX_BULK_GRANT_REVOCATIONS,
+                    "bulk Host grant revocation has an invalid size"
                 );
-                grant.revoked_at_ms = Some(revoked_at_ms);
+                let mut previous = None;
+                for grant_id in &grant_ids {
+                    anyhow::ensure!(
+                        previous.is_none_or(|value: &String| value < grant_id),
+                        "bulk Host grant revocation ids must be sorted and unique"
+                    );
+                    let grant = state
+                        .grants
+                        .get(grant_id)
+                        .ok_or_else(|| anyhow::anyhow!("revoked Host grant does not exist"))?;
+                    anyhow::ensure!(
+                        grant.revoked_at_ms.is_none(),
+                        "Host grant was already revoked"
+                    );
+                    previous = Some(grant_id);
+                }
+                for grant_id in grant_ids {
+                    apply_grant_revocation(&mut state, &grant_id, revoked_at_ms)?;
+                }
             }
         }
         state.next_sequence = envelope.sequence.saturating_add(1);
@@ -760,6 +796,23 @@ impl HostAccessRegistry {
     }
 }
 
+fn apply_grant_revocation(
+    state: &mut HostAccessState,
+    grant_id: &str,
+    revoked_at_ms: i64,
+) -> anyhow::Result<()> {
+    let grant = state
+        .grants
+        .get_mut(grant_id)
+        .ok_or_else(|| anyhow::anyhow!("revoked Host grant does not exist"))?;
+    anyhow::ensure!(
+        grant.revoked_at_ms.is_none(),
+        "Host grant was already revoked"
+    );
+    grant.revoked_at_ms = Some(revoked_at_ms);
+    Ok(())
+}
+
 pub(super) fn public_routes<S>() -> Router<AppState<S>>
 where
     S: EventStore,
@@ -785,6 +838,10 @@ where
         .route(
             "/host/v1/access/grants/:grant_id/revoke",
             post(revoke_grant::<S>),
+        )
+        .route(
+            "/host/v1/access/grants/revoke",
+            post(bulk_revoke_grants::<S>),
         )
         .route("/host/v1/access/logout", post(logout))
         .layer(middleware::from_fn(access_response_headers))
@@ -1030,6 +1087,40 @@ where
         headers.insert(header::SET_COOKIE, expired_remote_cookie());
     }
     Ok((headers, Json(grant.view(Utc::now().timestamp_millis()))))
+}
+
+async fn bulk_revoke_grants<S>(
+    State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
+    Json(request): Json<BulkRevokeGrantsRequest>,
+) -> Result<impl IntoResponse, ServiceError>
+where
+    S: EventStore,
+{
+    require_identity_scope(&identity, HostAccessScope::AccessManage)?;
+    let grant_ids = normalize_bulk_grant_ids(request.grant_ids).map_err(access_conflict_error)?;
+    let grants = revoke_grant_records(
+        state.runtime.store().as_ref(),
+        state.host_access.as_ref(),
+        &grant_ids,
+    )
+    .await
+    .map_err(access_conflict_error)?;
+    let mut headers = HeaderMap::new();
+    if identity
+        .grant_id
+        .as_ref()
+        .is_some_and(|grant_id| grant_ids.binary_search(grant_id).is_ok())
+    {
+        headers.insert(header::SET_COOKIE, expired_remote_cookie());
+    }
+    let now_ms = Utc::now().timestamp_millis();
+    Ok((
+        headers,
+        Json(BulkRevokeGrantsResponse {
+            grants: grants.into_iter().map(|grant| grant.view(now_ms)).collect(),
+        }),
+    ))
 }
 
 async fn logout() -> impl IntoResponse {
@@ -1433,6 +1524,72 @@ where
     anyhow::bail!("Host access journal changed too frequently to revoke a grant")
 }
 
+fn normalize_bulk_grant_ids(mut grant_ids: Vec<String>) -> anyhow::Result<Vec<String>> {
+    anyhow::ensure!(!grant_ids.is_empty(), "grant_ids cannot be empty");
+    anyhow::ensure!(
+        grant_ids.len() <= MAX_BULK_GRANT_REVOCATIONS,
+        "at most {MAX_BULK_GRANT_REVOCATIONS} grants can be revoked at once"
+    );
+    for grant_id in &mut grant_ids {
+        *grant_id = grant_id.trim().to_string();
+    }
+    anyhow::ensure!(
+        grant_ids.iter().all(|grant_id| !grant_id.is_empty()),
+        "grant_ids cannot contain an empty id"
+    );
+    grant_ids.sort();
+    grant_ids.dedup();
+    Ok(grant_ids)
+}
+
+async fn revoke_grant_records<S>(
+    store: &S,
+    registry: &HostAccessRegistry,
+    grant_ids: &[String],
+) -> anyhow::Result<Vec<StoredGrant>>
+where
+    S: EventStore,
+{
+    for _ in 0..8 {
+        sync_host_access_journal(store, registry).await?;
+        let grants = grant_ids
+            .iter()
+            .map(|grant_id| {
+                registry
+                    .grant(grant_id)
+                    .ok_or_else(|| anyhow::anyhow!("Host grant does not exist: {grant_id}"))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let active_ids = grants
+            .iter()
+            .filter(|grant| grant.revoked_at_ms.is_none())
+            .map(|grant| grant.id.clone())
+            .collect::<Vec<_>>();
+        if active_ids.is_empty() {
+            return Ok(grants);
+        }
+        let transition = HostAccessJournalEvent::GrantsRevoked {
+            grant_ids: active_ids,
+            revoked_at_ms: Utc::now().timestamp_millis(),
+        };
+        let expected_next = registry.next_sequence();
+        if append_access_event(store, registry, expected_next, &transition)
+            .await?
+            .is_some()
+        {
+            return grant_ids
+                .iter()
+                .map(|grant_id| {
+                    registry
+                        .grant(grant_id)
+                        .ok_or_else(|| anyhow::anyhow!("revoked Host grant disappeared"))
+                })
+                .collect();
+        }
+    }
+    anyhow::bail!("Host access journal changed too frequently to revoke grants")
+}
+
 fn seconds_to_millis(seconds: u64) -> i64 {
     i64::try_from(seconds)
         .unwrap_or(i64::MAX)
@@ -1526,6 +1683,59 @@ mod tests {
                 .await?
                 .is_none()
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn bulk_revocation_is_atomic_and_idempotent() -> anyhow::Result<()> {
+        let store = InMemoryEventStore::default();
+        let registry = HostAccessRegistry::default();
+        let mut grants = Vec::new();
+        for device_name in ["Phone", "Tablet"] {
+            let (_, pairing_token) = create_pairing_record(
+                &store,
+                &registry,
+                device_name.to_string(),
+                BTreeSet::from([HostAccessScope::Observe]),
+                default_host_access_resources(),
+                None,
+                0,
+                300,
+                3600,
+            )
+            .await?;
+            grants.push(claim_pairing_record(&store, &registry, &pairing_token).await?);
+        }
+
+        let missing = vec![grants[0].0.id.clone(), "missing-grant".to_string()];
+        assert!(revoke_grant_records(&store, &registry, &missing)
+            .await
+            .is_err());
+        assert!(
+            authenticate_host_access_token(&store, &registry, &grants[0].1)
+                .await?
+                .is_some()
+        );
+
+        let ids = normalize_bulk_grant_ids(vec![
+            format!(" {} ", grants[1].0.id),
+            grants[0].0.id.clone(),
+            grants[0].0.id.clone(),
+        ])?;
+        let revoked = revoke_grant_records(&store, &registry, &ids).await?;
+        assert_eq!(revoked.len(), 2);
+        assert!(revoked.iter().all(|grant| grant.revoked_at_ms.is_some()));
+        assert_eq!(
+            revoke_grant_records(&store, &registry, &ids).await?.len(),
+            2
+        );
+        for (_, access_token) in grants {
+            assert!(
+                authenticate_host_access_token(&store, &registry, &access_token)
+                    .await?
+                    .is_none()
+            );
+        }
         Ok(())
     }
 

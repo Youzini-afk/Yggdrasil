@@ -23,9 +23,15 @@ use ygg_core::{
     COMPONENT_EVIDENCE_TYPE_URI, EFFECT_RECEIPT_TYPE_URI,
 };
 use ygg_core::{EventEnvelope, EventSequence};
-use ygg_runtime::{ArtifactCommitRequest, EventStore, ProtocolContext, ProxyRouteAccess, Runtime};
+use ygg_runtime::{
+    ArtifactCommitRequest, EventStore, ProtocolContext, ProtocolResourceSelector, ProxyRouteAccess,
+    Runtime,
+};
 
-use crate::host_access::HostAccessIdentity;
+use crate::host_access::{
+    sync_host_access_journal, HostAccessIdentity, HostAccessIdentityKind, HostAccessRegistry,
+    HostAccessScope,
+};
 use crate::target_agent::{
     CreateTargetOperationRequest, DeclarativeVerifierDescriptor, TargetDeploymentDescriptor,
     TargetDeploymentRef, TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
@@ -1158,6 +1164,7 @@ where
 
 async fn execute_change<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path((project_id, change_set_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<DevelopmentExecuteResponse>), ServiceError>
 where
@@ -1165,6 +1172,7 @@ where
 {
     ensure_development_host_lease(&state).await?;
     let project_id = parse_project_id(&project_id)?;
+    require_identity_project(&identity, project_id.as_str())?;
     let change_lock = state.development.lock_for(&change_set_id);
     let _guard = change_lock.lock().await;
     refresh_development_project(&state, &project_id).await?;
@@ -1213,9 +1221,12 @@ where
     let task_state = state.clone();
     let task_change_id = change_set_id.clone();
     let task_project_id = project_id.clone();
+    let task_identity = identity.clone();
     tokio::spawn(async move {
         let _permit = permit;
-        if let Err(error) = run_development_change(&task_state, &task_change_id).await {
+        if let Err(error) =
+            run_development_change(&task_state, &task_change_id, &task_identity).await
+        {
             tracing::warn!(
                 project_id = %task_project_id,
                 change_set_id = %task_change_id,
@@ -1264,6 +1275,7 @@ where
 
 async fn recover_change<S>(
     State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
     Path((project_id, change_set_id)): Path<(String, String)>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
@@ -1271,6 +1283,7 @@ where
 {
     ensure_development_host_lease(&state).await?;
     let project_id = parse_project_id(&project_id)?;
+    require_identity_project(&identity, project_id.as_str())?;
     let change_lock = state.development.lock_for(&change_set_id);
     let _guard = change_lock.lock().await;
     refresh_development_project(&state, &project_id).await?;
@@ -1283,10 +1296,10 @@ where
     }
     let recovered = match record.recovery_kind {
         Some(DevelopmentRecoveryKind::DockerVerification) => {
-            reconcile_docker_verification(&state, record).await
+            reconcile_docker_verification(&state, record, &identity).await
         }
         Some(DevelopmentRecoveryKind::ManagedPromotion) => {
-            reconcile_managed_promotion(&state, record).await
+            reconcile_managed_promotion(&state, record, &identity).await
         }
         None => Err(anyhow::anyhow!("development recovery kind is missing")),
     }
@@ -4680,6 +4693,70 @@ where
     Ok(lease)
 }
 
+fn validate_development_authority(
+    identity: &HostAccessIdentity,
+    registry: &HostAccessRegistry,
+    project_id: &ProjectId,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        identity.allows(HostAccessScope::DevelopExecute),
+        "development authority does not include develop_execute"
+    );
+    anyhow::ensure!(
+        identity.allows_project(project_id.as_str()),
+        "development authority does not include the project"
+    );
+    if let Some(expires_at_ms) = identity.expires_at_ms {
+        anyhow::ensure!(
+            expires_at_ms > Utc::now().timestamp_millis(),
+            "development authority expired"
+        );
+    }
+    if identity.kind == HostAccessIdentityKind::Device {
+        let grant_id = identity
+            .grant_id
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("device development authority has no grant id"))?;
+        anyhow::ensure!(
+            registry.grant_is_currently_active(grant_id),
+            "development authority grant is revoked or expired"
+        );
+    }
+    Ok(())
+}
+
+fn development_authority_context(
+    identity: &HostAccessIdentity,
+    project_id: &ProjectId,
+    transport: &str,
+) -> ProtocolContext {
+    identity.protocol_context(transport).with_host_operation(
+        HostAccessScope::DevelopExecute.as_str(),
+        vec![ProtocolResourceSelector {
+            owner: "host".to_string(),
+            kind: "project".to_string(),
+            id: Some(project_id.to_string()),
+        }],
+    )
+}
+
+async fn verify_development_authority<S>(
+    state: &AppState<S>,
+    identity: &HostAccessIdentity,
+    project_id: &ProjectId,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
+        .await?;
+    if identity.kind == HostAccessIdentityKind::Device {
+        sync_host_access_journal(state.runtime.store().as_ref(), state.host_access.as_ref())
+            .await?;
+    }
+    validate_development_authority(identity, state.host_access.as_ref(), project_id)
+}
+
 pub(crate) async fn verify_host_control_plane_lease_if_installed<S>(
     store: &S,
     registry: &DevelopmentRegistry,
@@ -6052,16 +6129,19 @@ struct DevelopmentScratch {
     workspace: PathBuf,
 }
 
-async fn run_development_change<S>(state: &AppState<S>, change_set_id: &str) -> anyhow::Result<()>
+async fn run_development_change<S>(
+    state: &AppState<S>,
+    change_set_id: &str,
+    authority: &HostAccessIdentity,
+) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
-        .await?;
     let initial = state
         .development
         .get(change_set_id)
         .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
+    verify_development_authority(state, authority, &initial.project_id).await?;
     anyhow::ensure!(
         initial.status == DevelopmentChangeStatus::Staging,
         "development change is not in staging state"
@@ -6097,11 +6177,10 @@ where
         record.error = None;
     })
     .await?;
-    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
-        .await?;
-    let verification = verify_development_scratch(state, &verifying, &scratch.workspace).await?;
-    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
-        .await?;
+    verify_development_authority(state, authority, &verifying.project_id).await?;
+    let verification =
+        verify_development_scratch(state, &verifying, &scratch.workspace, authority).await?;
+    verify_development_authority(state, authority, &verifying.project_id).await?;
 
     if verifying.workspace_ownership != DevelopmentWorkspaceOwnership::ManagedExternal {
         let final_record = finalize_development_success(
@@ -6142,7 +6221,14 @@ where
     .await?;
 
     renew_current_development_host_lease(state).await?;
-    let rollback = promote_development_workspace(state, &promoting, &source, &scratch).await?;
+    verify_development_authority(state, authority, &promoting.project_id).await?;
+    let rollback =
+        promote_development_workspace(state, &promoting, &source, &scratch, authority).await?;
+    if let Err(error) = verify_development_authority(state, authority, &promoting.project_id).await
+    {
+        rollback_promotion(state, rollback)?;
+        return Err(error);
+    }
     let final_record = match finalize_development_success(
         state,
         promoting,
@@ -6499,6 +6585,7 @@ async fn verify_development_scratch<S>(
     state: &AppState<S>,
     record: &DevelopmentChangeRecord,
     scratch: &FsPath,
+    authority: &HostAccessIdentity,
 ) -> anyhow::Result<DevelopmentVerificationResult>
 where
     S: EventStore,
@@ -6536,7 +6623,6 @@ where
             network_mode,
             timeout_secs,
         } => {
-            let context = ygg_runtime::ProtocolContext::host_dev("host_development_verification");
             let build_id = development_build_id(&record.change_set.id);
             let descriptor_hash = record
                 .change_set_ref
@@ -6585,6 +6671,12 @@ where
                 .await?;
             let mut verified_build_input = build_input;
             verified_build_input["expected_context_digest"] = json!(deployment_artifact_ref.digest);
+            verify_development_authority(state, authority, &record.project_id).await?;
+            let context = development_authority_context(
+                authority,
+                &record.project_id,
+                "host_development_verification",
+            );
             let output = invoke_docker_runtime_lab(
                 state,
                 &context,
@@ -6597,6 +6689,7 @@ where
                 .get("log_tail")
                 .and_then(Value::as_str)
                 .map(|value| format!("sha256:{:x}", Sha256::digest(value.as_bytes())));
+            verify_development_authority(state, authority, &record.project_id).await?;
             let cleanup = invoke_docker_runtime_lab(
                 state,
                 &context,
@@ -6616,6 +6709,7 @@ where
                     .unwrap_or(false),
                 "development verification image cleanup failed"
             );
+            verify_development_authority(state, authority, &record.project_id).await?;
             let payload = json!({
                 "kind": "docker_build",
                 "succeeded": true,
@@ -6856,6 +6950,7 @@ async fn promote_development_workspace<S>(
     record: &DevelopmentChangeRecord,
     source: &ResolvedProjectWorkspace,
     scratch: &DevelopmentScratch,
+    authority: &HostAccessIdentity,
 ) -> anyhow::Result<PromotionRollback>
 where
     S: EventStore,
@@ -6864,7 +6959,7 @@ where
         record.workspace_ownership == DevelopmentWorkspaceOwnership::ManagedExternal,
         "only managed external workspaces support automatic promotion"
     );
-    promote_managed_external_workspace(state, record, source, scratch).await
+    promote_managed_external_workspace(state, record, source, scratch, authority).await
 }
 
 async fn promote_managed_external_workspace<S>(
@@ -6872,10 +6967,12 @@ async fn promote_managed_external_workspace<S>(
     record: &DevelopmentChangeRecord,
     source: &ResolvedProjectWorkspace,
     scratch: &DevelopmentScratch,
+    authority: &HostAccessIdentity,
 ) -> anyhow::Result<PromotionRollback>
 where
     S: EventStore,
 {
+    verify_development_authority(state, authority, &record.project_id).await?;
     let digest = record
         .proposed_tree_digest
         .as_deref()
@@ -6938,8 +7035,7 @@ where
     external.source_digest = Some(digest.to_string());
     external.workspace_ownership = Some(ExternalWorkspaceOwnership::Managed);
     updated_descriptor.validate()?;
-    verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
-        .await?;
+    verify_development_authority(state, authority, &record.project_id).await?;
     let updated_descriptor_handle = match write_project_descriptor_atomic(
         &source.descriptor_path,
         source.descriptor_handle.as_ref(),
@@ -7036,6 +7132,7 @@ where
 async fn reconcile_managed_promotion<S>(
     state: &AppState<S>,
     mut record: DevelopmentChangeRecord,
+    authority: &HostAccessIdentity,
 ) -> anyhow::Result<DevelopmentChangeRecord>
 where
     S: EventStore,
@@ -7044,6 +7141,7 @@ where
         record.workspace_ownership == DevelopmentWorkspaceOwnership::ManagedExternal,
         "only managed external promotion can be reconciled"
     );
+    verify_development_authority(state, authority, &record.project_id).await?;
     let promotion = record
         .managed_promotion
         .clone()
@@ -7060,6 +7158,7 @@ where
         .ok_or_else(|| anyhow::anyhow!("managed descriptor digest is missing"))?;
 
     if current_digest == promotion.proposed_tree_digest {
+        verify_development_authority(state, authority, &record.project_id).await?;
         let verification = record
             .verification_result
             .clone()
@@ -7104,6 +7203,7 @@ where
                     digest.sha256 == promotion.proposed_tree_digest,
                     "recovery destination content did not match the proposed digest"
                 );
+                verify_development_authority(state, authority, &record.project_id).await?;
                 fs::remove_dir_all(destination)?;
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -7127,6 +7227,7 @@ where
 async fn reconcile_docker_verification<S>(
     state: &AppState<S>,
     mut record: DevelopmentChangeRecord,
+    authority: &HostAccessIdentity,
 ) -> anyhow::Result<DevelopmentChangeRecord>
 where
     S: EventStore,
@@ -7135,7 +7236,9 @@ where
         record.recovery_kind == Some(DevelopmentRecoveryKind::DockerVerification),
         "change does not require Docker verification recovery"
     );
-    let context = ygg_runtime::ProtocolContext::host_dev("host_development_recovery");
+    verify_development_authority(state, authority, &record.project_id).await?;
+    let context =
+        development_authority_context(authority, &record.project_id, "host_development_recovery");
     let build_id = development_build_id(&record.change_set.id);
     let cleanup = invoke_docker_runtime_lab(
         state,
@@ -7454,6 +7557,23 @@ mod tests {
             idempotency_key: Some("preview-1".to_string()),
             request_digest: format!("sha256:{}", "6".repeat(64)),
         }
+    }
+
+    #[test]
+    fn development_authority_fails_closed_for_unknown_device_grants() {
+        let project_id = ProjectId::new("project-1").unwrap();
+        let registry = HostAccessRegistry::default();
+        assert!(validate_development_authority(
+            &HostAccessIdentity::root(),
+            &registry,
+            &project_id
+        )
+        .is_ok());
+
+        let mut device = HostAccessIdentity::root();
+        device.kind = HostAccessIdentityKind::Device;
+        device.grant_id = Some("missing-grant".to_string());
+        assert!(validate_development_authority(&device, &registry, &project_id).is_err());
     }
 
     #[test]

@@ -103,6 +103,25 @@ pub async fn revoke(endpoint: &str, access_token: &str, grant_id: &str) -> anyho
     print_json(request(endpoint, access_token, Method::POST, &path, Some(json!({}))).await?)
 }
 
+pub async fn bulk_revoke(
+    endpoint: &str,
+    access_token: &str,
+    grant_ids: Vec<String>,
+) -> anyhow::Result<()> {
+    let grant_ids = normalized_ids(grant_ids, "grant")?;
+    anyhow::ensure!(!grant_ids.is_empty(), "at least one grant id is required");
+    print_json(
+        request(
+            endpoint,
+            access_token,
+            Method::POST,
+            "/host/v1/access/grants/revoke",
+            Some(json!({"grant_ids": grant_ids})),
+        )
+        .await?,
+    )
+}
+
 pub async fn projects(endpoint: &str, access_token: &str) -> anyhow::Result<()> {
     print_json(rpc(endpoint, access_token, "host.project.list", json!({})).await?)
 }

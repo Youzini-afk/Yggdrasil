@@ -50,7 +50,7 @@ Deployment is a second independent transaction. Only a committed `managed_extern
 | `POST` | `.../:change_set_id/deployment/activate` | Health-check, activate, and commit a durable revision |
 | `POST` | `.../:change_set_id/deployment/reconcile` | Explicitly adopt the exact durable activation or clean the exact candidate |
 
-All routes are inside Host authentication middleware. The root token remains the complete Host gate. Source routes attenuate paired-device authority through separate `develop_propose`, `develop_approve`, and `develop_execute` scopes; the four deployment routes require the separate `deploy` scope. Every project route checks the exact project selector, and deployment routes also check the target selector bound by the request or durable record; unknown mutations fail closed. `host serve` still requires a non-empty root token for a non-loopback bind. See [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) for device pairing, revocation, HTTPS, and cookie boundaries.
+All routes are inside Host authentication middleware. The root token remains the complete Host gate. Source routes attenuate paired-device authority through separate `develop_propose`, `develop_approve`, and `develop_execute` scopes; the four deployment routes require the separate `deploy` scope. Every project route checks the exact project selector, and deployment routes also check the target selector bound by the request or durable record; unknown mutations fail closed. Execute/recover retains the authenticated identity without credentials, refreshes current grant/ancestor state before Docker and managed-workspace effects, and rechecks after blocking verification. A revoked or expired grant cannot begin a later effect; an already in-flight effect may finish and is reconciled through the explicit recovery path. `host serve` still requires a non-empty root token for a non-loopback bind. See [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) for device pairing, revocation, HTTPS, and cookie boundaries.
 
 ## Ownership behavior
 
@@ -113,4 +113,4 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 - development/project/deploy ontology in the kernel;
 - a local CLI mutation path that bypasses the public Host API.
 
-The mobile PWA, Web/Desktop, and remote CLI now use scoped device identity and project/target context through the same public Host API, with no side-channel mutation interface. Remaining work includes fine-grained artifact permission/encryption/retention/GC, long-operation reauthorization, administrator bulk revoke, and richer but still declarative verifier/sandbox backends.
+The mobile PWA, Web/Desktop, and remote CLI now use scoped device identity and project/target context through the same public Host API, with no side-channel mutation interface. Remaining work includes fine-grained artifact permission/encryption/retention/GC and richer but still declarative verifier/sandbox backends.

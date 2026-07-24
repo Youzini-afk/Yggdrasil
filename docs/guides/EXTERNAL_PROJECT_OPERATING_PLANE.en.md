@@ -99,6 +99,8 @@ Ownership determines delivery:
 
 A committed `managed_external` ChangeSet verified with `docker_build` may also enter the verified-deployment transaction. Verification commits an immutable build-context artifact and removes its verification image. Preview revalidates descriptor, tree, and artifact provenance, then the selected `local` or Agent target rebuilds the candidate through typed operations; the preview always remains Host-authenticated. A second deployment approval binds the exact candidate/evidence. Activation drains the previous revision only after health succeeds and a durable `VerifiedActivate` revision commits. Recover and rollback rebuild from durable context on the recorded target without reading the live workspace or refetching source.
 
+Development execute/recover carries the authenticated identity, but never its credential, across the in-memory operation. It refreshes the Host access journal before Docker and managed-workspace effects and again after blocking verification. Revocation cannot interrupt an effect already inside its executor; it does prevent every later user effect, leaving the durable recovery state for an explicitly authorized operator to reconcile.
+
 ## Web aggregation entry
 
 `clients/web/src/projects/external-projects.ts` aggregates no-execution outputs from `project-intake-lab` and `workspace-lab` through public protocol/capability invoke.
@@ -147,7 +149,6 @@ External intake, controlled source ChangeSets, verified local/Agent deployment, 
 - fine-grained artifact read permissions, encryption/retention policy, reachability GC, and journal snapshot compaction;
 - more explicit verifiers and sandbox backends, each declaring network, secret, resource, and effect needs instead of collapsing into a generic shell runner;
 - human/tool-assisted application of native verified bundles, plus deeper project graphs, dependency-risk analysis, guided adapter/deployment-descriptor authoring, and same-contract CLI mutation UX;
-- administrator bulk revoke and continuous lease-epoch reauthorization for long operations;
 - separately designed target-edge ingress and application identity; arbitrary network proxying and a general remote shell remain explicit non-goals.
 
 These should still proceed as ordinary package and Host-executor substrate, not as kernel product ontology.

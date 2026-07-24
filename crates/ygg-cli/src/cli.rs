@@ -381,6 +381,11 @@ pub enum HostAccessCommand {
     },
     /// Revoke a device grant.
     Revoke { grant_id: String },
+    /// Atomically revoke multiple device grants.
+    BulkRevoke {
+        #[arg(required = true, num_args = 1..)]
+        grant_ids: Vec<String>,
+    },
     /// List projects visible to this Host grant.
     Projects,
     /// List execution targets visible to this Host grant.
