@@ -2,15 +2,18 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-状态：**Candidate 实现**。Phase 2 已在现有部署 facade 背后建立本地持久部署基线；一等 intent/operation/step-receipt 合同、故障注入门槛、有界 restart policy 和 remote target 实现仍未完成。
+状态：**Candidate 实现**。Phase 2 已在现有 Host facade 背后建立本地持久部署与恢复基线，Phase 4/5 又把同一 durable operation/receipt、target truth 和 artifact replay 语义扩展到 `local` 与 enrolled Agent，并接通 Verified Artifact 部署。下面的抽象记录仍是控制器语义模型；独立的 canonical `host.deployment.*` API 与自动自愈 restart 尚未启用，不能把候选名称当作已暴露合同。
 
-当前实现快照（2026-07-23）：
+当前实现快照（2026-07-24）：
 
 - 单一连续 deployment journal 使用 sequence CAS，revision 激活同时按预期 parent revision fencing；
 - 构建输出在部署前解析为内容寻址的 Docker image ID；
 - build-deploy、recover、rollback 和有项目归属的 direct deploy 统一采用 candidate-first readiness、按 lease 守卫的 route promotion，以及日志提交后再排空旧实例；
 - 长部署 authority 在不持久化凭据的前提下进入日志，并在每个新副作用前与唯一 Host 控制面 lease 一起重新校验；
-- 启动时恢复持久 route ownership、读取真实 Docker label、清理未提交 candidate；Docker 无法观测时保留 stale 状态而不假定资源消失。
+- `local` 与 Agent 使用同一类型化 artifact transfer、declarative verifier、deployment apply/stop、operation ledger 与 receipt 合同；远端端口只绑定 loopback，流量只经认证 tunnel 返回 Host；
+- Verified ChangeSet 使用不可变 build-context artifact 创建 private preview，独立审批后提交 `VerifiedActivate` revision；recover/rollback 在记录的 target 上从 durable context 重建，不读取 workspace 或重新抓取源码；
+- 启动时先恢复 durable route，再投影 target-operation receipt，最后执行通用 broker reconcile；读取真实 ownership label、清理未提交 candidate，无法观测时保留 stale / `recovery_required` 而不假定资源消失；
+- GitHub CI 以真实 MDN 仓库和第二种 Python fixture 覆盖 candidate failure、显式 recover、Host crash/lease takeover/restart 投影与 rollback。
 
 ## 目标与不变量
 
@@ -206,16 +209,16 @@ RestartPolicy
 
 ## 公共合同
 
-新能力属于 canonical Host owner，候选方法包括：
+当前公开合同仍是 `/host/v1/build-deploy`、项目级 deployment recover/rollback、target operation，以及 ChangeSet deployment preview/approve/activate/reconcile 路由。它们都属于 Host owner；不存在 kernel 部署编排方法。以下名称只是未来可能收敛 facade 时的 canonical Host 候选，不是当前 endpoint：
 
 - `host.deployment.intent.get/apply/stop`；
 - `host.deployment.operation.get/list/cancel/reconcile`；
 - `host.deployment.revision.list/activate`；
 - `host.deployment.observe` 和 operation event stream。
 
-现有 build-deploy/recover/rollback 路由作为 facade 映射到新模型；`kernel.v1.port/proxy/exec` 保持 legacy adapter，不承担长期 orchestration。
+现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 facade 映射到该模型；`kernel.v1.port/proxy/exec` 保持 adapter，不承担长期 orchestration。
 
-## 实施顺序
+## 实施记录与剩余边界
 
 1. 引入 intent、operation、lease 和 receipt 投影，旧部署流程双写但行为不变。
 2. 将 build 与 deploy record 分离，并让 recover/rollback 通过 operation 执行。
@@ -224,12 +227,14 @@ RestartPolicy
 5. 启动时 reconcile；完成故障注入后再启用有界 restart policy。
 6. 迁移客户端并停止创建旧形状的新部署记录。
 
-当前 Candidate 基线通过旧 facade 覆盖了步骤 3-5 中的本地 observation、candidate-first、守卫式激活和启动 reconcile，但尚不宣称达到下述完成门槛。
+当前 Candidate 已通过现有 facade 完成 durable journal/lease/receipt、local/Agent truth、candidate-first 激活、启动 reconcile、显式 recover/rollback 和客户端接线。它不宣称上面的候选 `host.deployment.*` 名称已成为公开 API，也不包含健康线程驱动的自动 restart；后者仍必须作为单独阶段实现 bounded retry/backoff 与 `CrashLoopBackoff`。
 
 ## 完成门槛
 
 - 对每个状态转换执行 Host kill/restart，结果可收敛且无重复 effect；
 - 新 candidate 未健康时旧版本持续服务；
 - activation response 丢失、target 离线和 stale worker 均保守恢复；
-- recover、rollback、cancel、restart 共享 operation 与 receipt；
-- local target 与未来 remote target 通过同一语义 conformance。
+- recover、rollback、cancel 与 Host 启动 reconcile 共享 operation 与 receipt；
+- local target 与 remote Agent 通过同一语义 operation/receipt conformance。
+
+上述当前适用门槛由 GitHub CI 的本地故障矩阵、Remote Target Agent acceptance 与真实外部项目 Host operations acceptance 覆盖。自动 restart 的 retry-budget/CrashLoopBackoff 门槛尚未启用，不能由“健康监督已存在”推断为完成。

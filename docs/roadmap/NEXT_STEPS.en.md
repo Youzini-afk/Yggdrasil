@@ -18,7 +18,7 @@ The next stage isn't more substrate sprawl. Real project deployment, human testi
 The dependency order among project authority, reliable deployment, operational safety, remote targets, and unified clients is fixed in
 [`HOST_OPERATIONS_IMPLEMENTATION.en.md`](HOST_OPERATIONS_IMPLEMENTATION.en.md). Implementation satisfied project-isolation and local-recovery gates before enabling the Remote Target Candidate; real-project pressure still drives this work, and none of it becomes kernel content ontology.
 
-As of 2026-07-24, the Phase 0–4 Candidates are complete. The authenticated Remote Target Agent gate now covers equivalent local/Agent Docker deployment, actual-port projection, loopback-only HTTP/WebSocket tunnels, reconnect, revoke, backpressure, stale epochs, and explicit public routes in GitHub CI. The main line has moved to Phase 5: shared Host connections and project/target context, Project Console operations, and a provenance-preserving Verified Artifact to deployment-preview loop.
+As of 2026-07-24, the Phase 0–5 Candidates are complete. The authenticated Remote Target Agent gate covers equivalent local/Agent Docker deployment, actual-port projection, loopback-only HTTP/WebSocket tunnels, and the complete remote fault matrix. The unified-client and development-to-deployment gate further covers shared Host/project/target context, Project Console target operations, and Verified Artifact → private preview → approval → activation → recover → rollback through public Host contracts. GitHub CI accepts both gates.
 
 > “Complete” here means current v1 operational closure, not that every `kernel.v1.*`
 > boundary is permanent constitutional substrate. The long-term layering candidate is
@@ -69,16 +69,16 @@ These are known to-dos. Priority follows real friction.
 
 ### Project and multi-tenancy
 
-- Extend Phase 1's verified project/session binding to development-artifact read authority, retention, encryption, and reachability GC; runtime permission, event, and resolver paths now consume the same project binding.
+- Extend the existing verified project/session binding to fine-grained development-artifact read authority, encryption/retention policy, reachability GC, and journal snapshot compaction; runtime permission, event, and resolver paths already consume the same project binding.
 - Project archive auto-cleanup beyond 30 days.
 - `yg secret put / list / delete` CLI.
 - OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
 - Host device identity now has project/target selectors, delegation chains, ancestor-revocation cascade, and redacted allow/deny journals. Remaining work is an explicit administrator bulk-revoke operation and continuous lease-epoch reauthorization for long operations.
-- The `yg host access` CLI reuses the same Host API and Bearer device token, with no local side-channel mutation interface. Mobile continues to use HTTPS pairing plus a Secure cookie.
-- Development-artifact read authority, encryption/retention policy, reachability GC, and more declarative verifier / sandbox backends.
+- Add a real transport fetch/download budget to external-project intake; current materialized-tree limits are not a download budget.
+- Add more explicit verifiers and sandbox backends. Each must declare network, secret, resource, and effect needs and must not collapse into a generic shell runner.
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
-- Deployment descriptor polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and external-project wizard generation.
-- Unified client and development-to-deployment closure: explicit remote Host connections, shared project/target context, Project Console target operations and historical diagnostics, and Verified Artifact → preview → approval → activation → recover → rollback through public Host contracts. Target-edge ingress, application identity, and arbitrary network proxying remain out of scope.
+- Deployment and authoring UX polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and richer guided deployment-descriptor/adapter authoring plus CLI mutation UX that still crosses ChangeSet approval.
+- Target-edge ingress and application identity need separate designs; arbitrary network proxying and a general remote shell remain explicit non-goals.
 
 ### Models and outbound
 

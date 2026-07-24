@@ -18,7 +18,7 @@
 项目级权威、可靠部署、运行安全、remote target 与统一客户端之间的依赖顺序已经固定在
 [`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md)。实现已经按顺序先满足项目隔离和本地恢复门槛，再开放 Remote Target Candidate；这些能力仍由真实项目压力驱动，不构成新的内核内容本体。
 
-截至 2026-07-24，Phase 0–4 Candidate 已完成。authenticated Remote Target Agent gate 已在 GitHub CI 覆盖 local/Agent 等价 Docker deployment、actual-port 投影、loopback-only HTTP/WebSocket tunnel、重连、revoke、backpressure、stale epoch 与显式 public route。当前主线进入 Phase 5：共享 Host 连接与 project/target context、Project Console operation，以及保留 provenance 的 Verified Artifact 到 deployment preview 闭环。
+截至 2026-07-24，Phase 0–5 Candidate 已完成。authenticated Remote Target Agent gate 覆盖 local/Agent 等价 Docker deployment、actual-port 投影、loopback-only HTTP/WebSocket tunnel 与完整远端故障矩阵；统一客户端和开发—部署 gate 进一步覆盖共享 Host/project/target context、Project Console target operation，以及通过公开 Host contract 完成的 Verified Artifact → private preview → approval → activation → recover → rollback。两条 gate 都由 GitHub CI 验收。
 
 > 这里的「完整」指当前 v1 运行闭环，不代表现有 `kernel.v1.*` 边界已经成为永久宪法。
 > 长期分层候选见 [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)，逐项归属与临时实施顺序见
@@ -68,16 +68,16 @@
 
 ### 项目与多租户
 
-- 继续把 Phase 1 的 verified project/session binding 扩展到开发 artifact 的读取、保留、加密和 reachability GC；运行时权限、事件与 resolver 已消费相同的项目绑定。
+- 把现有 verified project/session binding 继续扩展到开发 artifact 的细粒度读取权限、加密/保留策略、reachability GC 与 journal snapshot compaction；运行时权限、事件与 resolver 已消费相同的项目绑定。
 - 项目归档超过 30 天自动清理。
 - `yg secret put / list / delete` CLI。
 - OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
 - Host 设备身份已具备 project/target selector、delegation chain、祖先撤销级联与脱敏 allow/deny journal；后续补充面向管理员的显式批量撤销入口，以及长操作 lease epoch 的持续再授权。
-- `yg host access` CLI 已复用同一 Host API 与 Bearer device token，不建立本地旁路写入接口；移动端继续使用 HTTPS pairing + Secure Cookie 路径。
-- 开发 artifact 的读取权限、加密/保留策略和 reachability GC，以及更多声明式 verifier / sandbox backend。
+- 为外部项目 intake 增加真正的 transport fetch/download budget；现有 materialization tree 上限不能替代下载预算。
+- 增加更多显式 verifier 与 sandbox backend；每一种都必须声明网络、secret、资源和效果，不能退化为通用 shell runner。
 - 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
-- 部署描述符 polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及外部项目 wizard 自动生成描述符。
-- 统一客户端与开发—部署收口：显式 remote Host 连接、共享 project/target context、Project Console target operation 与历史诊断，以及通过公开 Host contract 完成 Verified Artifact → preview → approval → activation → recover → rollback。target-edge ingress、应用身份和任意网络代理仍不在本阶段范围内。
+- 部署与创作 UX polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及更丰富但仍走 ChangeSet 审批的部署描述符、adapter 引导式创作和 CLI mutation UX。
+- target-edge ingress 与应用身份需要单独设计；任意网络代理和通用远程 shell 仍明确不做。
 
 ### 模型与出站
 

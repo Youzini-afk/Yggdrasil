@@ -41,7 +41,7 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 | Phase 2 | Candidate 实现完成 | durable deployment intent/operation/lease/receipt、candidate-first activation、reconcile/recover/rollback 与受限 restart policy 已闭环并通过 GitHub CI |
 | Phase 3 | Candidate 实现完成 | 非破坏性数据迁移、backup/verify/restore、live/ready、release integrity、SBOM 与 provenance 已闭环并通过 GitHub CI |
 | Phase 4 | Candidate 实现完成 | durable identity/operation/artifact、local/Agent 等价 Docker deployment、actual-port 投影及 authenticated reverse-tunnel HTTP/WebSocket/private/public routing 已闭环；重连、重复连接、revoke、backpressure、stale epoch、HTTP framing 与 vhost authority 验收通过 GitHub CI |
-| Phase 5 | 进行中 | 共享 Host 连接/context 与 Project Console operation/revision 诊断已闭环；下一切片是 Verified Artifact 到部署 preview/activation 的事务桥 |
+| Phase 5 | Candidate 实现完成 | 共享 Host 连接/context、Project Console target operation/revision 诊断，以及 Verified Artifact → private preview → approval → activation → reconcile/recover/rollback 已闭环；真实项目与第二种 fixture 通过 GitHub CI 验收 |
 
 ## Phase 0：设计合同
 
@@ -120,11 +120,13 @@ Phase 3 的部分 release/health 改动可以与 Phase 2 并行开发，但 remo
 5. Project Console 接入 target、operation、revision、logs、rollback；
 6. Development Verified Artifact 成为 deployment preview 的输入，保留审批/provenance。
 
-客户端/context 结果（2026-07-24）：共享 Web/PWA/Desktop 客户端已经支持显式 HTTPS Host 连接、按 Host 隔离凭据、按项目保存 target context、远程安全 surface 加载与 managed-local fallback。CLI 只持久化非密钥连接/context 元数据，并用当前 endpoint 与同一 Bearer grant 观察 project/target。Verified Artifact 部署桥仍在实施中。
+客户端/context 结果（2026-07-24）：共享 Web/PWA/Desktop 客户端已经支持显式 HTTPS Host 连接、按 Host 隔离凭据、按项目保存 target context、远程安全 surface 加载与 managed-local fallback。CLI 只持久化非密钥连接/context 元数据，并用当前 endpoint 与同一 Bearer grant 访问相同的 project/target Host 合同。
 
-Project Console 结果（2026-07-24）：所选 target 的 durable operation ledger、状态、授权/request digest、终态 output 与有界 diagnostics 已进入共享客户端；local target 继续展示 durable deployment job/revision、source provenance、recover 与 rollback。现有 deployment revision/replay 合同只绑定 `local`，因此远程 target 不伪装 revision/recover/rollback 能力，统一部署事务桥在下一切片完成。
+Project Console 与部署事务结果（2026-07-24）：共享客户端展示所选 target 的 durable operation ledger、状态、授权/request digest、终态 output 与有界 diagnostics，并通过公开 Host API 完成 ChangeSet 的 private preview、独立部署审批、激活与显式对账。已提交的 `managed_external` Docker ChangeSet 产生不可变 build-context artifact；验证镜像不会被复用，所选 `local` 或 Agent target 通过同一类型化 build/apply 合同重建 candidate。激活只接纳与 artifact、authority、preview 和 approval 完整绑定且仍健康的精确 candidate，先提交不可变 `VerifiedActivate` revision，再清理上一修订。
 
-门槛：同一真实外部项目可从不同客户端完成 propose→verify→preview→approve→activate→recover→rollback，不存在客户端专属旁路。
+恢复结果（2026-07-24）：preview 或 activation 中断会进入 `recovery_required`，且只能显式 reconcile；系统会采用 provenance 完全一致的 durable activation，或保守清理精确 candidate，歧义 lease 与不一致 revision 保持阻断。verified recover/rollback 会重新校验 artifact、证据与 authority，并在记录的 target 上从 durable build context 重建，不读取 live workspace，也不重新抓取源码。
+
+门槛结果（2026-07-24）：GitHub CI 的 [`External project Host operations acceptance`](../../.github/workflows/ci.yml) 使用 CLI 接入固定 commit 的真实 MDN 仓库，再只经带认证的公开 Host contract 完成两次独立 propose→verify→preview→approve→activate、容器故障与显式 recover、Host crash/lease takeover/restart 投影以及 rollback；结构不同的 Python 标准库服务同时验证平台没有只适配单一项目。工作负载见 [`scripts/host-operations-acceptance.py`](../../scripts/host-operations-acceptance.py)，不存在客户端专属或私有底座旁路。
 
 ## 明确不做
 

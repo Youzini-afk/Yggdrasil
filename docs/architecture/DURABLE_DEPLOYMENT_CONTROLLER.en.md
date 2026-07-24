@@ -2,15 +2,18 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-Status: **Candidate implementation**. Phase 2 establishes the durable local-deployment baseline behind the existing deployment facades. The first-class intent/operation/step-receipt contract, failure-injection gate, bounded restart policy, and remote-target implementation remain incomplete.
+Status: **Candidate implementation**. Phase 2 established durable local deployment and recovery behind the existing Host facades. Phase 4/5 extended the same durable operation/receipt, target-truth, and artifact-replay semantics across `local` and enrolled Agents and connected Verified Artifact deployment. The abstract records below remain the controller's semantic model. A standalone canonical `host.deployment.*` API and automatic self-healing restart are not enabled; candidate names must not be read as exposed contracts.
 
-Implementation snapshot (2026-07-23):
+Implementation snapshot (2026-07-24):
 
 - one contiguous deployment journal now uses sequence CAS, while revision activation also fences on the expected parent revision;
 - build output is resolved to a content-addressable Docker image ID before deployment;
 - build-deploy, recover, rollback, and project-owned direct deploy use candidate-first readiness, lease-guarded route promotion, and post-commit draining of the previous instance;
 - deployment authority is persisted without credentials and revalidated, together with the single Host control-plane lease, before each new long-running effect;
-- startup restores durable route ownership, observes real Docker labels, cleans uncommitted candidates, and preserves stale state when Docker observation is unavailable.
+- `local` and Agent use the same typed artifact-transfer, declarative-verifier, deployment apply/stop, operation-ledger, and receipt contracts. Remote ports stay loopback-only and traffic returns to the Host only through an authenticated tunnel;
+- Verified ChangeSets create private previews from immutable build-context artifacts and commit `VerifiedActivate` revisions only after separate approval. Recover/rollback rebuild from durable context on the recorded target without reading a workspace or refetching source;
+- startup restores durable routes first, projects target-operation receipts second, and runs generic broker reconciliation last. It observes real ownership labels, cleans uncommitted candidates, and preserves stale / `recovery_required` state when truth is unavailable;
+- GitHub CI uses a real MDN repository and a second Python fixture to cover candidate failure, explicit recovery, Host crash/lease takeover/restart projection, and rollback.
 
 ## Goal and invariants
 
@@ -189,9 +192,9 @@ Health supervision only updates observation and audit. The controller creates a 
 
 ## Public contract
 
-Canonical Host candidates include `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams. Existing build-deploy/recover/rollback routes become facades. `kernel.v1.port/proxy/exec` remain adapters rather than orchestration ontology.
+The current public contract is the `/host/v1/build-deploy` route, project-scoped deployment recover/rollback, target operations, and ChangeSet deployment preview/approve/activate/reconcile. All are Host-owned; there is no kernel deployment-orchestration method. `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams are possible future canonical names if the facades converge, not current endpoints. Existing build-deploy/recover/rollback and verified-ChangeSet routes map to this semantic model. `kernel.v1.port/proxy/exec` remain adapters rather than orchestration ontology.
 
-## Implementation order
+## Implementation record and remaining boundary
 
 1. Add intent, operation, lease, and receipt projections; dual-write old flow without behavior change.
 2. Separate build/deploy records and route recover/rollback through operations.
@@ -200,12 +203,14 @@ Canonical Host candidates include `host.deployment.intent.*`, `host.deployment.o
 5. Reconcile on startup; enable bounded restart only after failure-injection coverage.
 6. Migrate clients and stop creating legacy-shaped deployments.
 
-The current Candidate baseline covers the local observation, candidate-first, guarded activation, and startup-reconciliation portions of steps 3-5 through the legacy facades. It deliberately does not claim the completion gate below.
+The current Candidate covers durable journal/lease/receipt behavior, local/Agent truth, candidate-first activation, startup reconciliation, explicit recover/rollback, and client wiring through the existing facades. It does not claim that the candidate `host.deployment.*` names are public APIs, and it does not include health-thread-driven automatic restart. That remains a separate phase requiring bounded retry/backoff and `CrashLoopBackoff`.
 
 ## Completion gate
 
 - Host kill/restart at every transition converges without duplicate effects.
 - The old version serves until the candidate is healthy.
 - Lost activation responses, offline targets, and stale workers recover conservatively.
-- recover, rollback, cancel, and restart share operations and receipts.
-- local and future remote targets pass the same semantic conformance.
+- recover, rollback, cancel, and Host-start reconciliation share operations and receipts.
+- local and remote Agent targets pass the same semantic operation/receipt conformance.
+
+GitHub CI covers the currently applicable gate through local failure matrices, Remote Target Agent acceptance, and real external-project Host-operations acceptance. The automatic-restart retry-budget/CrashLoopBackoff gate is not enabled and cannot be inferred from the existence of health supervision.

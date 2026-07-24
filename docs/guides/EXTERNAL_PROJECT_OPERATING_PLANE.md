@@ -97,6 +97,8 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 - `native_managed`：只返回 verified bundle，不自动原地写回。
 - `linked_local`：拒绝进入该流程；必须先导入 managed 副本，Host 永不自动修改用户目录。
 
+已提交且使用 `docker_build` 验证的 `managed_external` ChangeSet 还可以进入 verified deployment 事务。验证阶段提交不可变 build-context artifact 并删除验证镜像；preview 重新校验 descriptor、tree 与 artifact provenance，再由用户选择的 `local` 或 Agent target 通过类型化 operation 重建 candidate，且 preview 始终保持 Host 认证。第二次部署审批绑定精确 candidate/evidence；activation 通过健康检查并提交 durable `VerifiedActivate` revision 后才清理上一修订。recover / rollback 从 durable context 在记录的 target 上重建，不读取 live workspace，也不重新抓取源码。
+
 ## Web 聚合入口
 
 `clients/web/src/projects/external-projects.ts` 通过公开协议和能力调用聚合 `project-intake-lab` 与 `workspace-lab` 的计划输出。
@@ -104,7 +106,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 - Home/Play 显示 External Project Operating Plane rail。
 - Forge 显示 External Projects / Managed Workspaces panel。
 - Assistant drawer 显示 inspect / draft patch / generate adapter plan 的轻量入口。
-- 项目控制台的 Development 区域通过公开 Host API 草拟、审阅、批准、执行、导出和恢复 ChangeSet；它不直接读写 workspace。
+- 项目控制台的 Development 区域通过公开 Host API 草拟、审阅、批准、执行、导出和恢复 ChangeSet，并完成 verified private preview、独立部署审批、activation 与中断对账；它不直接读写 workspace。
 - UI 不读 SQLite、runtime internals、本地项目目录或进程状态。
 
 ## 安全红线
@@ -132,15 +134,21 @@ cargo run -p ygg-cli -- conformance --tag project_intake
 cargo run -p ygg-cli -- conformance --tag workspace_lab
 ```
 
+## 真实项目持续验收
+
+GitHub CI 的 [`External project Host operations acceptance`](../../.github/workflows/ci.yml) 是黑盒发布门槛，而不是产品专属 demo。它通过 CLI `install --workspace-only` 接入固定到 commit `6c7a360ddb4a0d75be06044bf8a914f260ff10c7` 的 [`mdn/beginner-html-site-styled`](https://github.com/mdn/beginner-html-site-styled/tree/6c7a360ddb4a0d75be06044bf8a914f260ff10c7)，启动普通 SQLite/autoload Host 后只使用带认证的公开 RPC/HTTP contract。
+
+[`scripts/host-operations-acceptance.py`](../../scripts/host-operations-acceptance.py) 对真实项目创建两个独立 verified revision，并对结构不同的 [`Python 标准库 HTTP fixture`](../../examples/host-operations/python-service/README.md) 创建第三个 revision。门槛覆盖 network-none Docker 验证、private preview、生产 route、容器删除与 readiness 降级、显式 recover、Host crash、durable lease 接管、SQLite/runtime 投影恢复和 rollback。直接 Docker 调用只用于精确故障注入、观察和清理，不用于完成平台操作。
+
 ## 后续方向
 
-external intake、durable 部署和受控源码 ChangeSet 已形成第一条 Host 闭环。下一步不是加入任意命令执行，而是在相同边界上继续收紧和扩展：
+external intake、受控源码 ChangeSet、verified local/Agent deployment 与真实项目故障恢复已形成第一条 Host 闭环。下一步不是加入任意命令执行，而是在相同边界上继续收紧和扩展：
 
-- 项目/动作级 Host authority、远端身份、delegation 与撤销，替代当前 Host 级 token 粒度。
-- artifact 的细粒度读取权限、加密/保留策略和 reachability GC。
+- artifact 的细粒度读取权限、加密/保留策略、reachability GC 与 journal snapshot compaction。
+- 为 Git transport 增加真正的 fetch/download budget；当前 materialization tree 上限不能替代下载预算。
 - 更多显式 verifier 与沙箱后端；每一种都必须声明网络、secret、资源和效果，不能退化成通用 shell runner。
-- verified bundle 的人工/工具化应用，以及部署预览与已有 durable deployment workflow 的衔接。
-- 更深入的 project graph、dependency risk analysis 和受控 adapter authoring。
-- 远程 CLI、桌面与移动端复用同一 Host API，不建立旁路写入路径。
+- native verified bundle 的人工/工具化应用，以及更深入的 project graph、dependency risk analysis、受控 adapter / deployment descriptor 引导式创作和同合同 CLI mutation UX。
+- 管理员批量撤销与长操作 lease-epoch 持续再授权。
+- target-edge ingress 与应用身份单独设计；任意网络代理和通用远程 shell 仍明确不做。
 
 这些仍应作为普通包和 Host executor 底座推进，不应进入内核 product ontology。

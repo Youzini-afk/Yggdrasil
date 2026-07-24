@@ -21,9 +21,19 @@ flowchart LR
   M --> K["ChangeCommit + EffectReceipt"]
   M -->|"interrupted"| X["Recovery required"]
   X --> Q["Descriptor/tree reconciliation"]
+  K -->|"committed Docker verification"| D["Private deployment preview"]
+  D --> E["Exact-candidate deployment approval"]
+  E -->|"approve"| A2["Health-gated activation"]
+  A2 --> R2["Durable VerifiedActivate revision"]
+  R2 --> O["Drain previous revision"]
+  D -->|"interrupted"| X2["Deployment recovery required"]
+  A2 -->|"interrupted"| X2
+  X2 --> Q2["Adopt exact activation or clean exact candidate"]
 ```
 
-Approval and execution are separate requests. Approval covers the exact server-returned operations, verification plan, `required_authority`, and `expected_effects`; ChangeSet content cannot be replaced after approval. The Web project console renders all four next to the approval action.
+Source approval and execution are separate requests. Approval covers the exact server-returned operations, verification plan, `required_authority`, and `expected_effects`; ChangeSet content cannot be replaced after approval. The Web project console renders all four next to the approval action.
+
+Deployment is a second independent transaction. Only a committed `managed_external` ChangeSet verified by Docker can create a preview. Once the preview is ready it needs separate approval, whose artifact binds the exact target, candidate receipt, verification/build-context refs, and authority. Source approval never implies deployment approval.
 
 ## Host API
 
@@ -35,8 +45,12 @@ Approval and execution are separate requests. Approval covers the exact server-r
 | `POST` | `.../:change_set_id/approve` | Approve or reject the exact ChangeSet once |
 | `POST` | `.../:change_set_id/execute` | Stage, verify, and promote according to ownership |
 | `POST` | `.../:change_set_id/recover` | Reconcile an interrupted Docker image or managed promotion |
+| `POST` | `.../:change_set_id/deployment/preview` | Build a Host-authenticated preview from the verified context on an explicit target |
+| `POST` | `.../:change_set_id/deployment/approve` | Approve or reject the exact preview candidate |
+| `POST` | `.../:change_set_id/deployment/activate` | Health-check, activate, and commit a durable revision |
+| `POST` | `.../:change_set_id/deployment/reconcile` | Explicitly adopt the exact durable activation or clean the exact candidate |
 
-All routes are inside Host authentication middleware. The root token remains the complete Host gate; paired devices attenuate authority through separate `develop_propose`, `develop_approve`, and `develop_execute` scopes, while unknown mutations fail closed. `host serve` still requires a non-empty root token for a non-loopback bind. See [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) for device pairing, revocation, HTTPS, and cookie boundaries. Project-level multi-tenant scoping remains follow-up work; privileged official packages are not a substitute.
+All routes are inside Host authentication middleware. The root token remains the complete Host gate. Source routes attenuate paired-device authority through separate `develop_propose`, `develop_approve`, and `develop_execute` scopes; the four deployment routes require the separate `deploy` scope. Every project route checks the exact project selector, and deployment routes also check the target selector bound by the request or durable record; unknown mutations fail closed. `host serve` still requires a non-empty root token for a non-loopback bind. See [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) for device pairing, revocation, HTTPS, and cookie boundaries.
 
 ## Ownership behavior
 
@@ -47,6 +61,14 @@ All routes are inside Host authentication middleware. The root token remains the
 | `linked_local` | No | No | Never; import a managed copy before Host verification |
 
 A linked-local directory is user-owned and may change concurrently. The first version does not copy it with a check-then-use path scheme and never writes user source. Although a native workspace is Host-managed, this version still avoids an in-place multi-file transaction and delivers a verified bundle instead. Only a content-addressed managed external tree enters automatic promotion.
+
+## Verified Artifact to deployment
+
+1. Successful Docker verification also commits an immutable build-context artifact. The verification image is removed after ownership-label checks and is never implicitly promoted as a deployment image.
+2. Preview revalidates the project descriptor, live managed tree, source digest, verification artifact, and build-context content. Any drift or missing provenance blocks the transaction.
+3. The selected `local` or Agent target rebuilds the candidate through the same typed artifact-transfer, declarative Docker-build, and deployment-apply operations. Target ports remain loopback-only and the preview route is always `host_authenticated`.
+4. Deployment approval binds the exact preview evidence. Activation revalidates artifacts, approval, authority, target-operation receipts, and readiness; points the requested private or explicitly public route at that same candidate; commits an immutable `VerifiedActivate` revision; and only then drains the previous revision.
+5. Recover and rollback never read the live workspace or refetch source. They revalidate the revision's artifact closure, evidence, and current project/target authority, then rebuild from the durable build context on the recorded target.
 
 ## File and artifact boundary
 
@@ -79,6 +101,8 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 - Interrupted staging or static verification has not promoted a workspace and can fail with scratch cleanup.
 - Interrupted Docker verification enters `recovery_required`; recovery uses the stable build id and full ownership labels to remove the image or confirm it is absent before recording a failed terminal state.
 - Managed promotion persists old/new digests and whether the destination pre-existed before visible effects. Recovery reads the real descriptor and tree: if the descriptor points at the proposed digest, it completes the success commit; if it still points at the previous digest, it removes only a newly created, digest-matching orphan. Anything else remains recovery-required.
+- Interrupted deployment preview or activation never automatically replays target effects. Journal replay marks the transaction `recovery_required` until an explicit reconcile runs with valid project/target authority.
+- Reconcile only adopts a durable active revision whose provenance and candidate identity match exactly, or cleans the exact candidate/route/lease. Missing durable identity, ambiguous leases, ownership conflicts, or inconsistent revision provenance remain blocked instead of guessing success.
 - The system never replays arbitrary project commands automatically and never disguises uncertain partial effects as an ordinary failure.
 
 ## Deliberately absent
@@ -89,4 +113,4 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 - development/project/deploy ontology in the kernel;
 - a local CLI mutation path that bypasses the public Host API.
 
-The mobile PWA now uses scoped device identity through the same Host API and has no side-channel mutation interface. Dedicated remote-CLI UX, project-scoped authority, artifact permission/GC, and richer verifiers can evolve on this same boundary.
+The mobile PWA, Web/Desktop, and remote CLI now use scoped device identity and project/target context through the same public Host API, with no side-channel mutation interface. Remaining work includes fine-grained artifact permission/encryption/retention/GC, long-operation reauthorization, administrator bulk revoke, and richer but still declarative verifier/sandbox backends.

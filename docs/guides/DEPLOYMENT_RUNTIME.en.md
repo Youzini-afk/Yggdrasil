@@ -2,7 +2,7 @@
 
 > [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
 
-Yggdrasil can now host self-hosted AI / agent projects. Deployment is not a Docker concept in the kernel. It is a small set of generic runtime primitives that ordinary packages compose into Docker, native process, or future remote targets.
+Yggdrasil can now host self-hosted AI / agent projects. Deployment is not a Docker concept in the kernel. It is a small set of generic runtime primitives that ordinary packages and Host target drivers compose into Docker, native process, or enrolled remote-Agent targets.
 
 ## Boundary
 
@@ -10,7 +10,7 @@ The kernel exposes four generic primitive families:
 
 | Primitive | Protocol family | Role |
 |---|---|---|
-| target | `kernel.v1.target.*` | Describe an execution target. The built-in target is `local`. |
+| target | `kernel.v1.target.*` | Describe an execution target. Built-in `local` and enrolled remote Agents enter the same registry/driver contract. |
 | exec | `kernel.v1.exec.*` | Start, stop, and inspect controlled local execution. Deny-all by default. |
 | port | `kernel.v1.port.*` | Lease a loopback port from the host. |
 | proxy | `kernel.v1.proxy.*` | Bind a managed HTTP / WebSocket route to a port lease and explicitly record Host-authenticated or public access. |
@@ -23,7 +23,8 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 - `LiveLocalExecExecutor`: accepts argv arrays only, never shell strings. cwd, env, logs, timeout, and kill behavior are host-controlled.
 - `ygg-service` reverse proxy: `/p/<route_id>/...` remains available inside Host authentication. A route gets an additional unauthenticated `<slug>.apps.example.com/` virtual host only when it explicitly selects `public` and `YGG_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is configured, allowing a community app to own `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
 - `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
-- Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. Host-authenticated is the default.
+- Target drivers: built-in `local` and enrolled Agents use the same durable operation, artifact-transfer, declarative-verifier, deployment apply/stop, and receipt model. Agent upstreams remain loopback-only and return to the Host proxy through an authenticated tunnel bound to target/route/lease/epochs.
+- Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. The Development area can also move a verified ChangeSet through private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Host-authenticated is the default.
 - Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
 - Restart reconciliation: after a restart, replayed records are first downgraded (exec → unknown, port → reserved, proxy → stale with `ready=false`), then reconciled against the real world.
 - Readiness gating: proxy routes register with `ready=false`; the reverse proxy returns 503 for routes that are not yet ready, and only forwards once ready.
@@ -140,14 +141,23 @@ Job intent, the latest state snapshot, immutable deployment revisions, and the a
 
 Every successful Build & Deploy creates a `DeploymentRevision` containing source ref, build artifact identity, `route_access`, route configuration, and a redacted receipt. It never stores raw secrets or host mount paths. A revision is automatically recoverable only when every runtime env value came from a `secret_ref` and no host mount was used. Plain env values and mounts become explicit blockers that require a manual rebuild. Recover and rollback preserve the revision's route-exposure choice. Journal events remain immutable; the live control-plane projection and API retain the most recent 64 revisions per project so restart memory and response size remain bounded.
 
+## Verified ChangeSet preview and activation
+
+This path accepts only a committed `managed_external` ChangeSet, a `docker_build` verification result, and complete provenance. The verification image is removed after verification. Deployment consumes the immutable build-context artifact, never that image or the live workspace.
+
+1. `POST /host/v1/projects/<project_id>/changes/<change_set_id>/deployment/preview` revalidates the descriptor, tree, verification/build-context artifacts, and project/target authority, then performs typed artifact transfer, Docker build, and deployment apply on an explicit `local` or Agent target. The generated preview route is always `host_authenticated`.
+2. `POST .../deployment/approve` separately approves or rejects the exact preview. Its approval artifact binds the candidate receipt, artifact refs, target, and authority; source approval never implies deployment approval.
+3. `POST .../deployment/activate` revalidates all evidence and readiness, points the requested private or explicitly public route at that same candidate, commits an immutable `VerifiedActivate` revision, and only then drains the previous revision.
+4. A Host crash or uncertain effect during preview/activation moves the transaction to `recovery_required`. `POST .../deployment/reconcile` only adopts a provenance-identical durable activation or cleans the exact candidate/route/lease; ambiguous state remains blocked.
+
 Project-scoped host APIs:
 
 - `GET /host/v1/projects/<project_id>/deployments`: active revision, runtime readiness, recovery requirement, jobs, and revision history.
-- `POST /host/v1/projects/<project_id>/deployments/recover`: explicitly rebuild the active revision's container / port / proxy projections without cloning or rebuilding.
-- `POST /host/v1/projects/<project_id>/deployments/rollback`: activate an existing historical image as a new immutable rollback revision, including after an explicit stop removed the active pointer; historical records are never mutated.
+- `POST /host/v1/projects/<project_id>/deployments/recover`: explicitly recover the active revision. An ordinary `GitClone` revision reuses its retained local image without cloning/building; a `VerifiedArtifact` revision revalidates evidence and rebuilds from durable build context on its recorded target.
+- `POST /host/v1/projects/<project_id>/deployments/rollback`: activate a historical revision as a new immutable rollback revision. Ordinary revisions reuse retained images; verified revisions rebuild from their durable context on the recorded target. Rollback remains available after explicit stop removes the active pointer, and historical records are never mutated.
 - `POST /host/v1/deploy/stop`: clean up resources for a route and append a deactivation event when it belongs to the active durable revision.
 
-Recover and rollback are explicit user actions. The target must be replay-safe, its image must still exist locally, and referenced secrets must still resolve. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a durable revision yet.
+Recover and rollback are explicit user actions. Ordinary revisions must be replay-safe, retain their local image, and still resolve referenced secrets. Verified revisions require a valid artifact closure, preview/approval evidence, and current project/target authority. Verified replay never reads the live workspace or refetches source. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a durable revision yet.
 
 ## `project.start` does not deploy
 
@@ -163,12 +173,13 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 - Proxy routes default to `host_authenticated`. A public vhost requires explicit `route_access: public`; configuring a wildcard domain never publishes existing routes in bulk.
 - Path-prefix proxying does not follow upstream redirects and strips `Set-Cookie`, `Location`, CORS, and other dangerous response headers. Vhost proxying only allows host-only cookies and same-upstream `Location` rewrites.
 - Prebuilt-image deployment does not accept env / volume / secret fields. Source Build & Deploy accepts only explicitly approved runtime env / volume fields; raw runtime secrets are injected only inside the host-private runner, and build-time secrets are not supported yet.
+- Verified ChangeSet deployment never reuses the verification image, builds from the live workspace, or bypasses separate deployment approval; preview always starts Host-authenticated.
 - Docker is implemented by an ordinary capability package. No official fast path.
 
 ## Next
 
 - Native execution remains trusted/dev-oriented. It is not a full OS sandbox.
 - **Auto-restart** is not implemented and remains a separate future phase. The host-plane now has durable revisions and explicit recovery, but health supervision still only monitors, flips readiness, and audits; it never replays deployment side effects without user authorization.
-- The Remote Target Agent now has a Candidate baseline. After explicit target selection, typed Docker operations bind only to Agent loopback; the Host provides private preview through an authenticated reverse tunnel bound to target/route/lease/epochs and can reuse an explicit public vhost. Full Project Console/development-to-deployment wiring and the remote fault matrix remain Phase 4/5 work. This is neither an application identity system nor an arbitrary network proxy.
+- The Remote Target Agent, Project Console, and verified development-to-deployment wiring now form a Candidate loop, with GitHub CI covering faults, Host restart, recovery, and rollback. Target-edge ingress and application identity still need separate designs; this is not an arbitrary network proxy.
 - Docker descriptors still lack pull progress and long-term log archival.
-- External project wizards can generate deployment descriptors later, but deployment must remain an explicit user action.
+- External-project ChangeSets can now add a controlled Dockerfile. Richer guided deployment-descriptor/adapter authoring remains follow-up work, and deployment must retain explicit approval and activation.

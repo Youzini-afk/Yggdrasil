@@ -97,6 +97,8 @@ Ownership determines delivery:
 - `native_managed`: return a verified bundle only, without automatic in-place write-back.
 - `linked_local`: reject the workflow until a managed copy is imported; the Host never mutates the user's directory automatically.
 
+A committed `managed_external` ChangeSet verified with `docker_build` may also enter the verified-deployment transaction. Verification commits an immutable build-context artifact and removes its verification image. Preview revalidates descriptor, tree, and artifact provenance, then the selected `local` or Agent target rebuilds the candidate through typed operations; the preview always remains Host-authenticated. A second deployment approval binds the exact candidate/evidence. Activation drains the previous revision only after health succeeds and a durable `VerifiedActivate` revision commits. Recover and rollback rebuild from durable context on the recorded target without reading the live workspace or refetching source.
+
 ## Web aggregation entry
 
 `clients/web/src/projects/external-projects.ts` aggregates no-execution outputs from `project-intake-lab` and `workspace-lab` through public protocol/capability invoke.
@@ -104,7 +106,7 @@ Ownership determines delivery:
 - Home/Play displays an External Project Operating Plane rail.
 - Forge displays an External Projects / Managed Workspaces panel.
 - Assistant drawer displays lightweight inspect / draft patch / generate adapter plan entries.
-- The project console Development area uses the public Host API to draft, review, approve, execute, export, and recover ChangeSets; it never reads or writes a workspace directly.
+- The project console Development area uses the public Host API to draft, review, approve, execute, export, and recover ChangeSets and to complete verified private preview, separate deployment approval, activation, and interrupted-operation reconciliation. It never reads or writes a workspace directly.
 - UI does not read SQLite, runtime internals, local project directories, or process state.
 
 ## Security red lines
@@ -132,15 +134,21 @@ cargo run -p ygg-cli -- conformance --tag project_intake
 cargo run -p ygg-cli -- conformance --tag workspace_lab
 ```
 
+## Continuous real-project acceptance
+
+GitHub CI's [`External project Host operations acceptance`](../../.github/workflows/ci.yml) is a black-box release gate, not a product-specific demo. It uses CLI `install --workspace-only` to intake [`mdn/beginner-html-site-styled`](https://github.com/mdn/beginner-html-site-styled/tree/6c7a360ddb4a0d75be06044bf8a914f260ff10c7) pinned to commit `6c7a360ddb4a0d75be06044bf8a914f260ff10c7`, starts an ordinary SQLite/autoload Host, and then uses only authenticated public RPC/HTTP contracts.
+
+[`scripts/host-operations-acceptance.py`](../../scripts/host-operations-acceptance.py) creates two independently verified revisions for the real project and a third revision for a structurally different [`Python standard-library HTTP fixture`](../../examples/host-operations/python-service/README.md). The gate covers network-none Docker verification, private preview, the production route, container deletion and readiness degradation, explicit recovery, Host crash, durable-lease takeover, SQLite/runtime projection restoration, and rollback. Direct Docker calls are limited to precise fault injection, observation, and cleanup; they never complete a platform operation.
+
 ## Next directions
 
-External intake, durable deployment, and controlled source ChangeSets now form the first Host loop. The next step is not arbitrary command execution; it is to tighten and extend the same boundary:
+External intake, controlled source ChangeSets, verified local/Agent deployment, and real-project failure recovery now form the first Host loop. The next step is not arbitrary command execution; it is to tighten and extend the same boundary:
 
-- project/action-scoped Host authority, remote identity, delegation, and revocation in place of today's Host-wide token granularity;
-- fine-grained artifact read permissions, encryption/retention policy, and reachability GC;
+- fine-grained artifact read permissions, encryption/retention policy, reachability GC, and journal snapshot compaction;
+- a real Git transport fetch/download budget, because materialized-tree limits are not a download budget;
 - more explicit verifiers and sandbox backends, each declaring network, secret, resource, and effect needs instead of collapsing into a generic shell runner;
-- human/tool-assisted application of verified bundles and deployment previews connected to the existing durable deployment workflow;
-- deeper project graphs, dependency risk analysis, and controlled adapter authoring;
-- remote CLI, desktop, and mobile clients reusing the same Host API without a side-channel write path.
+- human/tool-assisted application of native verified bundles, plus deeper project graphs, dependency-risk analysis, guided adapter/deployment-descriptor authoring, and same-contract CLI mutation UX;
+- administrator bulk revoke and continuous lease-epoch reauthorization for long operations;
+- separately designed target-edge ingress and application identity; arbitrary network proxying and a general remote shell remain explicit non-goals.
 
 These should still proceed as ordinary package and Host-executor substrate, not as kernel product ontology.
