@@ -589,7 +589,8 @@ export interface BuildDeployCancelResponse {
   cancelled: boolean;
 }
 
-export type DeploymentOperation = "build_deploy" | "recover" | "rollback";
+export type DeploymentOperation = "build_deploy" | "verified_activate" | "recover" | "rollback";
+export type DeploymentSourceKind = "git_clone" | "verified_artifact";
 
 export interface PersistedRuntimeEnvSpec {
   name: string;
@@ -603,6 +604,8 @@ export interface DeploymentRevision {
   operation: DeploymentOperation;
   parent_revision_id?: string | null;
   created_at_ms: number;
+  target_id: string;
+  source_kind: DeploymentSourceKind;
   source_url: string;
   ref_name: string;
   dockerfile?: string | null;
@@ -617,6 +620,13 @@ export interface DeploymentRevision {
   build_descriptor_hash: string;
   strategy: string;
   runtime_env: PersistedRuntimeEnvSpec[];
+  verified_change_set_id?: string | null;
+  verification_ref?: ArtifactDescriptor | null;
+  build_context_ref?: ArtifactDescriptor | null;
+  preview_ref?: ArtifactDescriptor | null;
+  approval_ref?: ArtifactDescriptor | null;
+  verified_build_network_mode?: DevelopmentNetworkMode | null;
+  target_deployment?: { deployment_id: string; route_id: string; port_lease_id: string } | null;
   recoverable: boolean;
   recovery_blockers: string[];
   receipt: HostBuildDeployResult;
@@ -689,6 +699,11 @@ export interface DevelopmentDeploymentPreviewRequest {
   route_access?: "host_authenticated" | "public";
   health_path?: string;
   idempotency_key?: string;
+}
+
+export interface DevelopmentDeploymentApprovalRequest {
+  approved: boolean;
+  reason?: string;
 }
 
 export interface DevelopmentDeploymentPreview {
@@ -1314,6 +1329,24 @@ export class YggProtocolClient {
     return this.fetchHostJson(
       `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/preview`,
       input,
+    );
+  }
+
+  approveProjectDeployment(
+    projectId: string,
+    changeSetId: string,
+    input: DevelopmentDeploymentApprovalRequest,
+  ): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(
+      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/approve`,
+      input,
+    );
+  }
+
+  activateProjectDeployment(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(
+      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/activate`,
+      {},
     );
   }
 

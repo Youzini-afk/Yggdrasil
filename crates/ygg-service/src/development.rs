@@ -31,10 +31,13 @@ use crate::target_agent::{
     TargetDeploymentRef, TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
 };
 use crate::{
-    call_host_protocol, deployment_effect_context, invoke_docker_runtime_lab, now_millis,
-    require_built_image, require_identity_project, require_identity_target, required_string,
-    service_public_url_for_route, value_field, AppState, BuildDeployProjectGuard,
-    DeploymentAuthorityLease, ServiceError,
+    call_host_protocol, deployment_effect_context, drain_previous_revision,
+    invoke_docker_runtime_lab, now_millis, persist_revision_activation, require_built_image,
+    require_identity_project, require_identity_target, required_string,
+    restore_proxy_route_if_candidate_active, service_public_url_for_route, value_field, AppState,
+    BuildDeployProjectGuard, DeploymentActionResponse, DeploymentAuthorityLease,
+    DeploymentOperation, DeploymentRevision, DeploymentSourceKind, HostBuildDeployResponse,
+    ServiceError,
 };
 
 const DEVELOPMENT_JOURNAL_PREFIX: &str = "host/control/v1/development.";
@@ -211,6 +214,14 @@ pub struct DevelopmentDeploymentPreviewRequest {
     pub idempotency_key: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DevelopmentDeploymentApprovalRequest {
+    pub approved: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DevelopmentDeploymentStatus {
@@ -228,11 +239,14 @@ pub enum DevelopmentDeploymentStatus {
 
 impl DevelopmentDeploymentStatus {
     fn executing(self) -> bool {
-        matches!(self, Self::Preparing | Self::Building | Self::Previewing)
+        matches!(
+            self,
+            Self::Preparing | Self::Building | Self::Previewing | Self::Activating
+        )
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct DevelopmentDeploymentPreview {
     pub route_id: String,
     pub public_url: String,
@@ -954,6 +968,14 @@ where
             "/host/v1/projects/:project_id/changes/:change_set_id/deployment/preview",
             post(create_deployment_preview::<S>),
         )
+        .route(
+            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/approve",
+            post(approve_deployment::<S>),
+        )
+        .route(
+            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/activate",
+            post(activate_deployment::<S>),
+        )
 }
 
 async fn list_changes<S>(
@@ -1584,6 +1606,1551 @@ where
     Ok((StatusCode::ACCEPTED, Json(record)))
 }
 
+async fn approve_deployment<S>(
+    State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
+    Path((project_id, change_set_id)): Path<(String, String)>,
+    Json(request): Json<DevelopmentDeploymentApprovalRequest>,
+) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
+where
+    S: EventStore,
+{
+    ensure_development_host_lease(&state).await?;
+    let project_id = parse_project_id(&project_id)?;
+    require_identity_project(&identity, project_id.as_str())?;
+    if let Some(reason) = request.reason.as_deref() {
+        validate_short_text(reason, "deployment approval reason", 2048)?;
+    }
+
+    let record = {
+        let change_lock = state.development.lock_for(&change_set_id);
+        let _guard = change_lock.lock().await;
+        refresh_development_project(&state, &project_id).await?;
+        change_for_project(&state, &project_id, &change_set_id)?
+    };
+    let deployment = record.deployment.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development change has no deployment preview",
+        )
+    })?;
+    require_identity_target(&identity, &deployment.target_id)?;
+    match (deployment.status, request.approved) {
+        (DevelopmentDeploymentStatus::Approved, true)
+        | (DevelopmentDeploymentStatus::Rejected, false) => return Ok(Json(record)),
+        (DevelopmentDeploymentStatus::PreviewReady, _) => {}
+        _ => {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment can only be approved or rejected from preview-ready state",
+            ));
+        }
+    }
+    let preview_ref = deployment.preview_ref.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment preview has no durable evidence",
+        )
+    })?;
+    if deployment.preview.is_none() {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment preview has no ready candidate",
+        ));
+    }
+
+    let cleanup_guard = if request.approved {
+        None
+    } else {
+        let permit = state
+            .build_jobs
+            .acquire_project_operation(&project_id)
+            .await
+            .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+        Some((
+            permit,
+            BuildDeployProjectGuard {
+                registry: state.build_jobs.clone(),
+                project_id: project_id.clone(),
+            },
+        ))
+    };
+    let outcome = if request.approved {
+        PolicyDecisionOutcome::Allowed
+    } else {
+        PolicyDecisionOutcome::Denied
+    };
+    let decision = PolicyDecision {
+        id: format!("decision-{}", uuid::Uuid::new_v4().simple()),
+        decision_type_uri: ygg_core::POLICY_DECISION_TYPE_URI.to_string(),
+        change_set_id: format!(
+            "{}:deployment:{}",
+            record.change_set.id, deployment.deployment_id
+        ),
+        outcome,
+        principal: PrincipalIdentity::HostAdmin,
+        reason: request.reason,
+        evaluated_authority: vec![
+            "host.project.deploy".to_string(),
+            format!("host.target.{}", deployment.target_id),
+        ],
+        decided_at: Utc::now(),
+        policy_ref: None,
+    };
+    let approval_ref = commit_json_artifact(
+        state.runtime.as_ref(),
+        ygg_core::POLICY_DECISION_TYPE_URI,
+        &decision,
+        vec![
+            preview_ref.digest.clone(),
+            deployment.verification_ref.digest.clone(),
+            deployment.build_context_ref.digest.clone(),
+            deployment.authority_ref.digest.clone(),
+        ],
+        BTreeMap::from([
+            ("role".to_string(), json!("explicit_deployment_approval")),
+            ("project_id".to_string(), json!(project_id.as_str())),
+            ("change_set_id".to_string(), json!(change_set_id)),
+            ("deployment_id".to_string(), json!(deployment.deployment_id)),
+            ("target_id".to_string(), json!(deployment.target_id)),
+        ]),
+    )
+    .await
+    .map_err(|error| {
+        internal_development_error("failed to store deployment approval decision", error)
+    })?;
+    let mut updated = update_deployment_record(&state, &change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id
+                && current.status == DevelopmentDeploymentStatus::PreviewReady,
+            "deployment preview changed before approval persistence"
+        );
+        current.approval_decision = Some(decision);
+        current.approval_ref = Some(approval_ref);
+        current.status = if request.approved {
+            DevelopmentDeploymentStatus::Approved
+        } else {
+            DevelopmentDeploymentStatus::Rejected
+        };
+        current.error = None;
+        Ok(())
+    })
+    .await
+    .map_err(|error| {
+        development_persistence_error("failed to persist deployment approval decision", error)
+    })?;
+
+    if !request.approved {
+        let cleanup_complete =
+            match stop_completed_preview_candidate(&state, &project_id, &deployment).await {
+                Ok(true) => cleanup_preview_host_resources(&state, &deployment)
+                    .await
+                    .unwrap_or(false),
+                Ok(false) | Err(_) => false,
+            };
+        if !cleanup_complete {
+            updated = update_deployment_record(&state, &change_set_id, |current| {
+                if current.deployment_id == deployment.deployment_id
+                    && current.status == DevelopmentDeploymentStatus::Rejected
+                {
+                    current.status = DevelopmentDeploymentStatus::RecoveryRequired;
+                    current.error = Some(
+                        "rejected deployment cleanup requires explicit reconciliation; details redacted"
+                            .to_string(),
+                    );
+                }
+                Ok(())
+            })
+            .await
+            .map_err(|error| {
+                development_persistence_error(
+                    "failed to persist rejected deployment cleanup state",
+                    error,
+                )
+            })?;
+        }
+    }
+    drop(cleanup_guard);
+    Ok(Json(updated))
+}
+
+async fn activate_deployment<S>(
+    State(state): State<AppState<S>>,
+    Extension(identity): Extension<HostAccessIdentity>,
+    Path((project_id, change_set_id)): Path<(String, String)>,
+) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
+where
+    S: EventStore,
+{
+    ensure_development_host_lease(&state).await?;
+    let project_id = parse_project_id(&project_id)?;
+    require_identity_project(&identity, project_id.as_str())?;
+    let record = {
+        let change_lock = state.development.lock_for(&change_set_id);
+        let _guard = change_lock.lock().await;
+        refresh_development_project(&state, &project_id).await?;
+        change_for_project(&state, &project_id, &change_set_id)?
+    };
+    let deployment = record.deployment.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "development change has no deployment preview",
+        )
+    })?;
+    require_identity_target(&identity, &deployment.target_id)?;
+    if deployment.status == DevelopmentDeploymentStatus::Active {
+        return Ok(Json(record));
+    }
+    if deployment.status != DevelopmentDeploymentStatus::Approved
+        || deployment
+            .approval_decision
+            .as_ref()
+            .is_none_or(|decision| decision.outcome != PolicyDecisionOutcome::Allowed)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment requires an explicit approval before activation",
+        ));
+    }
+    let preview = deployment.preview.clone().ok_or_else(|| {
+        ServiceError::with_status(StatusCode::CONFLICT, "deployment has no preview candidate")
+    })?;
+    let preview_ref = deployment.preview_ref.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment preview has no durable evidence",
+        )
+    })?;
+    let approval_ref = deployment.approval_ref.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment approval has no durable evidence",
+        )
+    })?;
+    verify_deployment_artifact_content(state.runtime.as_ref(), &deployment.verification_ref)
+        .await?;
+    verify_deployment_artifact_content(state.runtime.as_ref(), &deployment.build_context_ref)
+        .await?;
+    let (evidence_deployment_id, evidence_preview, evidence_authority_ref) =
+        read_verified_preview_evidence(
+            state.runtime.as_ref(),
+            &preview_ref,
+            &project_id,
+            &change_set_id,
+            &deployment.target_id,
+            &deployment.source_tree_digest,
+            &deployment.verification_ref,
+            &deployment.build_context_ref,
+        )
+        .await
+        .map_err(|error| {
+            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment preview artifact validation failed");
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment preview evidence is incomplete or inconsistent",
+            )
+        })?;
+    let evidence_decision = read_verified_deployment_approval(
+        state.runtime.as_ref(),
+        &approval_ref,
+        &preview_ref,
+        &deployment.verification_ref,
+        &deployment.build_context_ref,
+        &evidence_authority_ref,
+        &project_id,
+        &change_set_id,
+        &evidence_deployment_id,
+        &deployment.target_id,
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment approval artifact validation failed");
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment approval evidence is incomplete or inconsistent",
+        )
+    })?;
+    if evidence_deployment_id != deployment.deployment_id
+        || evidence_preview != preview
+        || evidence_authority_ref != deployment.authority_ref
+        || deployment.approval_decision.as_ref() != Some(&evidence_decision)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment approval is not bound to the ready preview candidate",
+        ));
+    }
+    validate_preview_target_operations(&state, &project_id, &deployment, &preview).map_err(
+        |error| {
+            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment preview evidence validation failed");
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment preview evidence is incomplete or inconsistent",
+            )
+        },
+    )?;
+    ensure_preview_route_ready(&state, &deployment, &preview)
+        .await
+        .map_err(|error| {
+            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment preview readiness validation failed");
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment preview is no longer ready",
+            )
+        })?;
+
+    let permit = state
+        .build_jobs
+        .acquire_project_operation(&project_id)
+        .await
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let _project_guard = BuildDeployProjectGuard {
+        registry: state.build_jobs.clone(),
+        project_id: project_id.clone(),
+    };
+    let _permit = permit;
+    state
+        .build_jobs
+        .ensure_route_available_for_project(&deployment.route_id, &project_id)
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    if state
+        .target_agents
+        .project_for_operation_route(&deployment.route_id)
+        .is_some_and(|owner| owner != project_id)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment route is owned by another project",
+        ));
+    }
+    let authority = DeploymentAuthorityLease::from_identity(
+        format!("dop-{}", uuid::Uuid::new_v4().simple()),
+        deployment.target_id.clone(),
+        &identity,
+    );
+    let activation_context = deployment_effect_context(
+        &state,
+        Some(&authority),
+        &project_id,
+        "host_development_deployment_activate",
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment activation authority validation failed");
+        ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "deployment authority is no longer valid for the selected project and target",
+        )
+    })?;
+    ensure_preview_route_ready(&state, &deployment, &preview)
+        .await
+        .map_err(|_| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment preview is no longer ready",
+            )
+        })?;
+    let previous_revision = state.build_jobs.active_revision(&project_id);
+    let previous_route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.route_id)
+        .await
+        .filter(|route| route.status != ygg_runtime::ProxyRouteStatusKind::Removed);
+    update_deployment_record(&state, &change_set_id, |current| {
+        anyhow::ensure!(
+            current.deployment_id == deployment.deployment_id
+                && current.status == DevelopmentDeploymentStatus::Approved
+                && current.approval_ref.as_ref() == Some(&approval_ref),
+            "deployment approval changed before activation"
+        );
+        current.status = DevelopmentDeploymentStatus::Activating;
+        current.error = None;
+        Ok(())
+    })
+    .await
+    .map_err(|error| {
+        development_persistence_error("failed to persist deployment activation start", error)
+    })?;
+
+    let mut revision_committed = false;
+    let activation = async {
+        let route = call_host_protocol(
+            &state,
+            &activation_context,
+            "kernel.v1.proxy.register",
+            json!({
+                "route_id": deployment.route_id,
+                "protocol": "http",
+                "access": deployment.route_access,
+                "upstream": {
+                    "port_lease_id": preview.port_lease_id,
+                    "port_name": deployment.port_name,
+                },
+            }),
+        )
+        .await
+        .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))?;
+        let route_id = required_string(&route, "id", "deployment activation route")?;
+        anyhow::ensure!(
+            route_id == deployment.route_id,
+            "deployment route identity changed during activation"
+        );
+        let fallback_public_url =
+            required_string(&route, "public_url", "deployment activation route")?;
+        ensure_preview_route_ready(&state, &deployment, &preview).await?;
+        anyhow::ensure!(
+            state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .set_ready_if_active_with_lease(&route_id, &preview.port_lease_id, true)
+                .await
+                .is_some(),
+            "deployment route changed before readiness promotion"
+        );
+        let public_url = service_public_url_for_route(
+            &state,
+            &route_id,
+            &fallback_public_url,
+            deployment.route_access,
+        );
+        let receipt = HostBuildDeployResponse {
+            route_id: route_id.clone(),
+            public_url,
+            route_access: deployment.route_access,
+            port_lease_id: preview.port_lease_id.clone(),
+            container_id: preview.container_id.clone(),
+            container_name: preview.container_name.clone(),
+            image: preview.image_id.clone(),
+            build_id: deployment.build_id.clone(),
+            source_commit: deployment.source_tree_digest.clone(),
+            build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+            strategy: "verified_artifact".to_string(),
+            runtime_env: Vec::new(),
+            runtime_mounts: Vec::new(),
+            warnings: Vec::new(),
+        };
+        let revision = DeploymentRevision {
+            revision_id: format!(
+                "drv-{}-{}",
+                now_millis(),
+                &uuid::Uuid::new_v4().simple().to_string()[..12]
+            ),
+            project_id: project_id.clone(),
+            job_id: None,
+            operation: DeploymentOperation::VerifiedActivate,
+            parent_revision_id: previous_revision
+                .as_ref()
+                .map(|revision| revision.revision_id.clone()),
+            created_at_ms: now_millis(),
+            target_id: deployment.target_id.clone(),
+            source_kind: DeploymentSourceKind::VerifiedArtifact,
+            source_url: format!("artifact:{}", deployment.build_context_ref.digest),
+            ref_name: change_set_id.clone(),
+            dockerfile: Some(deployment.dockerfile.clone()),
+            container_port: deployment.container_port,
+            port_name: deployment.port_name.clone(),
+            route_id,
+            route_access: deployment.route_access,
+            health_path: deployment.health_path.clone(),
+            image: preview.image_id.clone(),
+            build_id: deployment.build_id.clone(),
+            source_commit: deployment.source_tree_digest.clone(),
+            build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+            strategy: "verified_artifact".to_string(),
+            runtime_env: Vec::new(),
+            verified_change_set_id: Some(change_set_id.clone()),
+            verification_ref: Some(deployment.verification_ref.clone()),
+            build_context_ref: Some(deployment.build_context_ref.clone()),
+            preview_ref: Some(preview_ref.clone()),
+            approval_ref: Some(approval_ref.clone()),
+            verified_build_network_mode: Some(development_target_network_mode(
+                deployment.network_mode,
+            )),
+            target_deployment: Some(preview.deployment.clone()),
+            recoverable: true,
+            recovery_blockers: Vec::new(),
+            receipt,
+        };
+        persist_revision_activation(&state, &revision, None, Some(authority.clone())).await?;
+        revision_committed = true;
+        let updated = update_deployment_record(&state, &change_set_id, |current| {
+            anyhow::ensure!(
+                current.deployment_id == deployment.deployment_id
+                    && current.status == DevelopmentDeploymentStatus::Activating,
+                "deployment changed before activation persistence"
+            );
+            current.status = DevelopmentDeploymentStatus::Active;
+            current.activation_revision_id = Some(revision.revision_id.clone());
+            current.previous_revision_id = previous_revision
+                .as_ref()
+                .map(|previous| previous.revision_id.clone());
+            current.error = None;
+            Ok(())
+        })
+        .await?;
+        Ok::<_, anyhow::Error>((updated, revision))
+    }
+    .await;
+
+    match activation {
+        Ok((updated, revision)) => {
+            if let Some(previous) = previous_revision.as_ref() {
+                for warning in drain_previous_revision(&state, previous, &revision.route_id).await {
+                    tracing::warn!(project_id = %project_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
+                }
+            }
+            Ok(Json(updated))
+        }
+        Err(error) => {
+            tracing::warn!(project_id = %project_id, change_set_id, error = %error, revision_committed, "development deployment activation failed");
+            if revision_committed {
+                if let Some(active) =
+                    state
+                        .build_jobs
+                        .active_revision(&project_id)
+                        .filter(|active| {
+                            active.operation == DeploymentOperation::VerifiedActivate
+                                && active.verified_change_set_id.as_deref()
+                                    == Some(change_set_id.as_str())
+                                && active.target_deployment.as_ref() == Some(&preview.deployment)
+                                && active.receipt.port_lease_id == preview.port_lease_id
+                        })
+                {
+                    match update_deployment_record(&state, &change_set_id, |current| {
+                        anyhow::ensure!(
+                            current.deployment_id == deployment.deployment_id
+                                && current.status == DevelopmentDeploymentStatus::Activating,
+                            "deployment changed after durable activation"
+                        );
+                        current.status = DevelopmentDeploymentStatus::Active;
+                        current.activation_revision_id = Some(active.revision_id.clone());
+                        current.previous_revision_id = previous_revision
+                            .as_ref()
+                            .map(|previous| previous.revision_id.clone());
+                        current.error = None;
+                        Ok(())
+                    })
+                    .await
+                    {
+                        Ok(updated) => {
+                            if let Some(previous) = previous_revision.as_ref() {
+                                for warning in
+                                    drain_previous_revision(&state, previous, &active.route_id)
+                                        .await
+                                {
+                                    tracing::warn!(project_id = %project_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
+                                }
+                            }
+                            return Ok(Json(updated));
+                        }
+                        Err(persist_error) => {
+                            tracing::warn!(project_id = %project_id, change_set_id, error = %persist_error, "failed to reconcile development record after durable activation");
+                        }
+                    }
+                }
+            } else {
+                let compensated = compensate_deployment_activation_route(
+                    &state,
+                    &deployment,
+                    &preview,
+                    previous_route.as_ref(),
+                )
+                .await;
+                if let Err(persist_error) = update_deployment_record(
+                    &state,
+                    &change_set_id,
+                    |current| {
+                        if current.deployment_id == deployment.deployment_id
+                            && current.status == DevelopmentDeploymentStatus::Activating
+                        {
+                            current.status = if compensated {
+                                DevelopmentDeploymentStatus::Approved
+                            } else {
+                                DevelopmentDeploymentStatus::RecoveryRequired
+                            };
+                            current.error = (!compensated).then(|| {
+                                "deployment activation requires explicit reconciliation; details redacted"
+                                    .to_string()
+                            });
+                        }
+                        Ok(())
+                    },
+                )
+                .await
+                {
+                    tracing::warn!(project_id = %project_id, change_set_id, error = %persist_error, "failed to persist deployment activation compensation state");
+                }
+            }
+            Err(ServiceError::with_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "deployment activation failed; details redacted",
+            ))
+        }
+    }
+}
+
+fn development_target_network_mode(
+    mode: DevelopmentNetworkMode,
+) -> ygg_runtime::ManagedTargetBuildNetworkMode {
+    match mode {
+        DevelopmentNetworkMode::None => ygg_runtime::ManagedTargetBuildNetworkMode::None,
+        DevelopmentNetworkMode::Bridge => ygg_runtime::ManagedTargetBuildNetworkMode::Bridge,
+    }
+}
+
+fn validate_preview_target_operations<S>(
+    state: &AppState<S>,
+    project_id: &ProjectId,
+    deployment: &DevelopmentDeploymentRecord,
+    preview: &DevelopmentDeploymentPreview,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let build = state
+        .target_agents
+        .operation(&preview.build_operation_id)
+        .ok_or_else(|| anyhow::anyhow!("target build operation disappeared"))?;
+    require_succeeded_target_operation(build.clone(), "target Docker build")?;
+    anyhow::ensure!(
+        build.target_id == deployment.target_id && build.project_id == *project_id,
+        "target build operation belongs to another project or target"
+    );
+    let expected_verifier = DeclarativeVerifierDescriptor::DockerBuild {
+        digest: deployment.build_context_ref.digest.clone(),
+        expected_size_bytes: Some(deployment.build_context_ref.size_bytes),
+        dockerfile: deployment.dockerfile.clone(),
+        network_mode: development_target_network_mode(deployment.network_mode),
+        build_id: deployment.build_id.clone(),
+        source_tree_digest: deployment.source_tree_digest.clone(),
+        build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+    };
+    anyhow::ensure!(
+        build.spec
+            == TargetOperationSpec::VerifierRun {
+                verifier: expected_verifier,
+            },
+        "target build operation does not match verified provenance"
+    );
+    let build_output = &build
+        .receipt
+        .as_ref()
+        .expect("succeeded operation receipt")
+        .output;
+    anyhow::ensure!(
+        required_string(build_output, "image_id", "target Docker build receipt")?
+            == preview.image_id
+            && required_string(
+                build_output,
+                "context_digest",
+                "target Docker build receipt"
+            )? == deployment.build_context_ref.digest
+            && required_string(
+                build_output,
+                "source_tree_digest",
+                "target Docker build receipt"
+            )? == deployment.source_tree_digest
+            && required_string(
+                build_output,
+                "build_descriptor_hash",
+                "target Docker build receipt"
+            )? == deployment.build_descriptor_hash,
+        "target build receipt does not match preview provenance"
+    );
+
+    let apply = state
+        .target_agents
+        .operation(&preview.deployment_operation_id)
+        .ok_or_else(|| anyhow::anyhow!("target deployment operation disappeared"))?;
+    require_succeeded_target_operation(apply.clone(), "target deployment apply")?;
+    anyhow::ensure!(
+        apply.target_id == deployment.target_id
+            && apply.project_id == *project_id
+            && apply.spec
+                == TargetOperationSpec::DeploymentApply {
+                    deployment: TargetDeploymentDescriptor {
+                        deployment: preview.deployment.clone(),
+                        port_name: deployment.port_name.clone(),
+                        image: preview.image_id.clone(),
+                        container_port: deployment.container_port,
+                        requested_host_port: None,
+                        pull_if_missing: false,
+                        health_path: deployment.health_path.clone(),
+                    },
+                },
+        "target deployment operation does not match the preview candidate"
+    );
+    let apply_output = &apply
+        .receipt
+        .as_ref()
+        .expect("succeeded operation receipt")
+        .output;
+    anyhow::ensure!(
+        apply_output.get("running").and_then(Value::as_bool) == Some(true)
+            && required_string(apply_output, "container_id", "target deployment receipt")?
+                == preview.container_id
+            && required_string(apply_output, "image_id", "target deployment receipt")?
+                == preview.image_id,
+        "target deployment receipt does not match the preview candidate"
+    );
+    Ok(())
+}
+
+async fn ensure_preview_route_ready<S>(
+    state: &AppState<S>,
+    deployment: &DevelopmentDeploymentRecord,
+    preview: &DevelopmentDeploymentPreview,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&preview.route_id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("deployment preview route disappeared"))?;
+    anyhow::ensure!(
+        preview.route_id == deployment.preview_route_id
+            && preview.port_lease_id == preview.deployment.port_lease_id
+            && preview.route_id == preview.deployment.route_id
+            && route.status == ygg_runtime::ProxyRouteStatusKind::Active
+            && route.ready
+            && route.upstream.port_lease_id == preview.port_lease_id
+            && route.upstream.port_name == deployment.port_name,
+        "deployment preview route is not ready for the recorded candidate"
+    );
+    Ok(())
+}
+
+async fn compensate_deployment_activation_route<S>(
+    state: &AppState<S>,
+    deployment: &DevelopmentDeploymentRecord,
+    preview: &DevelopmentDeploymentPreview,
+    previous_route: Option<&ygg_runtime::ProxyRouteRecord>,
+) -> bool
+where
+    S: EventStore,
+{
+    compensate_route_alias(
+        state,
+        &deployment.route_id,
+        &preview.port_lease_id,
+        previous_route,
+        "host_development_deployment_activation_rollback",
+    )
+    .await
+}
+
+async fn compensate_route_alias<S>(
+    state: &AppState<S>,
+    route_id: &str,
+    candidate_lease_id: &str,
+    previous_route: Option<&ygg_runtime::ProxyRouteRecord>,
+    transport: &str,
+) -> bool
+where
+    S: EventStore,
+{
+    let current = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(route_id)
+        .await;
+    if current.as_ref().is_none_or(|route| {
+        route.status == ygg_runtime::ProxyRouteStatusKind::Removed
+            || route.upstream.port_lease_id != candidate_lease_id
+    }) {
+        return true;
+    }
+    if let Some(previous) = previous_route {
+        return match restore_proxy_route_if_candidate_active(
+            state,
+            route_id,
+            candidate_lease_id,
+            &previous.upstream.port_lease_id,
+            &previous.upstream.port_name,
+            previous.access,
+            previous.ready,
+            transport,
+        )
+        .await
+        {
+            Ok(true) => true,
+            Ok(false) => state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .status(route_id)
+                .await
+                .is_none_or(|route| {
+                    route.status == ygg_runtime::ProxyRouteStatusKind::Removed
+                        || route.upstream.port_lease_id != candidate_lease_id
+                }),
+            Err(_) => false,
+        };
+    }
+    let context = ProtocolContext::host_dev(transport);
+    if call_host_protocol(
+        state,
+        &context,
+        "kernel.v1.proxy.unregister",
+        json!({ "route_id": route_id }),
+    )
+    .await
+    .is_err()
+    {
+        return false;
+    }
+    state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(route_id)
+        .await
+        .is_none_or(|route| route.status == ygg_runtime::ProxyRouteStatusKind::Removed)
+}
+
+pub(crate) async fn activate_verified_persisted_revision<S>(
+    state: &AppState<S>,
+    previous: Option<&DeploymentRevision>,
+    target: &DeploymentRevision,
+    operation: DeploymentOperation,
+    authority: &DeploymentAuthorityLease,
+) -> Result<DeploymentActionResponse, ServiceError>
+where
+    S: EventStore,
+{
+    let invalid_revision = || {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "verified deployment revision has incomplete or inconsistent provenance",
+        )
+    };
+    if authority.target_id != target.target_id
+        || !matches!(
+            operation,
+            DeploymentOperation::Recover | DeploymentOperation::Rollback
+        )
+        || target.strategy != "verified_artifact"
+        || !target.runtime_env.is_empty()
+    {
+        return Err(invalid_revision());
+    }
+    let change_set_id = target
+        .verified_change_set_id
+        .clone()
+        .ok_or_else(invalid_revision)?;
+    let verification_ref = target
+        .verification_ref
+        .clone()
+        .ok_or_else(invalid_revision)?;
+    let build_context_ref = target
+        .build_context_ref
+        .clone()
+        .ok_or_else(invalid_revision)?;
+    let preview_ref = target.preview_ref.clone().ok_or_else(invalid_revision)?;
+    let approval_ref = target.approval_ref.clone().ok_or_else(invalid_revision)?;
+    let dockerfile = target.dockerfile.clone().ok_or_else(invalid_revision)?;
+    let network_mode = target
+        .verified_build_network_mode
+        .ok_or_else(invalid_revision)?;
+    let expected_descriptor_hash = deployment_build_descriptor_hash(
+        &target.project_id,
+        &build_context_ref,
+        &target.source_commit,
+        &dockerfile,
+        target_development_network_mode(network_mode),
+        &target.build_id,
+    );
+    let provenance_valid = verification_ref.artifact_type_uri
+        == DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI
+        && verification_ref.media_type == "application/json"
+        && verification_ref
+            .references
+            .contains(&build_context_ref.digest)
+        && build_context_ref.artifact_type_uri == DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI
+        && build_context_ref.media_type == "application/x-tar"
+        && build_context_ref
+            .annotations
+            .get("project_id")
+            .and_then(Value::as_str)
+            == Some(target.project_id.as_str())
+        && build_context_ref
+            .annotations
+            .get("change_set_id")
+            .and_then(Value::as_str)
+            == Some(change_set_id.as_str())
+        && build_context_ref
+            .annotations
+            .get("tree_digest")
+            .and_then(Value::as_str)
+            == Some(target.source_commit.as_str())
+        && build_context_ref
+            .annotations
+            .get("dockerfile")
+            .and_then(Value::as_str)
+            == Some(dockerfile.as_str())
+        && target.build_descriptor_hash == expected_descriptor_hash
+        && target.receipt.route_id == target.route_id
+        && target.receipt.route_access == target.route_access
+        && target.receipt.build_id == target.build_id
+        && target.receipt.source_commit == target.source_commit
+        && target.receipt.build_descriptor_hash == target.build_descriptor_hash;
+    if !provenance_valid {
+        return Err(invalid_revision());
+    }
+    for descriptor in [&verification_ref, &build_context_ref] {
+        verify_deployment_artifact_content(state.runtime.as_ref(), descriptor).await?;
+    }
+    let (evidence_deployment_id, _evidence_preview, evidence_authority_ref) =
+        read_verified_preview_evidence(
+            state.runtime.as_ref(),
+            &preview_ref,
+            &target.project_id,
+            &change_set_id,
+            &target.target_id,
+            &target.source_commit,
+            &verification_ref,
+            &build_context_ref,
+        )
+        .await
+        .map_err(|error| {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment preview evidence validation failed");
+            invalid_revision()
+        })?;
+    read_verified_deployment_approval(
+        state.runtime.as_ref(),
+        &approval_ref,
+        &preview_ref,
+        &verification_ref,
+        &build_context_ref,
+        &evidence_authority_ref,
+        &target.project_id,
+        &change_set_id,
+        &evidence_deployment_id,
+        &target.target_id,
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment approval evidence validation failed");
+        invalid_revision()
+    })?;
+    let replay_context = deployment_effect_context(
+        state,
+        Some(authority),
+        &target.project_id,
+        "host_verified_deployment_replay",
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment replay authority validation failed");
+        ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "deployment authority is no longer valid for the revision target",
+        )
+    })?;
+    state
+        .build_jobs
+        .ensure_route_available_for_project(&target.route_id, &target.project_id)
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    if state
+        .target_agents
+        .project_for_operation_route(&target.route_id)
+        .is_some_and(|owner| owner != target.project_id)
+    {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment route is owned by another project",
+        ));
+    }
+
+    let replay_suffix = uuid::Uuid::new_v4().simple().to_string();
+    let build_operation = crate::target_agent::submit_host_operation(
+        state,
+        &target.target_id,
+        CreateTargetOperationRequest {
+            project_id: target.project_id.clone(),
+            spec: TargetOperationSpec::VerifierRun {
+                verifier: DeclarativeVerifierDescriptor::DockerBuild {
+                    digest: build_context_ref.digest.clone(),
+                    expected_size_bytes: Some(build_context_ref.size_bytes),
+                    dockerfile: dockerfile.clone(),
+                    network_mode,
+                    build_id: target.build_id.clone(),
+                    source_tree_digest: target.source_commit.clone(),
+                    build_descriptor_hash: target.build_descriptor_hash.clone(),
+                },
+            },
+            idempotency_key: Some(format!("{replay_suffix}:build")),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await
+    .map_err(|error| error.error)?;
+    let build_operation = await_target_operation(state, &target.target_id, build_operation)
+        .await
+        .and_then(|operation| require_succeeded_target_operation(operation, "target Docker build"))
+        .map_err(|error| {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment artifact rebuild failed");
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "verified deployment artifact could not be rebuilt on the selected target",
+            )
+        })?;
+    let build_output = &build_operation
+        .receipt
+        .as_ref()
+        .expect("succeeded target operation has a receipt")
+        .output;
+    let _image = required_string(build_output, "image", "target Docker build receipt")?;
+    let image_id = required_string(build_output, "image_id", "target Docker build receipt")?;
+    let output_matches = required_string(
+        build_output,
+        "context_digest",
+        "target Docker build receipt",
+    )? == build_context_ref.digest
+        && required_string(
+            build_output,
+            "source_tree_digest",
+            "target Docker build receipt",
+        )? == target.source_commit
+        && required_string(
+            build_output,
+            "build_descriptor_hash",
+            "target Docker build receipt",
+        )? == target.build_descriptor_hash
+        && required_string(build_output, "build_id", "target Docker build receipt")?
+            == target.build_id;
+    if !output_matches {
+        return Err(invalid_revision());
+    }
+
+    let lease = call_host_protocol(
+        state,
+        &replay_context,
+        "kernel.v1.port.lease",
+        json!({
+            "target_id": target.target_id,
+            "port_name": target.port_name,
+            "protocol": "tcp",
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))?;
+    let port_lease_id = required_string(&lease, "id", "verified replay port lease")?;
+    let management_route_id = format!("replay-{replay_suffix}");
+    let target_deployment = TargetDeploymentRef {
+        deployment_id: format!("replay-{replay_suffix}"),
+        route_id: management_route_id.clone(),
+        port_lease_id: port_lease_id.clone(),
+    };
+    let management_route = call_host_protocol(
+        state,
+        &replay_context,
+        "kernel.v1.proxy.register",
+        json!({
+            "route_id": management_route_id,
+            "protocol": "http",
+            "access": ProxyRouteAccess::HostAuthenticated,
+            "upstream": {
+                "port_lease_id": port_lease_id,
+                "port_name": target.port_name,
+            },
+        }),
+    )
+    .await
+    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))
+    .and_then(|route| {
+        anyhow::ensure!(
+            required_string(&route, "id", "verified replay management route")?
+                == management_route_id,
+            "verified replay management route identity changed"
+        );
+        Ok(route)
+    });
+    if let Err(error) = management_route {
+        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay management route registration failed");
+        let _ = cleanup_target_host_resources(state, &target_deployment, &target.route_id).await;
+        return Err(ServiceError::with_status(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "deployment replay preparation failed; details redacted",
+        ));
+    }
+
+    let apply_operation = crate::target_agent::submit_host_operation(
+        state,
+        &target.target_id,
+        CreateTargetOperationRequest {
+            project_id: target.project_id.clone(),
+            spec: TargetOperationSpec::DeploymentApply {
+                deployment: TargetDeploymentDescriptor {
+                    deployment: target_deployment.clone(),
+                    port_name: target.port_name.clone(),
+                    image: image_id.clone(),
+                    container_port: target.container_port,
+                    requested_host_port: None,
+                    pull_if_missing: false,
+                    health_path: target.health_path.clone(),
+                },
+            },
+            idempotency_key: Some(format!("{replay_suffix}:apply")),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await;
+    let apply_operation = match apply_operation {
+        Ok(operation) => operation,
+        Err(error) => {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error.error, "verified replay candidate submission failed");
+            let _ =
+                cleanup_target_host_resources(state, &target_deployment, &target.route_id).await;
+            return Err(ServiceError::with_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "deployment replay candidate failed; details redacted",
+            ));
+        }
+    };
+    let apply_operation_id = apply_operation.operation_id.clone();
+    let apply_operation = match await_target_operation(state, &target.target_id, apply_operation)
+        .await
+    {
+        Ok(operation) => operation,
+        Err(error) => {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay candidate outcome is unknown");
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment replay candidate requires reconciliation; details redacted",
+            ));
+        }
+    };
+    let apply_operation = match require_succeeded_target_operation(
+        apply_operation,
+        "target deployment apply",
+    ) {
+        Ok(operation) => operation,
+        Err(error) => {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay candidate did not start");
+            if !target_operation_outcome_is_uncertain(state, &apply_operation_id) {
+                let _ = cleanup_target_host_resources(state, &target_deployment, &target.route_id)
+                    .await;
+            }
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment replay candidate did not become ready",
+            ));
+        }
+    };
+    let apply_output = &apply_operation
+        .receipt
+        .as_ref()
+        .expect("succeeded target operation has a receipt")
+        .output;
+    let candidate = async {
+        let container_id = required_string(
+            apply_output,
+            "container_id",
+            "target deployment apply receipt",
+        )?;
+        let container_name = apply_output
+            .get("container_name")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        anyhow::ensure!(
+            apply_output.get("running").and_then(Value::as_bool) == Some(true)
+                && required_string(apply_output, "image_id", "target deployment apply receipt")?
+                    == image_id,
+            "target deployment receipt does not match the replay candidate"
+        );
+        ensure_target_management_route_ready(state, &target_deployment, &target.port_name).await?;
+        Ok::<_, anyhow::Error>((container_id, container_name))
+    }
+    .await;
+    let (container_id, container_name) = match candidate {
+        Ok(candidate) => candidate,
+        Err(error) => {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay candidate receipt validation failed");
+            let _ = compensate_verified_replay_candidate(
+                state,
+                &target.project_id,
+                &target.target_id,
+                &target_deployment,
+                &target.route_id,
+                None,
+            )
+            .await;
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment replay candidate did not become ready",
+            ));
+        }
+    };
+
+    let previous_route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&target.route_id)
+        .await
+        .filter(|route| route.status != ygg_runtime::ProxyRouteStatusKind::Removed);
+    let route_switch = async {
+        let route = call_host_protocol(
+            state,
+            &replay_context,
+            "kernel.v1.proxy.register",
+            json!({
+                "route_id": target.route_id,
+                "protocol": "http",
+                "access": target.route_access,
+                "upstream": {
+                    "port_lease_id": port_lease_id,
+                    "port_name": target.port_name,
+                },
+            }),
+        )
+        .await
+        .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))?;
+        let route_id = required_string(&route, "id", "verified replay route")?;
+        anyhow::ensure!(
+            route_id == target.route_id,
+            "deployment replay route changed"
+        );
+        let fallback_public_url = required_string(&route, "public_url", "verified replay route")?;
+        ensure_target_management_route_ready(state, &target_deployment, &target.port_name).await?;
+        anyhow::ensure!(
+            state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .set_ready_if_active_with_lease(&route_id, &port_lease_id, true)
+                .await
+                .is_some(),
+            "deployment replay route changed before readiness promotion"
+        );
+        Ok::<_, anyhow::Error>((route_id, fallback_public_url))
+    }
+    .await;
+    let (route_id, fallback_public_url) = match route_switch {
+        Ok(route) => route,
+        Err(error) => {
+            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment replay route switch failed");
+            let _ = compensate_verified_replay_candidate(
+                state,
+                &target.project_id,
+                &target.target_id,
+                &target_deployment,
+                &target.route_id,
+                previous_route.as_ref(),
+            )
+            .await;
+            return Err(ServiceError::with_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "deployment replay activation failed; details redacted",
+            ));
+        }
+    };
+    let public_url =
+        service_public_url_for_route(state, &route_id, &fallback_public_url, target.route_access);
+    let receipt = HostBuildDeployResponse {
+        route_id: route_id.clone(),
+        public_url,
+        route_access: target.route_access,
+        port_lease_id: port_lease_id.clone(),
+        container_id,
+        container_name,
+        image: image_id.clone(),
+        build_id: target.build_id.clone(),
+        source_commit: target.source_commit.clone(),
+        build_descriptor_hash: target.build_descriptor_hash.clone(),
+        strategy: target.strategy.clone(),
+        runtime_env: Vec::new(),
+        runtime_mounts: Vec::new(),
+        warnings: Vec::new(),
+    };
+    let revision = DeploymentRevision {
+        revision_id: format!(
+            "drv-{}-{}",
+            now_millis(),
+            &uuid::Uuid::new_v4().simple().to_string()[..12]
+        ),
+        project_id: target.project_id.clone(),
+        job_id: None,
+        operation,
+        parent_revision_id: previous.map(|revision| revision.revision_id.clone()),
+        created_at_ms: now_millis(),
+        target_id: target.target_id.clone(),
+        source_kind: DeploymentSourceKind::VerifiedArtifact,
+        source_url: target.source_url.clone(),
+        ref_name: target.ref_name.clone(),
+        dockerfile: Some(dockerfile),
+        container_port: target.container_port,
+        port_name: target.port_name.clone(),
+        route_id,
+        route_access: target.route_access,
+        health_path: target.health_path.clone(),
+        image: image_id,
+        build_id: target.build_id.clone(),
+        source_commit: target.source_commit.clone(),
+        build_descriptor_hash: target.build_descriptor_hash.clone(),
+        strategy: target.strategy.clone(),
+        runtime_env: Vec::new(),
+        verified_change_set_id: Some(change_set_id),
+        verification_ref: Some(verification_ref),
+        build_context_ref: Some(build_context_ref),
+        preview_ref: Some(preview_ref),
+        approval_ref: Some(approval_ref),
+        verified_build_network_mode: Some(network_mode),
+        target_deployment: Some(target_deployment.clone()),
+        recoverable: true,
+        recovery_blockers: Vec::new(),
+        receipt,
+    };
+    if let Err(error) =
+        persist_revision_activation(state, &revision, None, Some(authority.clone())).await
+    {
+        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment replay journal commit failed");
+        let _ = compensate_verified_replay_candidate(
+            state,
+            &target.project_id,
+            &target.target_id,
+            &target_deployment,
+            &target.route_id,
+            previous_route.as_ref(),
+        )
+        .await;
+        return Err(ServiceError::with_status(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "deployment replay journal commit failed; details redacted",
+        ));
+    }
+    let warnings = match previous {
+        Some(previous) => drain_previous_revision(state, previous, &revision.route_id).await,
+        None => Vec::new(),
+    };
+    Ok(DeploymentActionResponse {
+        operation,
+        previous_revision_id: previous.map(|revision| revision.revision_id.clone()),
+        revision,
+        warnings,
+    })
+}
+
+fn target_development_network_mode(
+    mode: ygg_runtime::ManagedTargetBuildNetworkMode,
+) -> DevelopmentNetworkMode {
+    match mode {
+        ygg_runtime::ManagedTargetBuildNetworkMode::None => DevelopmentNetworkMode::None,
+        ygg_runtime::ManagedTargetBuildNetworkMode::Bridge => DevelopmentNetworkMode::Bridge,
+    }
+}
+
+async fn ensure_target_management_route_ready<S>(
+    state: &AppState<S>,
+    deployment: &TargetDeploymentRef,
+    port_name: &str,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let route = state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .status(&deployment.route_id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("target deployment management route disappeared"))?;
+    anyhow::ensure!(
+        route.status == ygg_runtime::ProxyRouteStatusKind::Active
+            && route.ready
+            && route.upstream.port_lease_id == deployment.port_lease_id
+            && route.upstream.port_name == port_name,
+        "target deployment management route is not ready"
+    );
+    Ok(())
+}
+
+async fn compensate_verified_replay_candidate<S>(
+    state: &AppState<S>,
+    project_id: &ProjectId,
+    target_id: &str,
+    deployment: &TargetDeploymentRef,
+    production_route_id: &str,
+    previous_route: Option<&ygg_runtime::ProxyRouteRecord>,
+) -> bool
+where
+    S: EventStore,
+{
+    let route_restored = compensate_route_alias(
+        state,
+        production_route_id,
+        &deployment.port_lease_id,
+        previous_route,
+        "host_verified_deployment_replay_rollback",
+    )
+    .await;
+    let stop = crate::target_agent::submit_host_operation(
+        state,
+        target_id,
+        CreateTargetOperationRequest {
+            project_id: project_id.clone(),
+            spec: TargetOperationSpec::DeploymentStop {
+                deployment: deployment.clone(),
+                grace_seconds: 0,
+                force_remove: true,
+            },
+            idempotency_key: Some(format!("{}:compensate", deployment.deployment_id)),
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await;
+    let stopped = match stop {
+        Ok(operation) => await_target_operation(state, target_id, operation)
+            .await
+            .is_ok_and(|operation| operation.status == TargetOperationStatusKind::Succeeded),
+        Err(_) => false,
+    };
+    let host_cleaned = if stopped {
+        cleanup_target_host_resources(state, deployment, production_route_id).await
+    } else {
+        false
+    };
+    route_restored && stopped && host_cleaned
+}
+
+async fn cleanup_target_host_resources<S>(
+    state: &AppState<S>,
+    deployment: &TargetDeploymentRef,
+    protected_route_id: &str,
+) -> bool
+where
+    S: EventStore,
+{
+    let context = ProtocolContext::host_dev("host_target_deployment_resource_cleanup");
+    if deployment.route_id != protected_route_id {
+        if let Some(route) = state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status(&deployment.route_id)
+            .await
+        {
+            if route.status != ygg_runtime::ProxyRouteStatusKind::Removed
+                && route.upstream.port_lease_id == deployment.port_lease_id
+                && call_host_protocol(
+                    state,
+                    &context,
+                    "kernel.v1.proxy.unregister",
+                    json!({ "route_id": deployment.route_id }),
+                )
+                .await
+                .is_err()
+            {
+                return false;
+            }
+        }
+    }
+    if state
+        .runtime
+        .config()
+        .proxy_route_registry
+        .list()
+        .await
+        .into_iter()
+        .any(|route| {
+            route.status != ygg_runtime::ProxyRouteStatusKind::Removed
+                && route.upstream.port_lease_id == deployment.port_lease_id
+        })
+    {
+        return false;
+    }
+    if state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(&deployment.port_lease_id)
+        .await
+        .is_some_and(|lease| lease.status != ygg_runtime::PortLeaseStatusKind::Released)
+        && call_host_protocol(
+            state,
+            &context,
+            "kernel.v1.port.release",
+            json!({ "lease_id": deployment.port_lease_id }),
+        )
+        .await
+        .is_err()
+    {
+        return false;
+    }
+    state
+        .runtime
+        .config()
+        .port_lease_registry
+        .status(&deployment.port_lease_id)
+        .await
+        .is_none_or(|lease| lease.status == ygg_runtime::PortLeaseStatusKind::Released)
+}
+
+pub(crate) async fn drain_target_revision<S>(
+    state: &AppState<S>,
+    previous: &DeploymentRevision,
+    active_route_id: &str,
+) -> Vec<String>
+where
+    S: EventStore,
+{
+    let Some(deployment) = previous.target_deployment.as_ref() else {
+        tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, "verified deployment revision has no target deployment reference for cleanup");
+        return vec!["previous target deployment requires manual cleanup".to_string()];
+    };
+    let stop = crate::target_agent::submit_host_operation(
+        state,
+        &previous.target_id,
+        CreateTargetOperationRequest {
+            project_id: previous.project_id.clone(),
+            spec: TargetOperationSpec::DeploymentStop {
+                deployment: deployment.clone(),
+                grace_seconds: 10,
+                force_remove: true,
+            },
+            idempotency_key: None,
+            expires_in_seconds: Some(15 * 60),
+        },
+    )
+    .await;
+    let stopped = match stop {
+        Ok(operation) => {
+            match await_target_operation(state, &previous.target_id, operation).await {
+                Ok(operation) if operation.status == TargetOperationStatusKind::Succeeded => true,
+                Ok(operation) => {
+                    tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, status = ?operation.status, "previous target deployment did not stop cleanly");
+                    false
+                }
+                Err(error) => {
+                    tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, error = %error, "previous target deployment stop outcome is unknown");
+                    false
+                }
+            }
+        }
+        Err(error) => {
+            tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, error = %error.error, "previous target deployment stop submission failed");
+            false
+        }
+    };
+    if !stopped {
+        return vec!["previous target deployment cleanup was not confirmed".to_string()];
+    }
+    if !cleanup_target_host_resources(state, deployment, active_route_id).await {
+        return vec!["previous target deployment Host resources require cleanup".to_string()];
+    }
+    Vec::new()
+}
+
 fn validate_deployment_preview_request(
     request: &DevelopmentDeploymentPreviewRequest,
 ) -> Result<(), ServiceError> {
@@ -1709,6 +3276,182 @@ where
         ));
     }
     Ok(())
+}
+
+async fn read_verified_preview_evidence<S>(
+    runtime: &Runtime<S>,
+    preview_ref: &ArtifactDescriptor,
+    project_id: &ProjectId,
+    change_set_id: &str,
+    target_id: &str,
+    source_tree_digest: &str,
+    verification_ref: &ArtifactDescriptor,
+    build_context_ref: &ArtifactDescriptor,
+) -> anyhow::Result<(String, DevelopmentDeploymentPreview, ArtifactDescriptor)>
+where
+    S: EventStore,
+{
+    anyhow::ensure!(
+        preview_ref.artifact_type_uri == DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI
+            && preview_ref.media_type == "application/json"
+            && preview_ref.references.contains(&verification_ref.digest)
+            && preview_ref.references.contains(&build_context_ref.digest)
+            && preview_ref
+                .annotations
+                .get("project_id")
+                .and_then(Value::as_str)
+                == Some(project_id.as_str())
+            && preview_ref
+                .annotations
+                .get("change_set_id")
+                .and_then(Value::as_str)
+                == Some(change_set_id)
+            && preview_ref
+                .annotations
+                .get("target_id")
+                .and_then(Value::as_str)
+                == Some(target_id)
+            && preview_ref
+                .annotations
+                .get("source_tree_digest")
+                .and_then(Value::as_str)
+                == Some(source_tree_digest),
+        "deployment preview descriptor is not bound to the verified change"
+    );
+    verify_deployment_artifact_content(runtime, preview_ref)
+        .await
+        .map_err(|_| anyhow::anyhow!("deployment preview content verification failed"))?;
+    let payload: Value =
+        serde_json::from_slice(&runtime.object_store().get(&preview_ref.digest).await?)?;
+    anyhow::ensure!(
+        payload.get("schema_version").and_then(Value::as_u64) == Some(1)
+            && payload.get("project_id").and_then(Value::as_str) == Some(project_id.as_str())
+            && payload.get("change_set_id").and_then(Value::as_str) == Some(change_set_id)
+            && payload.get("source_tree_digest").and_then(Value::as_str)
+                == Some(source_tree_digest),
+        "deployment preview payload is not bound to the verified change"
+    );
+    let deployment_id = payload
+        .get("deployment_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("deployment preview payload has no deployment id"))?
+        .to_string();
+    let stored_verification: ArtifactDescriptor = serde_json::from_value(
+        payload
+            .get("verification_ref")
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("deployment preview has no verification reference"))?,
+    )?;
+    let stored_context: ArtifactDescriptor =
+        serde_json::from_value(payload.get("build_context_ref").cloned().ok_or_else(|| {
+            anyhow::anyhow!("deployment preview has no build context reference")
+        })?)?;
+    let authority_ref: ArtifactDescriptor = serde_json::from_value(
+        payload
+            .get("authority_ref")
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("deployment preview has no authority reference"))?,
+    )?;
+    let preview: DevelopmentDeploymentPreview = serde_json::from_value(
+        payload
+            .get("preview")
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("deployment preview payload has no candidate"))?,
+    )?;
+    anyhow::ensure!(
+        stored_verification == *verification_ref
+            && stored_context == *build_context_ref
+            && authority_ref.artifact_type_uri == DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI
+            && authority_ref.media_type == "application/json"
+            && authority_ref
+                .annotations
+                .get("project_id")
+                .and_then(Value::as_str)
+                == Some(project_id.as_str())
+            && authority_ref
+                .annotations
+                .get("change_set_id")
+                .and_then(Value::as_str)
+                == Some(change_set_id)
+            && authority_ref
+                .annotations
+                .get("target_id")
+                .and_then(Value::as_str)
+                == Some(target_id)
+            && preview_ref.references.contains(&authority_ref.digest),
+        "deployment preview evidence chain is inconsistent"
+    );
+    verify_deployment_artifact_content(runtime, &authority_ref)
+        .await
+        .map_err(|_| anyhow::anyhow!("deployment authority content verification failed"))?;
+    Ok((deployment_id, preview, authority_ref))
+}
+
+async fn read_verified_deployment_approval<S>(
+    runtime: &Runtime<S>,
+    approval_ref: &ArtifactDescriptor,
+    preview_ref: &ArtifactDescriptor,
+    verification_ref: &ArtifactDescriptor,
+    build_context_ref: &ArtifactDescriptor,
+    authority_ref: &ArtifactDescriptor,
+    project_id: &ProjectId,
+    change_set_id: &str,
+    deployment_id: &str,
+    target_id: &str,
+) -> anyhow::Result<PolicyDecision>
+where
+    S: EventStore,
+{
+    anyhow::ensure!(
+        approval_ref.artifact_type_uri == ygg_core::POLICY_DECISION_TYPE_URI
+            && approval_ref.media_type == "application/json"
+            && approval_ref.references.contains(&preview_ref.digest)
+            && approval_ref.references.contains(&verification_ref.digest)
+            && approval_ref.references.contains(&build_context_ref.digest)
+            && approval_ref.references.contains(&authority_ref.digest)
+            && approval_ref.annotations.get("role").and_then(Value::as_str)
+                == Some("explicit_deployment_approval")
+            && approval_ref
+                .annotations
+                .get("project_id")
+                .and_then(Value::as_str)
+                == Some(project_id.as_str())
+            && approval_ref
+                .annotations
+                .get("change_set_id")
+                .and_then(Value::as_str)
+                == Some(change_set_id)
+            && approval_ref
+                .annotations
+                .get("deployment_id")
+                .and_then(Value::as_str)
+                == Some(deployment_id)
+            && approval_ref
+                .annotations
+                .get("target_id")
+                .and_then(Value::as_str)
+                == Some(target_id),
+        "deployment approval descriptor is not bound to the preview"
+    );
+    verify_deployment_artifact_content(runtime, approval_ref)
+        .await
+        .map_err(|_| anyhow::anyhow!("deployment approval content verification failed"))?;
+    let decision: PolicyDecision =
+        serde_json::from_slice(&runtime.object_store().get(&approval_ref.digest).await?)?;
+    anyhow::ensure!(
+        decision.outcome == PolicyDecisionOutcome::Allowed
+            && decision.principal == PrincipalIdentity::HostAdmin
+            && decision.change_set_id == format!("{change_set_id}:deployment:{deployment_id}")
+            && decision
+                .evaluated_authority
+                .contains(&"host.project.deploy".to_string())
+            && decision
+                .evaluated_authority
+                .contains(&format!("host.target.{target_id}")),
+        "deployment approval payload is not an explicit approval for the preview"
+    );
+    Ok(decision)
 }
 
 fn deployment_preview_request_digest(
@@ -5243,6 +6986,184 @@ mod tests {
         assert!(validate_deployment_preview_request(&request).is_ok());
         request.health_path = Some("//remote.example".to_string());
         assert!(validate_deployment_preview_request(&request).is_err());
+    }
+
+    #[tokio::test]
+    async fn deployment_approval_evidence_binds_the_exact_preview() -> anyhow::Result<()> {
+        let runtime = Arc::new(Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        ));
+        let project_id = ProjectId::new("project-1")?;
+        let change_set_id = "chg-0123456789abcdef";
+        let target_id = "local";
+        let source_tree_digest = format!("sha256:{}", "1".repeat(64));
+        let context_ref = runtime
+            .commit_artifact(ArtifactCommitRequest {
+                artifact_type_uri: DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI.to_string(),
+                media_type: "application/x-tar".to_string(),
+                bytes: b"context".to_vec().into(),
+                references: Vec::new(),
+                annotations: BTreeMap::from([
+                    ("project_id".to_string(), json!(project_id.as_str())),
+                    ("change_set_id".to_string(), json!(change_set_id)),
+                    ("tree_digest".to_string(), json!(source_tree_digest)),
+                    ("dockerfile".to_string(), json!("Dockerfile")),
+                ]),
+            })
+            .await?;
+        let verification_ref = commit_json_artifact(
+            runtime.as_ref(),
+            DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI,
+            &json!({ "succeeded": true }),
+            vec![context_ref.digest.clone()],
+            BTreeMap::new(),
+        )
+        .await?;
+        let deployment_id = "dep-0123456789abcdef";
+        let authority_ref = commit_json_artifact(
+            runtime.as_ref(),
+            DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI,
+            &json!({ "deployment_id": deployment_id }),
+            vec![verification_ref.digest.clone(), context_ref.digest.clone()],
+            BTreeMap::from([
+                ("project_id".to_string(), json!(project_id.as_str())),
+                ("change_set_id".to_string(), json!(change_set_id)),
+                ("target_id".to_string(), json!(target_id)),
+                ("deployment_id".to_string(), json!(deployment_id)),
+            ]),
+        )
+        .await?;
+        let preview = DevelopmentDeploymentPreview {
+            route_id: "preview-0123456789abcdef".to_string(),
+            public_url: "/p/preview-0123456789abcdef/".to_string(),
+            port_lease_id: "port-lease-000001".to_string(),
+            deployment: TargetDeploymentRef {
+                deployment_id: "preview-dep-0123456789abcdef".to_string(),
+                route_id: "preview-0123456789abcdef".to_string(),
+                port_lease_id: "port-lease-000001".to_string(),
+            },
+            image: "yggdrasil/verified:test".to_string(),
+            image_id: format!("sha256:{}", "2".repeat(64)),
+            container_id: "container-1".to_string(),
+            container_name: Some("candidate-1".to_string()),
+            build_operation_id: "operation-build".to_string(),
+            deployment_operation_id: "operation-apply".to_string(),
+            ready_at_ms: 1,
+        };
+        let preview_ref = commit_json_artifact(
+            runtime.as_ref(),
+            DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI,
+            &json!({
+                "schema_version": 1,
+                "project_id": project_id,
+                "change_set_id": change_set_id,
+                "deployment_id": deployment_id,
+                "source_tree_digest": source_tree_digest,
+                "verification_ref": verification_ref,
+                "build_context_ref": context_ref,
+                "authority_ref": authority_ref,
+                "preview": preview,
+            }),
+            vec![
+                verification_ref.digest.clone(),
+                context_ref.digest.clone(),
+                authority_ref.digest.clone(),
+            ],
+            BTreeMap::from([
+                ("project_id".to_string(), json!(project_id.as_str())),
+                ("change_set_id".to_string(), json!(change_set_id)),
+                ("deployment_id".to_string(), json!(deployment_id)),
+                ("target_id".to_string(), json!(target_id)),
+                ("source_tree_digest".to_string(), json!(source_tree_digest)),
+            ]),
+        )
+        .await?;
+        let decision = PolicyDecision {
+            id: "decision-deployment-1".to_string(),
+            decision_type_uri: ygg_core::POLICY_DECISION_TYPE_URI.to_string(),
+            change_set_id: format!("{change_set_id}:deployment:{deployment_id}"),
+            outcome: PolicyDecisionOutcome::Allowed,
+            principal: PrincipalIdentity::HostAdmin,
+            reason: None,
+            evaluated_authority: vec![
+                "host.project.deploy".to_string(),
+                format!("host.target.{target_id}"),
+            ],
+            decided_at: Utc::now(),
+            policy_ref: None,
+        };
+        let approval_ref = commit_json_artifact(
+            runtime.as_ref(),
+            ygg_core::POLICY_DECISION_TYPE_URI,
+            &decision,
+            vec![
+                preview_ref.digest.clone(),
+                verification_ref.digest.clone(),
+                context_ref.digest.clone(),
+                authority_ref.digest.clone(),
+            ],
+            BTreeMap::from([
+                ("role".to_string(), json!("explicit_deployment_approval")),
+                ("project_id".to_string(), json!(project_id.as_str())),
+                ("change_set_id".to_string(), json!(change_set_id)),
+                ("deployment_id".to_string(), json!(deployment_id)),
+                ("target_id".to_string(), json!(target_id)),
+            ]),
+        )
+        .await?;
+
+        let (stored_deployment_id, stored_preview, stored_authority) =
+            read_verified_preview_evidence(
+                runtime.as_ref(),
+                &preview_ref,
+                &project_id,
+                change_set_id,
+                target_id,
+                &source_tree_digest,
+                &verification_ref,
+                &context_ref,
+            )
+            .await?;
+        assert_eq!(stored_deployment_id, deployment_id);
+        assert_eq!(stored_preview, preview);
+        assert_eq!(stored_authority, authority_ref);
+        assert_eq!(
+            read_verified_deployment_approval(
+                runtime.as_ref(),
+                &approval_ref,
+                &preview_ref,
+                &verification_ref,
+                &context_ref,
+                &authority_ref,
+                &project_id,
+                change_set_id,
+                deployment_id,
+                target_id,
+            )
+            .await?,
+            decision
+        );
+
+        let mut detached = approval_ref;
+        detached
+            .references
+            .retain(|digest| digest != &preview_ref.digest);
+        assert!(read_verified_deployment_approval(
+            runtime.as_ref(),
+            &detached,
+            &preview_ref,
+            &verification_ref,
+            &context_ref,
+            &authority_ref,
+            &project_id,
+            change_set_id,
+            deployment_id,
+            target_id,
+        )
+        .await
+        .is_err());
+        Ok(())
     }
 
     #[test]

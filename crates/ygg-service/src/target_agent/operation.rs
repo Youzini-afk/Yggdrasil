@@ -2147,16 +2147,6 @@ where
         )
         .await
         .context("target deployment actual port could not bind its Host lease")?;
-    state
-        .runtime
-        .config()
-        .proxy_route_registry
-        .set_status(
-            &deployment.route_id,
-            ygg_runtime::ProxyRouteStatusKind::Active,
-        )
-        .await
-        .context("target deployment proxy route disappeared during promotion")?;
     let target_available = state
         .runtime
         .config()
@@ -2164,17 +2154,31 @@ where
         .status(&operation.target_id)
         .await
         .is_some_and(|target| target.status == ExecutionTargetStatusKind::Available);
-    state
-        .runtime
-        .config()
-        .proxy_route_registry
-        .set_ready_if_active_with_lease(
-            &deployment.route_id,
-            &deployment.port_lease_id,
-            target_available,
-        )
-        .await
-        .context("target deployment proxy route changed during promotion")?;
+    for alias in state.runtime.config().proxy_route_registry.list().await {
+        if alias.status == ygg_runtime::ProxyRouteStatusKind::Removed
+            || alias.upstream.port_lease_id != deployment.port_lease_id
+        {
+            continue;
+        }
+        anyhow::ensure!(
+            alias.upstream.port_name == port_name,
+            "target deployment route alias conflicts with its Host lease"
+        );
+        state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .set_status(&alias.id, ygg_runtime::ProxyRouteStatusKind::Active)
+            .await
+            .context("target deployment route alias disappeared during promotion")?;
+        state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .set_ready_if_active_with_lease(&alias.id, &deployment.port_lease_id, target_available)
+            .await
+            .context("target deployment route alias changed during promotion")?;
+    }
     Ok(())
 }
 
@@ -2185,13 +2189,7 @@ async fn project_stopped_deployment<S>(
 where
     S: EventStore,
 {
-    if let Some(route) = state
-        .runtime
-        .config()
-        .proxy_route_registry
-        .status(&deployment.route_id)
-        .await
-    {
+    for route in state.runtime.config().proxy_route_registry.list().await {
         if route.upstream.port_lease_id == deployment.port_lease_id
             && route.status != ygg_runtime::ProxyRouteStatusKind::Removed
         {
@@ -2199,16 +2197,13 @@ where
                 .runtime
                 .config()
                 .proxy_route_registry
-                .set_ready(&deployment.route_id, false)
+                .set_ready(&route.id, false)
                 .await;
             let _ = state
                 .runtime
                 .config()
                 .proxy_route_registry
-                .set_status(
-                    &deployment.route_id,
-                    ygg_runtime::ProxyRouteStatusKind::Stale,
-                )
+                .set_status(&route.id, ygg_runtime::ProxyRouteStatusKind::Stale)
                 .await;
         }
     }
@@ -2923,6 +2918,19 @@ mod tests {
                 access: ygg_runtime::ProxyRouteAccess::HostAuthenticated,
             })
             .await;
+        runtime
+            .config()
+            .proxy_route_registry
+            .register(ygg_runtime::ProxyRouteRegisterRequest {
+                route_id: Some("public-route".to_string()),
+                upstream: ygg_runtime::ProxyRouteUpstream {
+                    port_lease_id: lease.id.clone(),
+                    port_name: "http".to_string(),
+                },
+                protocol: ygg_runtime::ProxyProtocol::Http,
+                access: ygg_runtime::ProxyRouteAccess::Public,
+            })
+            .await;
         let deployment = TargetDeploymentDescriptor {
             deployment: TargetDeploymentRef {
                 deployment_id: "deployment-1".to_string(),
@@ -3011,6 +3019,12 @@ mod tests {
             .status("route-1")
             .await
             .is_some_and(|route| route.ready));
+        assert!(runtime
+            .config()
+            .proxy_route_registry
+            .status("public-route")
+            .await
+            .is_some_and(|route| route.ready));
 
         operation.spec = TargetOperationSpec::DeploymentDrain {
             deployment: deployment.deployment,
@@ -3031,6 +3045,14 @@ mod tests {
             .config()
             .proxy_route_registry
             .status("route-1")
+            .await
+            .is_some_and(|route| {
+                !route.ready && route.status == ygg_runtime::ProxyRouteStatusKind::Stale
+            }));
+        assert!(runtime
+            .config()
+            .proxy_route_registry
+            .status("public-route")
             .await
             .is_some_and(|route| {
                 !route.ready && route.status == ygg_runtime::ProxyRouteStatusKind::Stale

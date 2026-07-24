@@ -33,7 +33,8 @@ use tokio::time::{sleep, timeout, Instant};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tower_http::cors::{Any, CorsLayer};
 use ygg_core::{
-    EventEnvelope, EventSequence, KernelSession, PackageId, PackageManifest, ProjectId, SessionId,
+    ArtifactDescriptor, EventEnvelope, EventSequence, KernelSession, PackageId, PackageManifest,
+    ProjectId, SessionId,
 };
 use ygg_runtime::{
     contract_diagnostics, host_info as runtime_host_info, resolve_contract_method,
@@ -1714,8 +1715,17 @@ struct BuildDeployOutcome {
 #[serde(rename_all = "snake_case")]
 pub enum DeploymentOperation {
     BuildDeploy,
+    VerifiedActivate,
     Recover,
     Rollback,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentSourceKind {
+    #[default]
+    GitClone,
+    VerifiedArtifact,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1867,6 +1877,10 @@ pub struct DeploymentRevision {
     pub operation: DeploymentOperation,
     pub parent_revision_id: Option<String>,
     pub created_at_ms: u128,
+    #[serde(default = "default_local_target_id")]
+    pub target_id: String,
+    #[serde(default)]
+    pub source_kind: DeploymentSourceKind,
     pub source_url: String,
     pub ref_name: String,
     pub dockerfile: Option<String>,
@@ -1882,6 +1896,20 @@ pub struct DeploymentRevision {
     pub build_descriptor_hash: String,
     pub strategy: String,
     pub runtime_env: Vec<PersistedRuntimeEnvSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_change_set_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verification_ref: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_context_ref: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview_ref: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval_ref: Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_build_network_mode: Option<ygg_runtime::ManagedTargetBuildNetworkMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_deployment: Option<TargetDeploymentRef>,
     pub recoverable: bool,
     pub recovery_blockers: Vec<String>,
     pub receipt: HostBuildDeployResponse,
@@ -3929,6 +3957,8 @@ fn deployment_revision_from_build(
         operation: DeploymentOperation::BuildDeploy,
         parent_revision_id,
         created_at_ms: now_millis(),
+        target_id: default_local_target_id(),
+        source_kind: DeploymentSourceKind::GitClone,
         source_url: request.source_url.clone(),
         ref_name: request.ref_name.clone(),
         dockerfile: request.dockerfile.clone(),
@@ -3943,6 +3973,13 @@ fn deployment_revision_from_build(
         build_descriptor_hash: result.build_descriptor_hash.clone(),
         strategy: result.strategy.clone(),
         runtime_env,
+        verified_change_set_id: None,
+        verification_ref: None,
+        build_context_ref: None,
+        preview_ref: None,
+        approval_ref: None,
+        verified_build_network_mode: None,
+        target_deployment: None,
         recoverable: recovery_blockers.is_empty(),
         recovery_blockers,
         receipt: result.clone(),
@@ -4209,10 +4246,19 @@ where
     S: EventStore,
 {
     require_identity_project(&identity, project_id.as_str())?;
-    require_identity_target(&identity, "local")?;
+    let expected_active = state
+        .build_jobs
+        .active_revision(&project_id)
+        .ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::NOT_FOUND,
+                "project has no active deployment revision to recover",
+            )
+        })?;
+    require_identity_target(&identity, &expected_active.target_id)?;
     let authority = DeploymentAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
-        "local",
+        expected_active.target_id.clone(),
         &identity,
     );
     let permit = state
@@ -4230,6 +4276,12 @@ where
                     "project has no active deployment revision to recover",
                 )
             })?;
+        if active.target_id != authority.target_id {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "active deployment target changed before recovery began",
+            ));
+        }
         let runtime_ready = state
             .runtime
             .config()
@@ -4269,10 +4321,19 @@ where
     S: EventStore,
 {
     require_identity_project(&identity, project_id.as_str())?;
-    require_identity_target(&identity, "local")?;
+    let expected_target = state
+        .build_jobs
+        .revision(&project_id, request.revision_id.trim())
+        .ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::NOT_FOUND,
+                "deployment revision was not found for this project",
+            )
+        })?;
+    require_identity_target(&identity, &expected_target.target_id)?;
     let authority = DeploymentAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
-        "local",
+        expected_target.target_id.clone(),
         &identity,
     );
     let permit = state
@@ -4291,6 +4352,12 @@ where
                     "deployment revision was not found for this project",
                 )
             })?;
+        if target.target_id != authority.target_id {
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment revision target changed before rollback began",
+            ));
+        }
         if active
             .as_ref()
             .is_some_and(|active| target.revision_id == active.revision_id)
@@ -4336,6 +4403,13 @@ where
             StatusCode::CONFLICT,
             format!("deployment revision is not recoverable: {blockers}"),
         ));
+    }
+
+    if target.source_kind == DeploymentSourceKind::VerifiedArtifact {
+        return development::activate_verified_persisted_revision(
+            state, previous, target, operation, authority,
+        )
+        .await;
     }
 
     let replay_request = build_replay_request(target);
@@ -4464,6 +4538,8 @@ fn deployment_revision_from_replay(
         operation,
         parent_revision_id: previous.map(|revision| revision.revision_id.clone()),
         created_at_ms: now_millis(),
+        target_id: target.target_id.clone(),
+        source_kind: target.source_kind,
         source_url: target.source_url.clone(),
         ref_name: target.ref_name.clone(),
         dockerfile: target.dockerfile.clone(),
@@ -4478,6 +4554,13 @@ fn deployment_revision_from_replay(
         build_descriptor_hash: target.build_descriptor_hash.clone(),
         strategy: target.strategy.clone(),
         runtime_env: target.runtime_env.clone(),
+        verified_change_set_id: target.verified_change_set_id.clone(),
+        verification_ref: target.verification_ref.clone(),
+        build_context_ref: target.build_context_ref.clone(),
+        preview_ref: target.preview_ref.clone(),
+        approval_ref: target.approval_ref.clone(),
+        verified_build_network_mode: target.verified_build_network_mode,
+        target_deployment: target.target_deployment.clone(),
         recoverable: target.recoverable,
         recovery_blockers: target.recovery_blockers.clone(),
         receipt,
@@ -5257,6 +5340,11 @@ async fn drain_previous_revision<S>(
 where
     S: EventStore,
 {
+    if previous.target_deployment.is_some()
+        || previous.source_kind == DeploymentSourceKind::VerifiedArtifact
+    {
+        return development::drain_target_revision(state, previous, active_route_id).await;
+    }
     let context = ProtocolContext::host_dev("host_deployment_previous_revision_drain");
     cleanup_deployment_resources(
         state,
@@ -8473,6 +8561,15 @@ mod tests {
             ),
             Some(HostAccessScope::Deploy)
         );
+        for action in ["approve", "activate"] {
+            assert_eq!(
+                required_host_scope_for_http(
+                    &Method::POST,
+                    &format!("/host/v1/projects/demo/changes/change-1/deployment/{action}")
+                ),
+                Some(HostAccessScope::Deploy)
+            );
+        }
         assert_eq!(
             required_host_scope_for_http(&Method::POST, "/host/v1/deploy"),
             Some(HostAccessScope::Deploy)
@@ -8924,6 +9021,36 @@ mod tests {
         assert!(json.contains("secret_ref:project:database-url"));
         assert!(!json.contains("must-not-be-journaled"));
         assert!(!json.contains(&source.to_string_lossy().to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_deployment_revision_defaults_to_local_git_source() -> anyhow::Result<()> {
+        let request = valid_build_deploy_request();
+        let revision =
+            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+        let mut value = serde_json::to_value(revision)?;
+        let object = value
+            .as_object_mut()
+            .expect("revision serializes as object");
+        for field in [
+            "target_id",
+            "source_kind",
+            "verified_change_set_id",
+            "verification_ref",
+            "build_context_ref",
+            "preview_ref",
+            "approval_ref",
+            "verified_build_network_mode",
+            "target_deployment",
+        ] {
+            object.remove(field);
+        }
+
+        let restored: DeploymentRevision = serde_json::from_value(value)?;
+        assert_eq!(restored.target_id, "local");
+        assert_eq!(restored.source_kind, DeploymentSourceKind::GitClone);
+        assert!(restored.target_deployment.is_none());
         Ok(())
     }
 
