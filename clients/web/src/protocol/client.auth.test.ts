@@ -491,6 +491,20 @@ await protocolClient.approveProjectChange("project-1", "chg-1", true, "reviewed"
 await protocolClient.executeProjectChange("project-1", "chg-1");
 await protocolClient.recoverProjectChange("project-1", "chg-1");
 await protocolClient.getProjectChangeBundle("project-1", "chg-1");
+await protocolClient.createProjectDeploymentPreview("project-1", "chg-1", {
+  target_id: "remote/one",
+  container_port: 8080,
+  port_name: "web",
+  route_id: "route-1",
+  route_access: "public",
+  health_path: "/healthz",
+  idempotency_key: "preview-1",
+});
+await protocolClient.approveProjectDeployment("project-1", "chg-1", {
+  approved: true,
+  reason: "preview reviewed",
+});
+await protocolClient.activateProjectDeployment("project-1", "chg-1");
 assertDeepEqual(capturedFetches.map((request) => request.input), [
   "http://host.test/host/v1/projects/project-1/changes",
   "http://host.test/host/v1/projects/project-1/changes/chg-1",
@@ -499,6 +513,9 @@ assertDeepEqual(capturedFetches.map((request) => request.input), [
   "http://host.test/host/v1/projects/project-1/changes/chg-1/execute",
   "http://host.test/host/v1/projects/project-1/changes/chg-1/recover",
   "http://host.test/host/v1/projects/project-1/changes/chg-1/bundle",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/preview",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/approve",
+  "http://host.test/host/v1/projects/project-1/changes/chg-1/deployment/activate",
 ]);
 assertDeepEqual(capturedFetches.map((request) => request.body), [
   undefined,
@@ -512,10 +529,21 @@ assertDeepEqual(capturedFetches.map((request) => request.body), [
   {},
   {},
   undefined,
+  {
+    target_id: "remote/one",
+    container_port: 8080,
+    port_name: "web",
+    route_id: "route-1",
+    route_access: "public",
+    health_path: "/healthz",
+    idempotency_key: "preview-1",
+  },
+  { approved: true, reason: "preview reviewed" },
+  {},
 ]);
 assertDeepEqual(
   capturedFetches.map((request) => new Headers(request.headers).get("authorization")),
-  ["Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token", "Bearer valid-token"],
+  Array(10).fill("Bearer valid-token"),
 );
 
 capturedRequests.length = 0;

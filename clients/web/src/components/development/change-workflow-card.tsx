@@ -9,13 +9,16 @@ import type { LabelKey } from "@/lib/labels";
 import type {
   DevelopmentChangeRecord,
   DevelopmentChangeStatus,
+  DevelopmentDeploymentStatus,
   DevelopmentFileOperationRequest,
   DevelopmentVerificationPlan,
+  DeploymentRevision,
 } from "@/protocol/client";
 
 type DraftOperation = "file_write" | "file_delete";
 
 const ACTIVE_STATUSES = new Set<DevelopmentChangeStatus>(["staging", "verifying", "promoting"]);
+const ACTIVE_DEPLOYMENT_STATUSES = new Set<DevelopmentDeploymentStatus>(["preparing", "building", "previewing", "activating"]);
 const DEVELOPMENT_STATUS_KEYS: Record<DevelopmentChangeStatus, LabelKey> = {
   drafted: "projectFrameDevelopmentStatusDrafted",
   approved: "projectFrameDevelopmentStatusApproved",
@@ -29,7 +32,42 @@ const DEVELOPMENT_STATUS_KEYS: Record<DevelopmentChangeStatus, LabelKey> = {
   failed: "projectFrameDevelopmentStatusFailed",
 };
 
-export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
+const DEPLOYMENT_STATUS_KEYS: Record<DevelopmentDeploymentStatus, LabelKey> = {
+  preparing: "projectFrameDevelopmentDeploymentStatusPreparing",
+  building: "projectFrameDevelopmentDeploymentStatusBuilding",
+  previewing: "projectFrameDevelopmentDeploymentStatusPreviewing",
+  preview_ready: "projectFrameDeploymentReady",
+  approved: "projectFrameDevelopmentStatusApproved",
+  rejected: "projectFrameDevelopmentStatusRejected",
+  activating: "projectFrameDevelopmentDeploymentStatusActivating",
+  active: "projectFrameActiveSession",
+  recovery_required: "projectFrameDeploymentRecoveryRequired",
+  failed: "projectFrameDevelopmentStatusFailed",
+};
+
+interface DevelopmentDeploymentDefaults {
+  container_port: number;
+  port_name: string;
+  route_id: string;
+  route_access: "host_authenticated" | "public";
+  health_path?: string;
+}
+
+interface DevelopmentWorkflowCardProps {
+  projectId: string;
+  targetId: string;
+  deploymentDefaults?: DevelopmentDeploymentDefaults;
+  activeRevision?: DeploymentRevision | null;
+  onDeploymentChanged?: () => void;
+}
+
+export function DevelopmentWorkflowCard({
+  projectId,
+  targetId,
+  deploymentDefaults,
+  activeRevision,
+  onDeploymentChanged,
+}: DevelopmentWorkflowCardProps) {
   const client = useKernel();
   const t = useT();
   const toast = useToast();
@@ -44,6 +82,11 @@ export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
   const [dockerBuild, setDockerBuild] = useState(false);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
   const [allowNetwork, setAllowNetwork] = useState(false);
+  const [deploymentPort, setDeploymentPort] = useState(() => String(deploymentDefaults?.container_port ?? 8080));
+  const [deploymentPortName, setDeploymentPortName] = useState(deploymentDefaults?.port_name ?? "http");
+  const [deploymentRouteId, setDeploymentRouteId] = useState(deploymentDefaults?.route_id ?? defaultDeploymentRouteId(projectId));
+  const [deploymentRouteAccess, setDeploymentRouteAccess] = useState<"host_authenticated" | "public">(deploymentDefaults?.route_access ?? "host_authenticated");
+  const [deploymentHealthPath, setDeploymentHealthPath] = useState(deploymentDefaults?.health_path ?? "");
   const loadGeneration = useRef(0);
   const loadInFlight = useRef(false);
   const mounted = useRef(true);
@@ -55,6 +98,21 @@ export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
       loadGeneration.current += 1;
     };
   }, []);
+
+  useEffect(() => {
+    setDeploymentPort(String(deploymentDefaults?.container_port ?? 8080));
+    setDeploymentPortName(deploymentDefaults?.port_name ?? "http");
+    setDeploymentRouteId(deploymentDefaults?.route_id ?? defaultDeploymentRouteId(projectId));
+    setDeploymentRouteAccess(deploymentDefaults?.route_access ?? "host_authenticated");
+    setDeploymentHealthPath(deploymentDefaults?.health_path ?? "");
+  }, [
+    deploymentDefaults?.container_port,
+    deploymentDefaults?.health_path,
+    deploymentDefaults?.port_name,
+    deploymentDefaults?.route_access,
+    deploymentDefaults?.route_id,
+    projectId,
+  ]);
 
   const load = useCallback(async () => {
     if (loadInFlight.current) return;
@@ -86,7 +144,10 @@ export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
   }, [load]);
 
   const hasActiveChange = useMemo(
-    () => changes.some((change) => ACTIVE_STATUSES.has(change.status)),
+    () => changes.some((change) => (
+      ACTIVE_STATUSES.has(change.status)
+      || (change.deployment ? ACTIVE_DEPLOYMENT_STATUSES.has(change.deployment.status) : false)
+    )),
     [changes],
   );
 
@@ -199,6 +260,102 @@ export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
     }
   }, [client, projectId, t, toast]);
 
+  const previewDeployment = useCallback(async (change: DevelopmentChangeRecord) => {
+    const containerPort = Number(deploymentPort);
+    if (!Number.isInteger(containerPort) || containerPort < 1 || containerPort > 65535 || !deploymentPortName.trim() || !deploymentRouteId.trim()) {
+      toast.push({ variant: "error", title: t("projectFrameDevelopmentDeploymentPreviewFailed"), body: t("projectFrameDevelopmentDeploymentInvalidConfig") });
+      return;
+    }
+    if (typeof window !== "undefined" && !window.confirm(t("projectFrameDevelopmentDeploymentPreviewConfirm", targetId, deploymentRouteId.trim()))) return;
+    setBusy(change.change_set.id);
+    try {
+      const updated = await client.createProjectDeploymentPreview(projectId, change.change_set.id, {
+        target_id: targetId,
+        container_port: containerPort,
+        port_name: deploymentPortName.trim(),
+        route_id: deploymentRouteId.trim(),
+        route_access: deploymentRouteAccess,
+        ...(deploymentHealthPath.trim() ? { health_path: deploymentHealthPath.trim() } : {}),
+        idempotency_key: newDevelopmentIdempotencyKey(),
+      });
+      if (!mounted.current) return;
+      loadGeneration.current += 1;
+      setLoading(false);
+      replaceChange(setChanges, updated);
+      onDeploymentChanged?.();
+      toast.push({ variant: "success", title: t("projectFrameDevelopmentDeploymentPreviewStarted") });
+    } catch (error) {
+      if (mounted.current) {
+        toast.push({ variant: "error", title: t("projectFrameDevelopmentDeploymentPreviewFailed"), body: errorMessage(error) });
+      }
+    } finally {
+      if (mounted.current) setBusy(null);
+    }
+  }, [client, deploymentHealthPath, deploymentPort, deploymentPortName, deploymentRouteAccess, deploymentRouteId, onDeploymentChanged, projectId, t, targetId, toast]);
+
+  const decideDeployment = useCallback(async (change: DevelopmentChangeRecord, approved: boolean) => {
+    const deployment = change.deployment;
+    if (approved && deployment && typeof window !== "undefined" && !window.confirm(t(
+      "projectFrameDevelopmentDeploymentApproveConfirm",
+      deployment.target_id,
+      deployment.route_id,
+      deployment.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate"),
+    ))) return;
+    setBusy(change.change_set.id);
+    try {
+      const updated = await client.approveProjectDeployment(projectId, change.change_set.id, {
+        approved,
+        reason: approved
+          ? "approved after inspecting the private deployment preview"
+          : "rejected after inspecting the private deployment preview",
+      });
+      if (!mounted.current) return;
+      loadGeneration.current += 1;
+      setLoading(false);
+      replaceChange(setChanges, updated);
+      onDeploymentChanged?.();
+      toast.push({
+        variant: approved ? "success" : "info",
+        title: approved
+          ? t("projectFrameDevelopmentDeploymentApproved")
+          : t("projectFrameDevelopmentDeploymentRejected"),
+      });
+    } catch (error) {
+      if (mounted.current) {
+        toast.push({ variant: "error", title: t("projectFrameDevelopmentDecisionFailed"), body: errorMessage(error) });
+      }
+    } finally {
+      if (mounted.current) setBusy(null);
+    }
+  }, [client, onDeploymentChanged, projectId, t, toast]);
+
+  const activateDeployment = useCallback(async (change: DevelopmentChangeRecord) => {
+    const deployment = change.deployment;
+    const routeId = deployment?.route_id ?? deploymentRouteId;
+    if (typeof window !== "undefined" && !window.confirm(t(
+      "projectFrameDevelopmentDeploymentActivateConfirm",
+      deployment?.target_id ?? targetId,
+      routeId,
+      deployment?.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate"),
+    ))) return;
+    setBusy(change.change_set.id);
+    try {
+      const updated = await client.activateProjectDeployment(projectId, change.change_set.id);
+      if (!mounted.current) return;
+      loadGeneration.current += 1;
+      setLoading(false);
+      replaceChange(setChanges, updated);
+      onDeploymentChanged?.();
+      toast.push({ variant: "success", title: t("projectFrameDevelopmentDeploymentActivated") });
+    } catch (error) {
+      if (mounted.current) {
+        toast.push({ variant: "error", title: t("projectFrameDevelopmentDeploymentActivationFailed"), body: errorMessage(error) });
+      }
+    } finally {
+      if (mounted.current) setBusy(null);
+    }
+  }, [client, deploymentRouteId, onDeploymentChanged, projectId, t, targetId, toast]);
+
   const exportBundle = useCallback(async (change: DevelopmentChangeRecord) => {
     setBusy(change.change_set.id);
     try {
@@ -283,6 +440,16 @@ export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
           <div className="mt-4 space-y-2">
             {changes.slice(0, 8).map((change) => {
               const isBusy = busy === change.change_set.id;
+              const deployment = change.deployment;
+              const deploymentEligible = change.status === "committed"
+                && change.workspace_ownership === "managed_external"
+                && change.verification_plan.kind === "docker_build";
+              const activeDeploymentRevision = deployment?.activation_revision_id
+                && activeRevision?.revision_id === deployment.activation_revision_id
+                ? activeRevision
+                : null;
+              const previewUrl = safeHttpUrl(deployment?.preview?.public_url);
+              const productionUrl = safeHttpUrl(activeDeploymentRevision?.receipt.public_url);
               const verification = change.verification_plan.kind === "docker_build"
                 ? `${t("projectFrameDevelopmentVerificationDocker")} · ${change.verification_plan.dockerfile ?? "Dockerfile"} · ${change.verification_plan.network_mode ?? "none"}`
                 : t("projectFrameDevelopmentVerificationStatic");
@@ -355,6 +522,235 @@ export function DevelopmentWorkflowCard({ projectId }: { projectId: string }) {
                           ) : null}
                         </div>
                       ) : null}
+                      {deploymentEligible || deployment ? (
+                        <div className="mt-3 rounded-[12px] border border-aged-brass/40 bg-pure-surface p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameDevelopmentDeploymentTitle")}</p>
+                              <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-steel-secondary">
+                                {t("projectFrameDevelopmentDeploymentDescription")}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-whisper-border bg-warm-bone px-2 py-0.5 font-mono text-[10px] text-steel-secondary">
+                                {deployment?.target_id ?? targetId}
+                              </span>
+                              {deployment ? (
+                                <StatusPill
+                                  tone={deploymentStatusTone(deployment.status)}
+                                  label={t(DEPLOYMENT_STATUS_KEYS[deployment.status])}
+                                />
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {!deployment ? (
+                            <>
+                              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                <Field label={t("projectFrameDeployContainerPort")} required>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={65535}
+                                    value={deploymentPort}
+                                    onChange={(event) => setDeploymentPort(event.target.value)}
+                                    className="font-mono"
+                                  />
+                                </Field>
+                                <Field label={t("projectFrameDeployPortName")} required>
+                                  <Input
+                                    value={deploymentPortName}
+                                    onChange={(event) => setDeploymentPortName(event.target.value)}
+                                    className="font-mono"
+                                  />
+                                </Field>
+                                <Field label={t("projectFrameDeployRouteId")} required>
+                                  <Input
+                                    value={deploymentRouteId}
+                                    onChange={(event) => setDeploymentRouteId(event.target.value)}
+                                    className="font-mono"
+                                  />
+                                </Field>
+                                <Field label={t("projectFrameRouteExposure")}>
+                                  <select
+                                    value={deploymentRouteAccess}
+                                    onChange={(event) => setDeploymentRouteAccess(event.target.value as "host_authenticated" | "public")}
+                                    className="h-10 w-full rounded-[10px] border border-whisper-border bg-transparent px-3 text-[13px] text-charcoal-ink outline-none focus-visible:border-aged-brass"
+                                  >
+                                    <option value="host_authenticated">{t("projectFrameRoutePrivate")}</option>
+                                    <option value="public">{t("projectFrameRoutePublic")}</option>
+                                  </select>
+                                </Field>
+                                <Field label={t("projectFrameDeployHealthPath")}>
+                                  <Input
+                                    value={deploymentHealthPath}
+                                    onChange={(event) => setDeploymentHealthPath(event.target.value)}
+                                    placeholder="/healthz"
+                                    className="font-mono"
+                                  />
+                                </Field>
+                              </div>
+                              {deploymentRouteAccess === "public" ? (
+                                <p className="mt-2 text-[11px] leading-relaxed text-deep-rust">{t("projectFrameRoutePublicWarning")}</p>
+                              ) : null}
+                              <div className="mt-3 flex justify-end">
+                                <Button
+                                  tone="primary"
+                                  size="sm"
+                                  disabled={busy !== null}
+                                  onClick={() => void previewDeployment(change)}
+                                >
+                                  {isBusy ? t("projectFrameDevelopmentDeploymentPreviewing") : t("projectFrameDevelopmentDeploymentPreview")}
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <dl className="mt-3 grid gap-2 text-[11px] sm:grid-cols-2">
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDeployRouteId")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.route_id}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentDeploymentSourceTree")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.source_tree_digest}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentReviewVerification")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.verification_ref.digest}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentDeploymentBuildContext")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.build_context_ref.digest}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentReviewAuthority")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.authority_ref.digest}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDeployImage")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">
+                                    {deployment.preview?.image_id ?? deployment.preview?.image ?? deployment.build_id}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDeployContainerPort")}</dt>
+                                  <dd className="mt-1 font-mono text-steel-secondary">{deployment.container_port}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDeployPortName")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.port_name}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameRouteExposure")}</dt>
+                                  <dd className={`mt-1 font-mono ${deployment.route_access === "public" ? "text-deep-rust" : "text-steel-secondary"}`}>
+                                    {deployment.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate")}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentDockerfile")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.dockerfile} · {deployment.network_mode}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-charcoal-ink">{t("projectFrameDeployHealthPath")}</dt>
+                                  <dd className="mt-1 break-all font-mono text-steel-secondary">{deployment.health_path || "—"}</dd>
+                                </div>
+                              </dl>
+
+                              {deployment.route_access === "public" ? (
+                                <p className="mt-3 text-[11px] leading-relaxed text-deep-rust">{t("projectFrameRoutePublicWarning")}</p>
+                              ) : null}
+
+                              {deployment.preview ? (
+                                <div className="mt-3 rounded-[10px] border border-whisper-border bg-warm-bone p-3 text-[11px]">
+                                  <p className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentDeploymentCandidate")}</p>
+                                  <p className="mt-1 break-all font-mono text-steel-secondary">{deployment.preview.deployment.deployment_id}</p>
+                                  {deployment.preview_ref ? (
+                                    <p className="mt-1 break-all font-mono text-[10px] text-muted-tone">{deployment.preview_ref.digest}</p>
+                                  ) : null}
+                                  {previewUrl && ["preview_ready", "approved", "activating", "active"].includes(deployment.status) ? (
+                                    <a
+                                      href={previewUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="mt-2 inline-flex text-[11px] font-semibold text-aged-brass-deep underline underline-offset-2"
+                                    >
+                                      {t("projectFrameDevelopmentDeploymentOpenPreview")}
+                                    </a>
+                                  ) : null}
+                                </div>
+                              ) : null}
+
+                              {deployment.approval_decision ? (
+                                <div className="mt-3 rounded-[10px] border border-whisper-border bg-warm-bone p-3 text-[11px]">
+                                  <p className="font-semibold text-charcoal-ink">{t("projectFrameDevelopmentApprovalRecord")}</p>
+                                  <p className="mt-1 font-mono text-steel-secondary">
+                                    {deployment.approval_decision.outcome} · {new Date(deployment.approval_decision.decided_at).toLocaleString()}
+                                  </p>
+                                  {deployment.approval_decision.reason ? (
+                                    <p className="mt-1 text-steel-secondary">{deployment.approval_decision.reason}</p>
+                                  ) : null}
+                                  {deployment.approval_ref ? (
+                                    <p className="mt-2 break-all font-mono text-[10px] text-muted-tone">{deployment.approval_ref.digest}</p>
+                                  ) : null}
+                                </div>
+                              ) : null}
+
+                              {deployment.status === "recovery_required" ? (
+                                <p className="mt-3 text-[11px] leading-relaxed text-deep-rust">
+                                  {t("projectFrameDevelopmentDeploymentRecoveryHint")}
+                                </p>
+                              ) : null}
+
+                              {productionUrl ? (
+                                <a
+                                  href={productionUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-3 inline-flex text-[11px] font-semibold text-aged-brass-deep underline underline-offset-2"
+                                >
+                                  {t("projectFrameDevelopmentDeploymentOpenProduction")}
+                                </a>
+                              ) : null}
+
+                              {deployment.error ? <p className="mt-3 text-[11px] text-deep-rust">{deployment.error}</p> : null}
+
+                              <div className="mt-3 flex flex-wrap justify-end gap-2">
+                                {deployment.status === "preview_ready" ? (
+                                  <>
+                                    <Button
+                                      tone="secondary"
+                                      size="sm"
+                                      disabled={busy !== null}
+                                      onClick={() => void decideDeployment(change, false)}
+                                    >
+                                      {t("projectFrameDevelopmentReject")}
+                                    </Button>
+                                    <Button
+                                      tone="primary"
+                                      size="sm"
+                                      disabled={busy !== null}
+                                      onClick={() => void decideDeployment(change, true)}
+                                    >
+                                      {t("projectFrameDevelopmentApprove")}
+                                    </Button>
+                                  </>
+                                ) : null}
+                                {deployment.status === "approved" ? (
+                                  <Button
+                                    tone="primary"
+                                    size="sm"
+                                    disabled={busy !== null}
+                                    onClick={() => void activateDeployment(change)}
+                                  >
+                                    {isBusy ? t("projectFrameDevelopmentDeploymentActivating") : t("projectFrameDevelopmentDeploymentActivate")}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Button tone="tertiary" size="sm" disabled={isBusy} onClick={() => void exportBundle(change)}>{t("projectFrameDevelopmentExport")}</Button>
@@ -414,6 +810,34 @@ function developmentStatusTone(status: DevelopmentChangeStatus): StatusTone {
   if (ACTIVE_STATUSES.has(status)) return "starting";
   if (status === "approved") return "accent";
   return "neutral";
+}
+
+function deploymentStatusTone(status: DevelopmentDeploymentStatus): StatusTone {
+  if (status === "active") return "running";
+  if (status === "preview_ready") return "stopped";
+  if (status === "failed" || status === "rejected" || status === "recovery_required") return "failed";
+  if (ACTIVE_DEPLOYMENT_STATUSES.has(status)) return "starting";
+  if (status === "approved") return "accent";
+  return "neutral";
+}
+
+function defaultDeploymentRouteId(projectId: string): string {
+  const normalized = projectId
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+  return normalized || "project-app";
+}
+
+function safeHttpUrl(value?: string): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value, typeof window === "undefined" ? "http://localhost" : window.location.origin);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function compactJson(value: unknown): string {

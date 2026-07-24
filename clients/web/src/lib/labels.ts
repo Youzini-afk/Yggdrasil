@@ -408,6 +408,32 @@ export interface LocaleDictionary {
   projectFrameDevelopmentApprove: string;
   projectFrameDevelopmentExecute: string;
   projectFrameDevelopmentRecover: string;
+  projectFrameDevelopmentDeploymentTitle: string;
+  projectFrameDevelopmentDeploymentDescription: string;
+  projectFrameDevelopmentDeploymentStatusPreparing: string;
+  projectFrameDevelopmentDeploymentStatusBuilding: string;
+  projectFrameDevelopmentDeploymentStatusPreviewing: string;
+  projectFrameDevelopmentDeploymentStatusActivating: string;
+  projectFrameDevelopmentDeploymentInvalidConfig: string;
+  projectFrameDevelopmentDeploymentPreview: string;
+  projectFrameDevelopmentDeploymentPreviewing: string;
+  projectFrameDevelopmentDeploymentPreviewConfirm: (targetId: string, routeId: string) => string;
+  projectFrameDevelopmentDeploymentPreviewStarted: string;
+  projectFrameDevelopmentDeploymentPreviewFailed: string;
+  projectFrameDevelopmentDeploymentSourceTree: string;
+  projectFrameDevelopmentDeploymentBuildContext: string;
+  projectFrameDevelopmentDeploymentCandidate: string;
+  projectFrameDevelopmentDeploymentOpenPreview: string;
+  projectFrameDevelopmentDeploymentApproveConfirm: (targetId: string, routeId: string, exposure: string) => string;
+  projectFrameDevelopmentDeploymentApproved: string;
+  projectFrameDevelopmentDeploymentRejected: string;
+  projectFrameDevelopmentDeploymentActivate: string;
+  projectFrameDevelopmentDeploymentActivating: string;
+  projectFrameDevelopmentDeploymentActivateConfirm: (targetId: string, routeId: string, exposure: string) => string;
+  projectFrameDevelopmentDeploymentActivated: string;
+  projectFrameDevelopmentDeploymentActivationFailed: string;
+  projectFrameDevelopmentDeploymentRecoveryHint: string;
+  projectFrameDevelopmentDeploymentOpenProduction: string;
   projectFrameDeploymentSection: string;
   projectFrameDeploymentDescription: string;
   projectFrameRemoteTargetOperationsOnly: string;
@@ -447,7 +473,7 @@ export interface LocaleDictionary {
   projectFrameDeploymentRolledBackTitle: string;
   projectFrameDeploymentRollbackFailedTitle: string;
   projectFrameDeploymentNotRecoverable: string;
-  projectFrameDeploymentNoDurableHistory: string;
+  projectFrameDeploymentNoActiveOnTarget: (targetId: string) => string;
   projectFrameDeploymentJobHistory: string;
   projectFrameDeploymentCreatedAt: string;
   projectFrameDeploymentSourceCommit: string;
@@ -1217,10 +1243,36 @@ export const labels = {
     projectFrameDevelopmentApprove: "Approve",
     projectFrameDevelopmentExecute: "Execute",
     projectFrameDevelopmentRecover: "Reconcile",
+    projectFrameDevelopmentDeploymentTitle: "Verified deployment",
+    projectFrameDevelopmentDeploymentDescription: "Build the committed CAS context on the selected target, inspect its private preview, then approve and activate that exact candidate.",
+    projectFrameDevelopmentDeploymentStatusPreparing: "Preparing",
+    projectFrameDevelopmentDeploymentStatusBuilding: "Building",
+    projectFrameDevelopmentDeploymentStatusPreviewing: "Previewing",
+    projectFrameDevelopmentDeploymentStatusActivating: "Activating",
+    projectFrameDevelopmentDeploymentInvalidConfig: "Container port, port name, and route ID must be valid.",
+    projectFrameDevelopmentDeploymentPreview: "Create private preview",
+    projectFrameDevelopmentDeploymentPreviewing: "Preparing preview…",
+    projectFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `Build and run this verified change on ${targetId} as a private preview for route ${routeId}?`,
+    projectFrameDevelopmentDeploymentPreviewStarted: "Private deployment preview started",
+    projectFrameDevelopmentDeploymentPreviewFailed: "Could not create deployment preview",
+    projectFrameDevelopmentDeploymentSourceTree: "Verified source tree",
+    projectFrameDevelopmentDeploymentBuildContext: "CAS build context",
+    projectFrameDevelopmentDeploymentCandidate: "Private candidate",
+    projectFrameDevelopmentDeploymentOpenPreview: "Open private preview",
+    projectFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `Approve the exact candidate and evidence shown here for target ${targetId}, route ${routeId}, with ${exposure} exposure?`,
+    projectFrameDevelopmentDeploymentApproved: "Deployment candidate approved",
+    projectFrameDevelopmentDeploymentRejected: "Deployment candidate rejected",
+    projectFrameDevelopmentDeploymentActivate: "Activate",
+    projectFrameDevelopmentDeploymentActivating: "Activating…",
+    projectFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `Atomically switch production route ${routeId} on target ${targetId} to this approved candidate with ${exposure} exposure?`,
+    projectFrameDevelopmentDeploymentActivated: "Verified deployment activated",
+    projectFrameDevelopmentDeploymentActivationFailed: "Could not activate verified deployment",
+    projectFrameDevelopmentDeploymentRecoveryHint: "This candidate requires reconciliation. Inspect its durable target operation and deployment revision before retrying.",
+    projectFrameDevelopmentDeploymentOpenProduction: "Open production route",
     projectFrameDeploymentSection: "Deployment",
     projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
     projectFrameRemoteTargetOperationsOnly:
-      "This target is operated through durable Host target operations. Local-only deploy and build actions are hidden so they cannot silently affect another target.",
+      "Verified artifact deployment, revision recovery, and diagnostics use this selected target. Legacy image and Git deployment actions remain local-only and are hidden here.",
     projectFrameTargetOperations: "Target operations",
     projectFrameTargetOperationEmpty: "No durable target operations have been recorded for this project and target.",
     projectFrameTargetOperationShowDetails: "Show details",
@@ -1257,7 +1309,7 @@ export const labels = {
     projectFrameDeploymentRolledBackTitle: "Deployment rolled back",
     projectFrameDeploymentRollbackFailedTitle: "Deployment rollback failed",
     projectFrameDeploymentNotRecoverable: "Manual rebuild required",
-    projectFrameDeploymentNoDurableHistory: "No durable deployment revision has been recorded for this project.",
+    projectFrameDeploymentNoActiveOnTarget: (targetId) => `No active revision is running on target ${targetId}.`,
     projectFrameDeploymentJobHistory: "Recent deployment jobs",
     projectFrameDeploymentCreatedAt: "Created",
     projectFrameDeploymentSourceCommit: "Source commit",
@@ -2033,10 +2085,36 @@ export const labels = {
     projectFrameDevelopmentApprove: "批准",
     projectFrameDevelopmentExecute: "执行",
     projectFrameDevelopmentRecover: "对账恢复",
+    projectFrameDevelopmentDeploymentTitle: "已验证部署",
+    projectFrameDevelopmentDeploymentDescription: "在选定目标上构建已提交的 CAS 上下文，检查其私有预览，再批准并激活这个精确候选版本。",
+    projectFrameDevelopmentDeploymentStatusPreparing: "正在准备",
+    projectFrameDevelopmentDeploymentStatusBuilding: "正在构建",
+    projectFrameDevelopmentDeploymentStatusPreviewing: "正在生成预览",
+    projectFrameDevelopmentDeploymentStatusActivating: "正在激活",
+    projectFrameDevelopmentDeploymentInvalidConfig: "容器端口、端口名和路由 ID 必须有效。",
+    projectFrameDevelopmentDeploymentPreview: "创建私有预览",
+    projectFrameDevelopmentDeploymentPreviewing: "正在准备预览…",
+    projectFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `在目标 ${targetId} 上构建并运行这个已验证变更，作为路由 ${routeId} 的私有预览？`,
+    projectFrameDevelopmentDeploymentPreviewStarted: "私有部署预览已启动",
+    projectFrameDevelopmentDeploymentPreviewFailed: "无法创建部署预览",
+    projectFrameDevelopmentDeploymentSourceTree: "已验证源码树",
+    projectFrameDevelopmentDeploymentBuildContext: "CAS 构建上下文",
+    projectFrameDevelopmentDeploymentCandidate: "私有候选版本",
+    projectFrameDevelopmentDeploymentOpenPreview: "打开私有预览",
+    projectFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `批准这里展示的精确候选版本与证据，用于目标 ${targetId} 的路由 ${routeId}，暴露范围为“${exposure}”？`,
+    projectFrameDevelopmentDeploymentApproved: "部署候选版本已批准",
+    projectFrameDevelopmentDeploymentRejected: "部署候选版本已拒绝",
+    projectFrameDevelopmentDeploymentActivate: "激活",
+    projectFrameDevelopmentDeploymentActivating: "正在激活…",
+    projectFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `将目标 ${targetId} 的生产路由 ${routeId} 原子切换到这个已批准候选版本，暴露范围为“${exposure}”？`,
+    projectFrameDevelopmentDeploymentActivated: "已验证部署已激活",
+    projectFrameDevelopmentDeploymentActivationFailed: "无法激活已验证部署",
+    projectFrameDevelopmentDeploymentRecoveryHint: "该候选版本需要对账。重试前请先检查它的持久化目标操作与部署修订。",
+    projectFrameDevelopmentDeploymentOpenProduction: "打开生产路由",
     projectFrameDeploymentSection: "部署",
     projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
     projectFrameRemoteTargetOperationsOnly:
-      "该 target 只通过 Host 的持久 target operation 操作。本机专用的部署和构建按钮已隐藏，避免静默作用到错误目标。",
+      "已验证制品部署、修订恢复和诊断会使用当前选定目标；旧版镜像与 Git 部署仍仅限本机，因此在此隐藏。",
     projectFrameTargetOperations: "目标操作",
     projectFrameTargetOperationEmpty: "该项目与目标尚无持久化操作记录。",
     projectFrameTargetOperationShowDetails: "显示详情",
@@ -2073,7 +2151,7 @@ export const labels = {
     projectFrameDeploymentRolledBackTitle: "部署已回滚",
     projectFrameDeploymentRollbackFailedTitle: "部署回滚失败",
     projectFrameDeploymentNotRecoverable: "需要手动重新构建",
-    projectFrameDeploymentNoDurableHistory: "该项目尚无持久化部署修订。",
+    projectFrameDeploymentNoActiveOnTarget: (targetId) => `目标 ${targetId} 当前没有活动修订。`,
     projectFrameDeploymentJobHistory: "近期部署任务",
     projectFrameDeploymentCreatedAt: "创建时间",
     projectFrameDeploymentSourceCommit: "来源提交",

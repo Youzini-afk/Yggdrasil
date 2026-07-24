@@ -927,7 +927,14 @@ function ProjectConsole({
       </div>
 
       <ConsoleSection title={t("projectFrameDevelopmentSection")} description={t("projectFrameDevelopmentDescription")}>
-        <DevelopmentWorkflowCard key={projectId} projectId={projectId} />
+        <DevelopmentWorkflowCard
+          key={`${projectId}:${selectedTargetId}`}
+          projectId={projectId}
+          targetId={selectedTargetId}
+          deploymentDefaults={deploymentParse.descriptor ?? undefined}
+          activeRevision={diagnostics?.deployments?.active_revision}
+          onDeploymentChanged={onRefresh}
+        />
       </ConsoleSection>
 
       <ConsoleSection title={t("projectFrameDeploymentSection")} description={t("projectFrameDeploymentDescription")}>
@@ -951,15 +958,14 @@ function ProjectConsole({
             onCancel={onCancelBuildDeploy}
           />
         ) : null}
-        {selectedTargetId === "local" ? (
-          <DeploymentRevisionHistory
-            deployments={diagnostics?.deployments}
-            operation={deploymentOperation}
-            onRecover={onRecoverDeployment}
-            onRollback={onRollbackDeployment}
-            onStop={onStopDeploymentRoute}
-          />
-        ) : null}
+        <DeploymentRevisionHistory
+          deployments={diagnostics?.deployments}
+          targetId={selectedTargetId}
+          operation={deploymentOperation}
+          onRecover={onRecoverDeployment}
+          onRollback={onRollbackDeployment}
+          onStop={onStopDeploymentRoute}
+        />
         {selectedTargetId !== "local" ? (
           <p className="rounded-[12px] border border-aged-brass/30 bg-aged-brass/10 p-3 text-[12px] text-steel-secondary">
             {t("projectFrameRemoteTargetOperationsOnly")}
@@ -1190,21 +1196,23 @@ function BuildDeployActionCard({
 
 function DeploymentRevisionHistory({
   deployments,
+  targetId,
   operation,
   onRecover,
   onRollback,
   onStop,
 }: {
   deployments?: ProjectDeploymentsResponse;
+  targetId: string;
   operation: DeploymentUiOperation;
   onRecover: () => void;
   onRollback: (revision: DeploymentRevision) => void;
   onStop: (routeId: string) => void;
 }) {
   const t = useT();
-  const active = deployments?.active_revision ?? null;
-  const revisions = deployments?.revisions ?? [];
-  const jobs = deployments?.jobs ?? [];
+  const active = deployments?.active_revision?.target_id === targetId ? deployments.active_revision : null;
+  const revisions = (deployments?.revisions ?? []).filter((revision) => revision.target_id === targetId);
+  const jobs = targetId === "local" ? deployments?.jobs ?? [] : [];
   const busy = operation !== "idle";
 
   return (
@@ -1221,9 +1229,11 @@ function DeploymentRevisionHistory({
                 {operation === "recovering" ? t("projectFrameDeploymentRecovering") : t("projectFrameDeploymentRecover")}
               </Button>
             ) : null}
-            <Button tone="destructive" size="sm" disabled={busy} onClick={() => onStop(active.route_id)}>
-              {operation === "stopping" ? t("projectFrameStoppingDeployment") : t("projectFrameStopDeployment")}
-            </Button>
+            {targetId === "local" && active.source_kind === "git_clone" ? (
+              <Button tone="destructive" size="sm" disabled={busy} onClick={() => onStop(active.route_id)}>
+                {operation === "stopping" ? t("projectFrameStoppingDeployment") : t("projectFrameStopDeployment")}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1234,6 +1244,10 @@ function DeploymentRevisionHistory({
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-tone">{t("projectFrameDeploymentActiveRevision")}</p>
               <p className="mt-1 font-mono text-[12px] text-charcoal-ink">{active.revision_id}</p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] text-steel-secondary">{active.target_id}</span>
+                <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] text-steel-secondary">{active.source_kind.replace("_", " ")}</span>
+              </div>
             </div>
             <StatusPill
               tone={deployments?.runtime_ready ? "running" : "failed"}
@@ -1252,20 +1266,22 @@ function DeploymentRevisionHistory({
           </dl>
           {!active.recoverable ? <p className="mt-3 rounded-[10px] bg-deep-rust-surface p-2 text-[12px] text-deep-rust">{t("projectFrameDeploymentNotRecoverable")}: {active.recovery_blockers.join("; ")}</p> : null}
         </div>
-      ) : <p className="mt-4 text-[12px] text-steel-secondary">{t("projectFrameDeploymentNoDurableHistory")}</p>}
+      ) : <p className="mt-4 text-[12px] text-steel-secondary">{t("projectFrameDeploymentNoActiveOnTarget", targetId)}</p>}
 
       {revisions.length ? (
         <div className="mt-4">
           <p className="text-[12px] font-semibold text-charcoal-ink">{t("projectFrameDeploymentRevisionHistory")}</p>
           <div className="mt-2 space-y-2">
             {revisions.slice(0, 8).map((revision) => {
-              const isActive = revision.revision_id === deployments?.active_revision_id;
+              const isActive = revision.revision_id === active?.revision_id;
               return (
                 <div key={revision.revision_id} className="flex flex-col gap-3 rounded-[12px] border border-whisper-border bg-warm-bone p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-[12px] text-charcoal-ink">{revision.revision_id}</span>
                       <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] uppercase text-steel-secondary">{revision.operation.replace("_", " ")}</span>
+                      <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] text-steel-secondary">{revision.target_id}</span>
+                      <span className="rounded-full border border-whisper-border bg-pure-surface px-2 py-0.5 font-mono text-[10px] text-steel-secondary">{revision.source_kind.replace("_", " ")}</span>
                       {isActive ? <StatusPill tone="accent" label={t("projectFrameDeploymentActiveRevision")} showDot={false} /> : null}
                     </div>
                     <p className="mt-1 truncate text-[11px] text-steel-secondary" title={revision.image}>{revision.image} · {revision.route_access === "public" ? t("projectFrameRoutePublic") : t("projectFrameRoutePrivate")} · {new Date(revision.created_at_ms).toLocaleString()}</p>
