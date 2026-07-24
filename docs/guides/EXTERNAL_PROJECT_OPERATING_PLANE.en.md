@@ -108,7 +108,7 @@ Development execute/recover carries the authenticated identity, but never its cr
 - Home/Play displays an External Project Operating Plane rail.
 - Forge displays an External Projects / Managed Workspaces panel.
 - Assistant drawer displays lightweight inspect / draft patch / generate adapter plan entries.
-- The project console Development area uses the public Host API to draft, review, approve, execute, export, and recover ChangeSets and to complete verified private preview, separate deployment approval, activation, and interrupted-operation reconciliation. It never reads or writes a workspace directly.
+- The project console Development area and `ygg host access ... changes` CLI use the public Host API to draft, review, approve, execute, export, and recover ChangeSets. The console also completes verified private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Neither client reads or writes a workspace directly.
 - UI does not read SQLite, runtime internals, local project directories, or process state.
 
 ## Security red lines
@@ -148,7 +148,7 @@ External intake, controlled source ChangeSets, verified local/Agent deployment, 
 
 - fine-grained artifact read permissions, encryption/retention policy, reachability GC, and journal snapshot compaction;
 - more explicit verifiers and sandbox backends, each declaring network, secret, resource, and effect needs instead of collapsing into a generic shell runner;
-- human/tool-assisted application of native verified bundles, plus deeper project graphs, dependency-risk analysis, guided adapter/deployment-descriptor authoring, and same-contract CLI mutation UX;
+- human/tool-assisted application of native verified bundles, plus deeper project graphs, dependency-risk analysis, and guided adapter/deployment-descriptor authoring;
 - separately designed target-edge ingress and application identity; arbitrary network proxying and a general remote shell remain explicit non-goals.
 
 These should still proceed as ordinary package and Host-executor substrate, not as kernel product ontology.

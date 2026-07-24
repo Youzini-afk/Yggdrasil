@@ -400,6 +400,45 @@ pub enum HostAccessCommand {
         #[arg(long)]
         target: Option<String>,
     },
+    /// Operate project ChangeSets through the public Host API.
+    Changes {
+        /// Project id. Defaults to the selected connection context.
+        #[arg(long)]
+        project: Option<String>,
+        #[command(subcommand)]
+        command: HostChangeCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum HostChangeCommand {
+    /// List durable ChangeSets for the project.
+    List,
+    /// Read one durable ChangeSet.
+    Get { change_set_id: String },
+    /// Draft a ChangeSet from a typed JSON request file; use `-` for stdin.
+    Draft {
+        #[arg(long, value_name = "PATH")]
+        request: PathBuf,
+    },
+    /// Approve an exact drafted ChangeSet.
+    Approve {
+        change_set_id: String,
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Reject an exact drafted ChangeSet.
+    Reject {
+        change_set_id: String,
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Begin asynchronous execution of an approved ChangeSet.
+    Execute { change_set_id: String },
+    /// Reconcile a ChangeSet in recovery-required state.
+    Recover { change_set_id: String },
+    /// Print the artifact-backed patch bundle for a ChangeSet.
+    Bundle { change_set_id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -822,6 +861,40 @@ mod tests {
         assert!(!write);
         assert!(json);
         assert!(!all_aliases);
+    }
+
+    #[test]
+    fn parses_public_host_changes_draft() {
+        let cli = Cli::try_parse_from([
+            "ygg",
+            "host",
+            "access",
+            "--access-token",
+            "test-token",
+            "changes",
+            "--project",
+            "project-1",
+            "draft",
+            "--request",
+            "change.json",
+        ])
+        .expect("parse Host ChangeSet draft command");
+        let Command::Host {
+            command:
+                HostCommand::Access {
+                    command:
+                        HostAccessCommand::Changes {
+                            project,
+                            command: HostChangeCommand::Draft { request },
+                        },
+                    ..
+                },
+        } = cli.command
+        else {
+            panic!("expected Host ChangeSet draft command");
+        };
+        assert_eq!(project.as_deref(), Some("project-1"));
+        assert_eq!(request, PathBuf::from("change.json"));
     }
 
     #[test]

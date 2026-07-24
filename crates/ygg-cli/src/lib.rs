@@ -7,8 +7,8 @@ pub mod templates;
 
 use cli::{
     CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, ContractCommand,
-    HostAccessCommand, HostCommand, HostConnectionCommand, ManifestCommand, PackageCommand,
-    PerfCommand, TargetAgentCommand, WorldBundleCommand,
+    HostAccessCommand, HostChangeCommand, HostCommand, HostConnectionCommand, ManifestCommand,
+    PackageCommand, PerfCommand, TargetAgentCommand, WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
@@ -114,6 +114,96 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                             &target_id,
                         )
                         .await
+                    }
+                    HostAccessCommand::Changes { project, command } => {
+                        let project_id = project.or(context.project_id).ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "project id is required; pass --project or select `host connection context`"
+                            )
+                        })?;
+                        match command {
+                            HostChangeCommand::List => {
+                                commands::host_changes::list(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Get { change_set_id } => {
+                                commands::host_changes::get(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &change_set_id,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Draft { request } => {
+                                commands::host_changes::draft(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &request,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Approve {
+                                change_set_id,
+                                reason,
+                            } => {
+                                commands::host_changes::decide(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &change_set_id,
+                                    true,
+                                    reason,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Reject {
+                                change_set_id,
+                                reason,
+                            } => {
+                                commands::host_changes::decide(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &change_set_id,
+                                    false,
+                                    reason,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Execute { change_set_id } => {
+                                commands::host_changes::execute(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &change_set_id,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Recover { change_set_id } => {
+                                commands::host_changes::recover(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &change_set_id,
+                                )
+                                .await
+                            }
+                            HostChangeCommand::Bundle { change_set_id } => {
+                                commands::host_changes::bundle(
+                                    &context.endpoint,
+                                    &access_token,
+                                    &project_id,
+                                    &change_set_id,
+                                )
+                                .await
+                            }
+                        }
                     }
                 }
             }

@@ -6,6 +6,7 @@ pub(crate) mod contract;
 pub(crate) mod demo;
 pub mod host;
 pub mod host_access;
+pub mod host_changes;
 pub mod host_connection;
 pub(crate) mod host_data;
 pub mod install;

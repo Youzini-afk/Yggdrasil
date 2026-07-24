@@ -199,7 +199,7 @@ fn normalized_ids(ids: Vec<String>, kind: &str) -> anyhow::Result<Vec<String>> {
     Ok(normalized)
 }
 
-async fn request(
+pub(crate) async fn request(
     endpoint: &str,
     access_token: &str,
     method: Method,
@@ -278,7 +278,7 @@ pub(crate) fn host_url(endpoint: &str, path: &str) -> anyhow::Result<url::Url> {
         .context("failed to resolve Host API URL")
 }
 
-fn print_json(value: Value) -> anyhow::Result<()> {
+pub(crate) fn print_json(value: Value) -> anyhow::Result<()> {
     println!("{}", serde_json::to_string_pretty(&value)?);
     Ok(())
 }

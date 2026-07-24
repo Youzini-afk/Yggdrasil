@@ -104,9 +104,13 @@ ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
 ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   bulk-revoke <grant-id> <grant-id> ...
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 list
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 draft --request change.json
 ```
 
-`--endpoint` / `YGG_HOST_URL` still overrides the selected connection for one command. `ygg host connection local` returns to the default loopback Host.
+`changes` also exposes `get`, `bundle`, `approve`, `reject`, `execute`, and `recover`; every command uses the same public ChangeSet API as Web/Desktop/PWA. `--endpoint` / `YGG_HOST_URL` still overrides the selected connection for one command. `ygg host connection local` returns to the default loopback Host.
 
 ## HTTPS and same-origin requirements
 

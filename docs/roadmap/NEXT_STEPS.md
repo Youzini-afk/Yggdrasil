@@ -75,7 +75,7 @@
 - Host 设备身份已具备 project/target selector、delegation chain、祖先撤销级联、脱敏 allow/deny journal、有界原子的管理员批量撤销，以及开发长操作效应边界上的持续 grant 再授权。
 - 增加更多显式 verifier 与 sandbox backend；每一种都必须声明网络、secret、资源和效果，不能退化为通用 shell runner。
 - 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
-- 部署与创作 UX polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及更丰富但仍走 ChangeSet 审批的部署描述符、adapter 引导式创作和 CLI mutation UX。
+- 部署与创作 UX polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及在 Web 与公开 API ChangeSet CLI 上继续丰富部署描述符、adapter 引导式创作。
 - target-edge ingress 与应用身份需要单独设计；任意网络代理和通用远程 shell 仍明确不做。
 
 ### 模型与出站

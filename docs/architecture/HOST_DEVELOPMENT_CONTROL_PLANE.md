@@ -52,6 +52,42 @@ flowchart LR
 
 这些路由位于 Host 认证 middleware 内。root token 仍是完整 Host 门禁；paired device 的源码路由通过 `develop_propose`、`develop_approve`、`develop_execute` 三个独立 scope 衰减权限，部署四条路由要求独立的 `deploy` scope。所有 project 路由都校验精确 project selector，部署路由还校验请求或 durable record 绑定的 target selector；未知写操作 fail closed。execute/recover 会保留不含凭据的认证身份，在 Docker 与 managed-workspace 效应前刷新当前 grant/祖先状态，并在阻塞验证结束后再次复核。已撤销或过期的 grant 不能启动后续效应；已经在途的单个效应可能完成，之后通过显式 recovery 路径对账。`host serve` 绑定非 loopback 地址时仍必须提供非空 root token。设备 pairing、撤销、HTTPS 与 Cookie 边界见 [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.md)。
 
+## CLI 生命周期
+
+`ygg host access ... changes` 只使用上表公开路由和当前选择的 Host/project 连接 context。草拟输入就是精确的类型化 JSON 请求，通过有界文件读取，或以 `--request -` 从 stdin 读取；CLI 不读取 workspace，也不直接写 Host journal。
+
+```json
+{
+  "goal": "更新应用标题",
+  "operations": [
+    {
+      "op": "file_write",
+      "path": "src/title.txt",
+      "content": "Yggdrasil\n"
+    }
+  ],
+  "verification": { "kind": "static_validation" },
+  "idempotency_key": "title-update-1"
+}
+```
+
+```bash
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 draft --request change.json
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 approve <change-set-id> --reason reviewed
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 execute <change-set-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 get <change-set-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 bundle <change-set-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 recover <change-set-id>
+```
+
+`list` 与 `reject` 补齐同一生命周期。execute 是异步操作；JSON 响应会说明任务是否被接受，`get`/`list` 读取 durable 状态。省略 `--project` 时使用 `ygg host connection context` 当前选择的项目。
+
 ## 所有权行为
 
 | Workspace ownership | 草拟 | scratch 验证 | 自动写回 |

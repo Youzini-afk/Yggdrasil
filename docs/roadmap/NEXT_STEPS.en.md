@@ -76,7 +76,7 @@ These are known to-dos. Priority follows real friction.
 - Host device identity now has project/target selectors, delegation chains, ancestor-revocation cascade, redacted allow/deny journals, bounded atomic administrator bulk revoke, and continuous grant reauthorization at long-running development effect boundaries.
 - Add more explicit verifiers and sandbox backends. Each must declare network, secret, resource, and effect needs and must not collapse into a generic shell runner.
 - Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
-- Deployment and authoring UX polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and richer guided deployment-descriptor/adapter authoring plus CLI mutation UX that still crosses ChangeSet approval.
+- Deployment and authoring UX polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and richer guided deployment-descriptor/adapter authoring across Web and the public-API ChangeSet CLI.
 - Target-edge ingress and application identity need separate designs; arbitrary network proxying and a general remote shell remain explicit non-goals.
 
 ### Models and outbound

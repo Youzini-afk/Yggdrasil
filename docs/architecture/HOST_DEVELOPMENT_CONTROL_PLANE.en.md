@@ -52,6 +52,42 @@ Deployment is a second independent transaction. Only a committed `managed_extern
 
 All routes are inside Host authentication middleware. The root token remains the complete Host gate. Source routes attenuate paired-device authority through separate `develop_propose`, `develop_approve`, and `develop_execute` scopes; the four deployment routes require the separate `deploy` scope. Every project route checks the exact project selector, and deployment routes also check the target selector bound by the request or durable record; unknown mutations fail closed. Execute/recover retains the authenticated identity without credentials, refreshes current grant/ancestor state before Docker and managed-workspace effects, and rechecks after blocking verification. A revoked or expired grant cannot begin a later effect; an already in-flight effect may finish and is reconciled through the explicit recovery path. `host serve` still requires a non-empty root token for a non-loopback bind. See [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) for device pairing, revocation, HTTPS, and cookie boundaries.
 
+## CLI lifecycle
+
+`ygg host access ... changes` uses only the routes above and the selected Host/project connection context. Draft input is the exact typed JSON request, read from a bounded file or from stdin with `--request -`; the CLI does not read a workspace or write the Host journal directly.
+
+```json
+{
+  "goal": "Update the application title",
+  "operations": [
+    {
+      "op": "file_write",
+      "path": "src/title.txt",
+      "content": "Yggdrasil\n"
+    }
+  ],
+  "verification": { "kind": "static_validation" },
+  "idempotency_key": "title-update-1"
+}
+```
+
+```bash
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 draft --request change.json
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 approve <change-set-id> --reason reviewed
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 execute <change-set-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 get <change-set-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 bundle <change-set-id>
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 recover <change-set-id>
+```
+
+`list` and `reject` complete the same lifecycle. Execute is asynchronous; its JSON response reports whether work was accepted, and `get`/`list` reads the durable status. Omitting `--project` uses the project selected by `ygg host connection context`.
+
 ## Ownership behavior
 
 | Workspace ownership | Draft | Scratch verification | Automatic write-back |

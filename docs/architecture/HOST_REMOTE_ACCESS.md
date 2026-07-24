@@ -104,9 +104,13 @@ ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
 ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
   bulk-revoke <grant-id> <grant-id> ...
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 list
+ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+  changes --project my-project__abc12345 draft --request change.json
 ```
 
-`--endpoint` / `YGG_HOST_URL` 仍可为单次命令覆盖当前连接；`ygg host connection local` 返回默认 loopback Host。
+`changes` 还提供 `get`、`bundle`、`approve`、`reject`、`execute` 与 `recover`；所有命令都使用和 Web/Desktop/PWA 相同的公开 ChangeSet API。`--endpoint` / `YGG_HOST_URL` 仍可为单次命令覆盖当前连接；`ygg host connection local` 返回默认 loopback Host。
 
 ## HTTPS 与同源要求
 
