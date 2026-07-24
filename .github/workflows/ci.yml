@@ -114,6 +114,39 @@ jobs:
       - name: ygg conformance
         run: cargo run -p ygg-cli --release -- conformance
 
+  host-operations-acceptance:
+    name: External project Host operations acceptance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Build the public CLI and Host
+        run: cargo build --locked -p ygg-cli
+
+      - name: Cache acceptance runtime bases
+        run: |
+          docker pull nginx:1.27-alpine
+          docker pull python:3.13-alpine
+
+      - name: Exercise external development, deployment, recovery, and rollback
+        env:
+          YGG_HOST_OPERATIONS_ACCEPTANCE: "1"
+          YGG_HOST_OPERATIONS_OUTPUT_DIR: target/host-operations-acceptance
+        run: python3 scripts/host-operations-acceptance.py
+
+      - name: Upload Host acceptance diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-operations-acceptance-${{ github.sha }}
+          path: target/host-operations-acceptance
+          retention-days: 3
+
   host-data-windows:
     name: Windows Host backup + restore
     runs-on: windows-2022
