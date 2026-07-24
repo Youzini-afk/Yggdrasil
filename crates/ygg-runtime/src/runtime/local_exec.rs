@@ -1253,6 +1253,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn local_target_supports_verified_artifact_deployment() {
+        let target = ExecutionTargetRegistry::new()
+            .status("local")
+            .await
+            .expect("built-in local target");
+        for capability in [
+            ExecutionTargetCapability::ArtifactTransfer,
+            ExecutionTargetCapability::DeclarativeVerifier,
+            ExecutionTargetCapability::Deployment,
+        ] {
+            assert!(target.declared_capabilities.contains(&capability));
+            assert!(target.capabilities.contains(&capability));
+        }
+    }
+
+    #[tokio::test]
     async fn live_local_exec_timeout_kills_long_running_command() -> anyhow::Result<()> {
         let Some(sleep) = first_existing(&["/bin/sleep", "/usr/bin/sleep"]) else {
             eprintln!("skipping: sleep binary not found");
@@ -1526,6 +1542,8 @@ impl ExecutionTargetRegistry {
             ExecutionTargetCapability::PortLease,
             ExecutionTargetCapability::HttpProxyUpstream,
             ExecutionTargetCapability::WebsocketProxyUpstream,
+            ExecutionTargetCapability::ArtifactTransfer,
+            ExecutionTargetCapability::DeclarativeVerifier,
             ExecutionTargetCapability::HealthProbe,
             ExecutionTargetCapability::Deployment,
         ];
