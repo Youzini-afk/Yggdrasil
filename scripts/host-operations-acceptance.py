@@ -205,6 +205,7 @@ def start_host(
                 token,
             ],
             cwd=ROOT,
+            env={**os.environ, "RUST_LOG": os.environ.get("RUST_LOG", "ygg_service=warn")},
             text=True,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
@@ -319,7 +320,30 @@ def wait_for_deployment(
         if status == wanted:
             return record
         if status in TERMINAL_DEPLOYMENT_FAILURES:
-            raise AcceptanceError(f"deployment for {change_id} reached {status}: {deployment.get('error')}")
+            operation_diagnostics = []
+            for operation_kind in ("build_operation_id", "deployment_operation_id"):
+                operation_id = deployment.get(operation_kind)
+                if not isinstance(operation_id, str):
+                    continue
+                operation = http_json(
+                    host,
+                    f"/host/v1/targets/{urllib.parse.quote(deployment['target_id'], safe='')}"
+                    f"/operations/{urllib.parse.quote(operation_id, safe='')}",
+                )
+                receipt = operation.get("receipt")
+                operation_diagnostics.append(
+                    {
+                        "role": operation_kind,
+                        "status": operation.get("status"),
+                        "kind": operation.get("spec", {}).get("kind"),
+                        "receipt_status": receipt.get("status") if isinstance(receipt, dict) else None,
+                        "diagnostics": receipt.get("diagnostics") if isinstance(receipt, dict) else [],
+                    }
+                )
+            raise AcceptanceError(
+                f"deployment for {change_id} reached {status}: {deployment.get('error')}; "
+                f"target operations={json.dumps(operation_diagnostics, sort_keys=True)}"
+            )
         time.sleep(1)
     raise AcceptanceError(f"deployment for {change_id} did not reach {wanted} within {timeout}s")
 
